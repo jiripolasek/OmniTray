@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<UserControl
+    x:Class="OmniTray.Controls.DropCommandTrayContent"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid
+        x:Name="RootGrid"
+        AllowDrop="True"
+        Background="Transparent"
+        DragLeave="OnDragLeave"
+        DragOver="OnDragOver"
+        Drop="OnDrop">
+        <Button
+            x:Name="NormalContent"
+            Margin="10,2,10,10"
+            Padding="12"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch"
+            HorizontalContentAlignment="Stretch"
+            VerticalContentAlignment="Stretch"
+            AutomationProperties.HelpText="Drop compatible content here, or press Enter to choose an OmniTray stack"
+            AutomationProperties.Name="{x:Bind ViewModel.Name, Mode=OneWay}"
+            Background="Transparent"
+            BorderThickness="0"
+            Click="OnChooseStackClick"
+            CornerRadius="10"
+            IsEnabled="{x:Bind ViewModel.IsEnabled, Mode=OneWay}">
+            <StackPanel
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="8">
+                <Border
+                    Width="64"
+                    Height="56"
+                    HorizontalAlignment="Center"
+                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                    BorderBrush="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
+                    BorderThickness="1"
+                    CornerRadius="10">
+                    <FontIcon FontSize="28" Glyph="{x:Bind ViewModel.Glyph, Mode=OneWay}" />
+                </Border>
+                <TextBlock
+                    MaxWidth="160"
+                    HorizontalAlignment="Center"
+                    FontWeight="SemiBold"
+                    MaxLines="2"
+                    Text="{x:Bind ViewModel.Name, Mode=OneWay}"
+                    TextAlignment="Center"
+                    TextTrimming="CharacterEllipsis"
+                    TextWrapping="WrapWholeWords" />
+                <TextBlock
+                    MaxWidth="160"
+                    HorizontalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    MaxLines="2"
+                    Style="{ThemeResource CaptionTextBlockStyle}"
+                    Text="{x:Bind ViewModel.Summary, Mode=OneWay}"
+                    TextAlignment="Center"
+                    TextTrimming="CharacterEllipsis"
+                    TextWrapping="WrapWholeWords" />
+                <TextBlock
+                    MaxWidth="160"
+                    HorizontalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                    MaxLines="1"
+                    Style="{ThemeResource CaptionTextBlockStyle}"
+                    Text="{x:Bind ViewModel.AcceptanceText, Mode=OneWay}"
+                    TextAlignment="Center"
+                    TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+        </Button>
+
+        <Button
+            x:Name="MinimalContent"
+            Margin="0"
+            Padding="8"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch"
+            HorizontalContentAlignment="Stretch"
+            VerticalContentAlignment="Stretch"
+            AutomationProperties.HelpText="Drop compatible content here, or press Enter to choose an OmniTray stack"
+            AutomationProperties.Name="{x:Bind ViewModel.AccessibleName, Mode=OneWay}"
+            Background="Transparent"
+            BorderThickness="0"
+            Click="OnChooseStackClick"
+            CornerRadius="6"
+            IsEnabled="{x:Bind ViewModel.IsEnabled, Mode=OneWay}"
+            ToolTipService.ToolTip="{x:Bind ViewModel.Name, Mode=OneWay}"
+            Visibility="Collapsed">
+            <Grid>
+                <Border
+                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                    BorderBrush="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                    <FontIcon
+                        FontSize="26"
+                        Foreground="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
+                        Glyph="{x:Bind ViewModel.Glyph, Mode=OneWay}" />
+                </Border>
+                <Border
+                    x:Name="DropOutline"
+                    BorderBrush="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
+                    BorderThickness="3"
+                    CornerRadius="8"
+                    IsHitTestVisible="False"
+                    Visibility="Collapsed" />
+            </Grid>
+        </Button>
+
+        <Border
+            x:Name="DropHintOverlay"
+            Margin="8"
+            Padding="14"
+            AutomationProperties.Name="Run this drop command"
+            Background="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
+            Canvas.ZIndex="20"
+            CornerRadius="10"
+            IsHitTestVisible="False"
+            Opacity="0.96"
+            Visibility="Collapsed">
+            <StackPanel
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="8">
+                <FontIcon
+                    FontSize="34"
+                    Foreground="{x:Bind ViewModel.TintForegroundBrush, Mode=OneWay}"
+                    Glyph="{x:Bind ViewModel.Glyph, Mode=OneWay}" />
+                <TextBlock
+                    MaxWidth="160"
+                    HorizontalAlignment="Center"
+                    FontWeight="SemiBold"
+                    Foreground="{x:Bind ViewModel.TintForegroundBrush, Mode=OneWay}"
+                    Text="{x:Bind ViewModel.Name, Mode=OneWay}"
+                    TextAlignment="Center"
+                    TextTrimming="CharacterEllipsis"
+                    TextWrapping="WrapWholeWords" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

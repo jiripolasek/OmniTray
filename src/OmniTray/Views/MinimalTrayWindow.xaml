@@ -1,0 +1,72 @@
+<views:TransparentWindow
+    x:Class="OmniTray.Views.MinimalTrayWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:views="using:OmniTray.Views"
+    Title="Minimal tray"
+    mc:Ignorable="d">
+    <Grid
+        x:Name="RootGrid"
+        AutomationProperties.Name="{x:Bind ViewModel.AccessibleName, Mode=OneWay}"
+        Background="Transparent"
+        DoubleTapped="OnRootDoubleTapped"
+        IsDoubleTapEnabled="True"
+        PointerEntered="OnRootPointerEntered"
+        PointerExited="OnRootPointerExited">
+        <ContentPresenter
+            x:Name="ContentHost"
+            HorizontalContentAlignment="Stretch"
+            VerticalContentAlignment="Stretch">
+            <ContentPresenter.ContextFlyout>
+                <MenuFlyout
+                    x:Name="TrayContextFlyout"
+                    Closed="OnTrayContextFlyoutClosed"
+                    Opened="OnTrayContextFlyoutOpened">
+                    <MenuFlyoutItem
+                        Click="OnExpandMenuClick"
+                        Icon="BackToWindow"
+                        Text="Expand tray" />
+                    <MenuFlyoutSeparator x:Name="ContentActionsSeparator" Visibility="Collapsed" />
+                    <MenuFlyoutItem
+                        Click="OnColorTintMenuClick"
+                        Icon="Highlight"
+                        Text="Color…" />
+                    <MenuFlyoutSeparator />
+                    <MenuFlyoutItem
+                        Click="OnCloseTrayMenuClick"
+                        Icon="Cancel"
+                        Text="Close tray" />
+                </MenuFlyout>
+            </ContentPresenter.ContextFlyout>
+        </ContentPresenter>
+
+        <Grid
+            x:Name="WindowDragHandle"
+            Height="18"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Top"
+            AutomationProperties.HelpText="Drag to move this tray window"
+            AutomationProperties.Name="Move tray window"
+            Background="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
+            CornerRadius="8,8,0,0"
+            Opacity="0"
+            ToolTipService.ToolTip="Drag to move tray">
+            <Border
+                Width="28"
+                Height="3"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Background="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
+                CornerRadius="2"
+                IsHitTestVisible="False" />
+        </Grid>
+
+        <Border
+            BorderBrush="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
+            BorderThickness="1"
+            CornerRadius="8"
+            IsHitTestVisible="False" />
+    </Grid>
+</views:TransparentWindow>

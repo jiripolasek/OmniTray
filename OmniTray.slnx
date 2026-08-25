@@ -1,0 +1,21 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/src/">
+    <Project Path="src/OmniTray.Core/OmniTray.Core.csproj" />
+    <Project Path="src/OmniTray.CommandPalette/OmniTray.CommandPalette.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/OmniTray.CommandPalette.Package/OmniTray.CommandPalette.Package.wapproj" Type="c7167f0d-bc9f-4e6e-afe1-012c56b48db5">
+      <Platform Project="x64" />
+      <Build Solution="*|x64" Project="false" />
+    </Project>
+    <Project Path="src/OmniTray/OmniTray.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/OmniTray.Core.Tests/OmniTray.Core.Tests.csproj" />
+  </Folder>
+</Solution>

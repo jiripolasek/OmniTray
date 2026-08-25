@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<UserControl
+    x:Class="OmniTray.Controls.StackItemsOrganizer"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:OmniTray.Controls"
+    xmlns:viewModels="using:OmniTray.ViewModels">
+    <StackPanel Spacing="6">
+        <ListView
+            x:Name="ItemList"
+            AllowDrop="True"
+            AutomationProperties.HelpText="Hover with a mouse, or use the context menu, to show commands. Drag to reorder or move; hold Control while dragging to copy."
+            AutomationProperties.Name="Items in expanded stack"
+            CanDragItems="True"
+            CanReorderItems="False"
+            DragItemsCompleted="OnItemDragItemsCompleted"
+            DragItemsStarting="OnItemDragItemsStarting"
+            DragLeave="OnItemListDragLeave"
+            DragOver="OnItemListDragOver"
+            Drop="OnItemListDrop"
+            KeyDown="OnItemListKeyDown"
+            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+            ScrollViewer.HorizontalScrollMode="Disabled"
+            ScrollViewer.VerticalScrollBarVisibility="Disabled"
+            ScrollViewer.VerticalScrollMode="Disabled"
+            SelectionChanged="OnItemSelectionChanged"
+            SelectionMode="Extended">
+            <ListView.ContextFlyout>
+                <CommandBarFlyout
+                    x:Name="SelectionCommandsFlyout"
+                    AutomationProperties.Name="Selected item commands"
+                    Closed="OnSelectionCommandsFlyoutClosed">
+                    <CommandBarFlyout.PrimaryCommands>
+                        <AppBarButton
+                            x:Name="MoveSelectionUpButton"
+                            AutomationProperties.Name="Move selected items up"
+                            Click="OnMoveSelectionUpClick"
+                            Label="Move up"
+                            ToolTipService.ToolTip="Move up">
+                            <AppBarButton.Icon>
+                                <FontIcon Glyph="&#xE70E;" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+                        <AppBarButton
+                            x:Name="MoveSelectionDownButton"
+                            AutomationProperties.Name="Move selected items down"
+                            Click="OnMoveSelectionDownClick"
+                            Label="Move down"
+                            ToolTipService.ToolTip="Move down">
+                            <AppBarButton.Icon>
+                                <FontIcon Glyph="&#xE70D;" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+                        <AppBarButton
+                            x:Name="SplitSelectionButton"
+                            AutomationProperties.Name="Split selected items into a new stack"
+                            Click="OnSplitSelectionClick"
+                            Label="Split"
+                            ToolTipService.ToolTip="Split into a new stack">
+                            <AppBarButton.Icon>
+                                <FontIcon Glyph="&#xE8C6;" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+                        <AppBarButton
+                            x:Name="RemoveSelectionButton"
+                            AutomationProperties.Name="Remove selected items"
+                            Click="OnRemoveSelectionClick"
+                            Icon="Remove"
+                            Label="Remove"
+                            ToolTipService.ToolTip="Remove from stack" />
+                    </CommandBarFlyout.PrimaryCommands>
+                    <CommandBarFlyout.SecondaryCommands>
+                        <AppBarButton
+                            x:Name="DuplicateSelectionButton"
+                            AutomationProperties.Name="Duplicate selected items"
+                            Click="OnDuplicateSelectionClick"
+                            Icon="Copy"
+                            Label="Duplicate" />
+                    </CommandBarFlyout.SecondaryCommands>
+                </CommandBarFlyout>
+            </ListView.ContextFlyout>
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    <Setter Property="Margin" Value="0,0,0,2" />
+                    <Setter Property="Padding" Value="0" />
+                </Style>
+            </ListView.ItemContainerStyle>
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="viewModels:DropItemViewModel">
+                    <Grid
+                        MinHeight="48"
+                        Padding="32,8,8,8"
+                        AllowDrop="True"
+                        AutomationProperties.Name="{x:Bind AccessibleName}"
+                        Background="{ThemeResource SubtleFillColorTransparentBrush}"
+                        ColumnSpacing="9"
+                        ContextRequested="OnItemRowContextRequested"
+                        PointerEntered="OnItemRowPointerEntered"
+                        PointerExited="OnItemRowPointerExited"
+                        Tag="{x:Bind}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="40" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="0" />
+                        </Grid.ColumnDefinitions>
+                        <Grid Width="38" Height="38">
+                            <Border
+                                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6">
+                                <Image
+                                    Source="{x:Bind ThumbnailSource, Mode=OneWay}"
+                                    Stretch="UniformToFill"
+                                    Visibility="{x:Bind ThumbnailVisibility, Mode=OneWay}" />
+                            </Border>
+                            <FontIcon
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="17"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Glyph="{x:Bind LeadingGlyph}"
+                                Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}" />
+                        </Grid>
+                        <StackPanel
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Spacing="1">
+                            <TextBlock
+                                MaxLines="1"
+                                Text="{x:Bind DisplayName}"
+                                TextTrimming="CharacterEllipsis" />
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                Text="{x:Bind KindLabel}" />
+                        </StackPanel>
+                        <FontIcon
+                            Grid.Column="2"
+                            VerticalAlignment="Center"
+                            AutomationProperties.Name="Drag item"
+                            FontSize="12"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Glyph="&#xE700;"
+                            Opacity="0.62" />
+                        <controls:InsertionAdorner x:Name="ItemInsertionAdorner" Grid.ColumnSpan="3" />
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+
+        <TextBlock
+            x:Name="EmptyMessage"
+            Margin="0,6"
+            HorizontalAlignment="Center"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            Style="{ThemeResource CaptionTextBlockStyle}"
+            Text="This stack is empty."
+            Visibility="Collapsed" />
+
+    </StackPanel>
+</UserControl>

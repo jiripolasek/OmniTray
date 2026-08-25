@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "OmniTray (Package)": {
+      "commandName": "MsixPackage",
+      "nativeDebugging": true
+    },
+    "OmniTray (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

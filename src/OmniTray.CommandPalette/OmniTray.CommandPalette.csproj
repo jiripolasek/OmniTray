@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <OutputType>WinExe</OutputType>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyName>OmniTray.CommandPalette</AssemblyName>
+    <RootNamespace>OmniTray.CommandPalette</RootNamespace>
+
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Platforms>x64;ARM64</Platforms>
+    <PlatformTarget>$(Platform)</PlatformTarget>
+
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(Platform)' == 'x64'">win-x64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(Platform)' == 'ARM64'">win-arm64</RuntimeIdentifier>
+    <PublishProfile Condition="'$(_IsPublishing)' == 'true'">win-$(Platform).pubxml</PublishProfile>
+    <SelfContained>true</SelfContained>
+
+    <PublishAot Condition="'$(PublishAot)' == '' and '$(Configuration)' == 'Release'">true</PublishAot>
+    <PublishTrimmed Condition="'$(PublishTrimmed)' == '' and '$(Configuration)' == 'Release'">true</PublishTrimmed>
+    <PublishAot Condition="'$(PublishAot)' == ''">false</PublishAot>
+    <PublishTrimmed Condition="'$(PublishTrimmed)' == ''">false</PublishTrimmed>
+    <TrimMode>full</TrimMode>
+    <PublishSingleFile>false</PublishSingleFile>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <IsAotCompatible>true</IsAotCompatible>
+    <CsWinRTAotOptimizerEnabled>true</CsWinRTAotOptimizerEnabled>
+    <CsWinRTAotWarningLevel>2</CsWinRTAotWarningLevel>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);IL2081</WarningsNotAsErrors>
+    <BuiltInComInteropSupport>false</BuiltInComInteropSupport>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Manifest Include="$(ApplicationManifest)" />
+    <None Include="..\OmniTray\Assets\Square44x44Logo.targetsize-24_altform-unplated.png"
+          Link="Assets\MainIcon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="JPSoftworks.CommandPalette.Extensions.Toolkit" Version="0.9.3-preview.1" />
+    <PackageReference Include="Microsoft.CommandPalette.Extensions" Version="0.9.260303001" />
+    <PackageReference Include="Microsoft.Windows.CsWinRT" Version="2.3.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OmniTray.Core\OmniTray.Core.csproj" />
+  </ItemGroup>
+</Project>

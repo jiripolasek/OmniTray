@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<UserControl
+    x:Class="OmniTray.Controls.StackTrayContent"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:primitives="using:Microsoft.UI.Xaml.Controls.Primitives">
+    <Grid
+        x:Name="RootGrid"
+        AllowDrop="True"
+        Background="Transparent"
+        DragLeave="OnDragLeave"
+        DragOver="OnDragOver"
+        Drop="OnDrop">
+        <Grid x:Name="NormalContent">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid
+                x:Name="StackPreview"
+                Margin="12,2,12,8"
+                AutomationProperties.Name="{x:Bind ViewModel.AccessibleName, Mode=OneWay}"
+                CanDrag="True"
+                DragStarting="OnStackDragStarting"
+                DropCompleted="OnStackDropCompleted">
+                <Border
+                    Width="96"
+                    Height="72"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
+                    BorderThickness="1"
+                    CornerRadius="7"
+                    Opacity="0.58"
+                    Visibility="{x:Bind ViewModel.ThirdLayerVisibility, Mode=OneWay}">
+                    <Border.RenderTransform>
+                        <CompositeTransform
+                            CenterX="48"
+                            CenterY="36"
+                            Rotation="12"
+                            TranslateY="7" />
+                    </Border.RenderTransform>
+                    <Image
+                        Source="{x:Bind ViewModel.ThirdPreviewThumbnailSource, Mode=OneWay}"
+                        Stretch="UniformToFill"
+                        Visibility="{x:Bind ViewModel.ThirdPreviewThumbnailVisibility, Mode=OneWay}" />
+                </Border>
+
+                <Border
+                    Width="104"
+                    Height="78"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Background="{ThemeResource LayerFillColorDefaultBrush}"
+                    BorderBrush="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
+                    BorderThickness="1"
+                    CornerRadius="7"
+                    Opacity="0.78"
+                    Visibility="{x:Bind ViewModel.SecondLayerVisibility, Mode=OneWay}">
+                    <Border.RenderTransform>
+                        <CompositeTransform
+                            CenterX="52"
+                            CenterY="39"
+                            Rotation="-9"
+                            TranslateY="3" />
+                    </Border.RenderTransform>
+                    <Image
+                        Source="{x:Bind ViewModel.SecondPreviewThumbnailSource, Mode=OneWay}"
+                        Stretch="UniformToFill"
+                        Visibility="{x:Bind ViewModel.SecondPreviewThumbnailVisibility, Mode=OneWay}" />
+                </Border>
+
+                <Border
+                    Width="112"
+                    Height="84"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                    <Grid>
+                        <Image
+                            AutomationProperties.Name="Stack image preview"
+                            Source="{x:Bind ViewModel.PreviewThumbnailSource, Mode=OneWay}"
+                            Stretch="UniformToFill"
+                            Visibility="{x:Bind ViewModel.PreviewThumbnailVisibility, Mode=OneWay}" />
+                        <FontIcon
+                            FontSize="34"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Glyph="{x:Bind ViewModel.LeadingGlyph, Mode=OneWay}"
+                            Visibility="{x:Bind ViewModel.PreviewGlyphVisibility, Mode=OneWay}" />
+                    </Grid>
+                </Border>
+
+                <Border
+                    Height="24"
+                    MinWidth="26"
+                    Padding="7,0"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom"
+                    Background="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
+                    CornerRadius="12"
+                    Visibility="{x:Bind ViewModel.CountBadgeVisibility, Mode=OneWay}">
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="12"
+                        FontWeight="SemiBold"
+                        Foreground="{x:Bind ViewModel.TintForegroundBrush, Mode=OneWay}"
+                        Text="{x:Bind ViewModel.CountBadgeText, Mode=OneWay}" />
+                </Border>
+            </Grid>
+
+            <HyperlinkButton
+                x:Name="ExploreButton"
+                Grid.Row="1"
+                Margin="0,0,0,12"
+                HorizontalAlignment="Center"
+                AutomationProperties.Name="Show items in tray"
+                Click="OnExploreClick"
+                Content="{x:Bind ViewModel.ItemCountText, Mode=OneWay}" />
+        </Grid>
+
+        <Grid
+            x:Name="MinimalContent"
+            Margin="0"
+            AutomationProperties.HelpText="Drag this content to move the stack out of OmniTray, or drop items here"
+            AutomationProperties.Name="{x:Bind ViewModel.AccessibleName, Mode=OneWay}"
+            Background="Transparent"
+            CanDrag="True"
+            DragStarting="OnStackDragStarting"
+            DropCompleted="OnStackDropCompleted"
+            ToolTipService.ToolTip="{x:Bind ViewModel.Name, Mode=OneWay}"
+            Visibility="Collapsed">
+            <Image
+                AutomationProperties.Name="Stack image preview"
+                IsHitTestVisible="False"
+                Source="{x:Bind ViewModel.PreviewThumbnailSource, Mode=OneWay}"
+                Stretch="UniformToFill"
+                Visibility="{x:Bind ViewModel.PreviewThumbnailVisibility, Mode=OneWay}" />
+            <FontIcon
+                FontSize="26"
+                Foreground="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
+                Glyph="{x:Bind ViewModel.LeadingGlyph, Mode=OneWay}"
+                IsHitTestVisible="False"
+                Visibility="{x:Bind ViewModel.PreviewGlyphVisibility, Mode=OneWay}" />
+            <Border
+                x:Name="DropOutline"
+                BorderBrush="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
+                BorderThickness="3"
+                CornerRadius="6"
+                IsHitTestVisible="False"
+                Visibility="Collapsed" />
+        </Grid>
+
+        <primitives:Popup
+            x:Name="InspectorPopup"
+            DesiredPlacement="LeftEdgeAlignedBottom"
+            IsLightDismissEnabled="True"
+            LightDismissOverlayMode="Off"
+            ShouldConstrainToRootBounds="False" />
+
+        <Border
+            x:Name="DropHintOverlay"
+            Margin="8"
+            Padding="16"
+            AutomationProperties.Name="Add items to this stack"
+            Background="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
+            Canvas.ZIndex="20"
+            CornerRadius="10"
+            IsHitTestVisible="False"
+            Opacity="0.96"
+            Visibility="Collapsed">
+            <StackPanel
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="8">
+                <FontIcon
+                    FontSize="34"
+                    Foreground="{x:Bind ViewModel.TintForegroundBrush, Mode=OneWay}"
+                    Glyph="&#xE74D;" />
+                <TextBlock
+                    FontWeight="SemiBold"
+                    Foreground="{x:Bind ViewModel.TintForegroundBrush, Mode=OneWay}"
+                    Text="Add items to" />
+                <TextBlock
+                    MaxWidth="150"
+                    HorizontalAlignment="Center"
+                    Foreground="{x:Bind ViewModel.TintForegroundBrush, Mode=OneWay}"
+                    Text="{x:Bind ViewModel.Name, Mode=OneWay}"
+                    TextAlignment="Center"
+                    TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>
