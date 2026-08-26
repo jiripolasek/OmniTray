@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-// 
+//
 // Copyright (c) Jiří Polášek. All rights reserved.
-// 
+//
 // ------------------------------------------------------------
 
 using System.Collections.ObjectModel;
@@ -587,6 +587,33 @@ public sealed partial class EdgeWindow : TransparentWindow
         this.ViewModel.AssignStackToEdge(stack, this.Side);
         ShowStatus($"Created an empty stack on the {this.Side.GetDisplayName().ToLowerInvariant()} edge.",
             InfoBarSeverity.Success);
+    }
+
+    private async void OnAddStackFromClipboardClick(object sender, RoutedEventArgs args)
+    {
+        try
+        {
+            var items = await DragDropDataService.ReadAsync(Clipboard.GetContent());
+            if (items.Count == 0)
+            {
+                ShowStatus(
+                    "The clipboard does not contain files, folders, text, rich content, an image, or a URL.",
+                    InfoBarSeverity.Warning);
+                return;
+            }
+
+            var stack = this.ViewModel.AddStack(DropStack.Create(items));
+            this.ViewModel.AssignStackToEdge(stack, this.Side);
+            ShowStatus(
+                items.Count == 1
+                    ? $"Created a {this.Side.GetDisplayName().ToLowerInvariant()} edge stack with 1 clipboard item."
+                    : $"Created a {this.Side.GetDisplayName().ToLowerInvariant()} edge stack with {items.Count} clipboard items.",
+                InfoBarSeverity.Success);
+        }
+        catch (Exception exception)
+        {
+            ShowStatus($"The clipboard content could not be captured: {exception.Message}", InfoBarSeverity.Error);
+        }
     }
 
     private void OnStackDragStarting(UIElement sender, DragStartingEventArgs args)
