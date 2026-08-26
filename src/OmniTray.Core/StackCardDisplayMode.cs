@@ -1,14 +1,14 @@
 // ------------------------------------------------------------
-// 
+//
 // Copyright (c) Jiří Polášek. All rights reserved.
-// 
+//
 // ------------------------------------------------------------
 
-namespace OmniTray.Views;
+namespace OmniTray.Core;
 
-internal enum TrayInspectorMode
+public enum StackCardDisplayMode
 {
-    Browse,
-    Customize,
-    Combine
+    SmallList,
+    LargeList,
+    ThumbnailIcon
 }

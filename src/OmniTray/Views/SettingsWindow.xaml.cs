@@ -33,6 +33,9 @@ public sealed partial class SettingsWindow : Window
             this.AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
         }
 
+        this.OpenInspectorOnHoverToggle.IsOn = App.Current.OpenInspectorOnHoverPreference;
+        this.UseSystemAccentForNeutralToggle.IsOn = App.Current.UseSystemAccentForNeutralPreference;
+        this.ShakeToCreateTrayToggle.IsOn = App.Current.ShakeToCreateTrayPreference;
         this.AllowMoveOnDragOutToggle.IsOn = App.Current.AllowMoveOnDragOutPreference;
         this.ToastPositionBox.SelectedIndex = (int)App.Current.ToastPositionPreference;
         this.CommandSurfaceBox.SelectedIndex = 0;
@@ -377,6 +380,15 @@ public sealed partial class SettingsWindow : Window
 
     private void OnAllowMoveOnDragOutToggled(object sender, RoutedEventArgs args) =>
         App.Current.AllowMoveOnDragOutPreference = this.AllowMoveOnDragOutToggle.IsOn;
+
+    private void OnShakeToCreateTrayToggled(object sender, RoutedEventArgs args) =>
+        App.Current.ShakeToCreateTrayPreference = this.ShakeToCreateTrayToggle.IsOn;
+
+    private void OnOpenInspectorOnHoverToggled(object sender, RoutedEventArgs args) =>
+        App.Current.OpenInspectorOnHoverPreference = this.OpenInspectorOnHoverToggle.IsOn;
+
+    private void OnUseSystemAccentForNeutralToggled(object sender, RoutedEventArgs args) =>
+        App.Current.UseSystemAccentForNeutralPreference = this.UseSystemAccentForNeutralToggle.IsOn;
 
     private void OnToastPositionSelectionChanged(object sender, SelectionChangedEventArgs args)
     {

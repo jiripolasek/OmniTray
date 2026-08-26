@@ -1,5 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
-
 <UserControl
     x:Class="OmniTray.Controls.TrayInspector"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -7,199 +5,245 @@
     xmlns:controls="using:OmniTray.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
     xmlns:viewModels="using:OmniTray.ViewModels"
     mc:Ignorable="d">
     <Border
         x:Name="InspectorSurface"
-        Width="360"
+        Width="400"
         Height="430"
         Background="Transparent"
         BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
         BorderThickness="1"
         CornerRadius="12">
         <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
+            <SystemBackdropElement
+                x:Name="InspectorBackdrop"
+                CornerRadius="12"
+                IsHitTestVisible="False" />
 
-            <Grid Padding="18,14,10,10" ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <StackPanel Spacing="3">
-                    <Grid>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Grid
+                    Grid.RowSpan="3"
+                    Background="{ThemeResource LayerOnAcrylicFillColorDefaultBrush}" />
+
+                <Grid
+                    x:Name="BrowseHeader"
+                    Padding="18,14,10,10"
+                    ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Spacing="3">
                         <Button
                             x:Name="RenameTitleButton"
                             MinHeight="0"
                             Padding="4,2"
                             HorizontalAlignment="Stretch"
                             HorizontalContentAlignment="Stretch"
-                            AutomationProperties.HelpText="Edit the stack name"
-                            AutomationProperties.Name="Rename stack"
+                            AutomationProperties.HelpText="Open stack customization"
+                            AutomationProperties.Name="Customize stack"
                             Background="Transparent"
                             BorderThickness="0"
-                            Click="OnRenameClick"
-                            ToolTipService.ToolTip="Rename stack">
+                            Click="OnCustomizeClick"
+                            GotFocus="OnRenameTitleFocusChanged"
+                            LostFocus="OnRenameTitleFocusChanged"
+                            PointerEntered="OnRenameTitlePointerChanged"
+                            PointerExited="OnRenameTitlePointerChanged"
+                            ToolTipService.ToolTip="Customize stack">
                             <Grid ColumnSpacing="8">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock
-                                    FontSize="20"
+                                    MaxWidth="190"
+                                    FontSize="16"
                                     FontWeight="SemiBold"
                                     Text="{x:Bind ViewModel.Name, Mode=OneWay}"
                                     TextWrapping="Wrap" />
                                 <FontIcon
+                                    x:Name="RenameEditIcon"
                                     Grid.Column="1"
                                     VerticalAlignment="Center"
                                     FontSize="13"
                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                    Glyph="&#xE70F;" />
+                                    Glyph="&#xE70F;"
+                                    IsHitTestVisible="False"
+                                    Opacity="0" />
                             </Grid>
                         </Button>
-                        <Grid
-                            x:Name="RenamePanel"
-                            ColumnSpacing="4"
-                            Visibility="Collapsed">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox
-                                x:Name="RenameBox"
-                                AutomationProperties.Name="Stack name"
-                                KeyDown="OnRenameBoxKeyDown" />
-                            <Button
-                                Grid.Column="1"
-                                Width="32"
-                                Height="32"
-                                Padding="0"
-                                AutomationProperties.Name="Save stack name"
-                                Click="OnSaveRenameClick"
-                                ToolTipService.ToolTip="Save">
-                                <FontIcon FontSize="12" Glyph="&#xE73E;" />
-                            </Button>
-                            <Button
-                                Grid.Column="2"
-                                Width="32"
-                                Height="32"
-                                Padding="0"
-                                AutomationProperties.Name="Cancel rename"
-                                Click="OnCancelInlineActionClick"
-                                ToolTipService.ToolTip="Cancel">
-                                <FontIcon FontSize="12" Glyph="&#xE711;" />
-                            </Button>
-                        </Grid>
-                    </Grid>
-                    <TextBlock
-                        Margin="4,0,0,0"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="{x:Bind ViewModel.ItemCountText, Mode=OneWay}" />
-                </StackPanel>
-                <Button
-                    Grid.Column="1"
-                    Width="36"
-                    Height="36"
-                    AutomationProperties.Name="Close stack inspector"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Click="OnCloseClick"
-                    ToolTipService.ToolTip="Close">
-                    <FontIcon FontSize="12" Glyph="&#xE711;" />
-                </Button>
-            </Grid>
-
-            <Grid Grid.Row="1" Margin="12,0,12,8">
-                <Grid
-                    x:Name="ColorPanel"
-                    HorizontalAlignment="Center"
-                    Visibility="Collapsed">
-                    <controls:StackColorPicker
-                        x:Name="InspectorColorPicker"
-                        ColorSelected="OnColorSelected"
-                        Stack="{x:Bind ViewModel}" />
+                        <TextBlock
+                            Margin="4,0,0,0"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{x:Bind ViewModel.ItemCountText, Mode=OneWay}" />
+                    </StackPanel>
+                    <toolkit:Segmented
+                        x:Name="InspectorViewSelector"
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="Inspector item view"
+                        SelectionMode="Single">
+                        <toolkit:SegmentedItem
+                            AutomationProperties.Name="List view"
+                            ToolTipService.ToolTip="List view">
+                            <toolkit:SegmentedItem.Icon>
+                                <FontIcon FontSize="14" Glyph="&#xE8FD;" />
+                            </toolkit:SegmentedItem.Icon>
+                        </toolkit:SegmentedItem>
+                        <toolkit:SegmentedItem
+                            AutomationProperties.Name="Thumbnail view"
+                            ToolTipService.ToolTip="Thumbnail view">
+                            <toolkit:SegmentedItem.Icon>
+                                <FontIcon FontSize="14" Glyph="&#xE8A9;" />
+                            </toolkit:SegmentedItem.Icon>
+                        </toolkit:SegmentedItem>
+                    </toolkit:Segmented>
+                    <Button
+                        Grid.Column="2"
+                        Width="36"
+                        Height="36"
+                        AutomationProperties.Name="Stack commands"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        ToolTipService.ToolTip="More">
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                <MenuFlyoutItem
+                                    Click="OnCustomizeClick"
+                                    Text="Customize stack">
+                                    <MenuFlyoutItem.Icon>
+                                        <SymbolIcon Symbol="Rename" />
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                                <MenuFlyoutItem
+                                    x:Name="CombineStacksMenuItem"
+                                    Click="OnCombineStacksClick"
+                                    Text="Combine stacks">
+                                    <MenuFlyoutItem.Icon>
+                                        <SymbolIcon Symbol="Add" />
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                                <MenuFlyoutSeparator />
+                                <MenuFlyoutItem
+                                    Click="OnDeleteClick"
+                                    Text="Delete stack">
+                                    <MenuFlyoutItem.Icon>
+                                        <SymbolIcon Symbol="Delete" />
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                            </MenuFlyout>
+                        </Button.Flyout>
+                        <FontIcon FontSize="14" Glyph="&#xE712;" />
+                    </Button>
                 </Grid>
 
                 <Grid
-                    x:Name="CombinePanel"
+                    x:Name="CustomizeHeader"
+                    Padding="10,12,12,8"
                     ColumnSpacing="8"
                     Visibility="Collapsed">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <ComboBox
-                        x:Name="CombineTargetBox"
-                        AutomationProperties.Name="Stack to combine into this stack"
-                        Header="Add another stack">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate x:DataType="viewModels:DropStackViewModel">
-                                <TextBlock
-                                    MaxWidth="170"
-                                    Text="{x:Bind Name, Mode=OneWay}"
-                                    TextTrimming="CharacterEllipsis" />
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
                     <Button
+                        Width="36"
+                        Height="36"
+                        Padding="0"
+                        AutomationProperties.Name="Cancel stack customization"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Click="OnCancelInlineActionClick"
+                        ToolTipService.ToolTip="Back">
+                        <FontIcon FontSize="14" Glyph="&#xE72B;" />
+                    </Button>
+                    <TextBlock
                         Grid.Column="1"
-                        VerticalAlignment="Bottom"
-                        AutomationProperties.Name="Combine selected stack"
-                        Click="OnConfirmCombineClick"
-                        Content="Combine"
-                        Style="{StaticResource AccentButtonStyle}" />
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        FontWeight="SemiBold"
+                        Text="Customize stack" />
                     <Button
                         Grid.Column="2"
-                        VerticalAlignment="Bottom"
-                        AutomationProperties.Name="Cancel stack combination"
-                        Click="OnCancelInlineActionClick"
-                        Content="Cancel" />
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="Save stack customization"
+                        Click="OnSaveCustomizeClick"
+                        Content="Save"
+                        Style="{StaticResource AccentButtonStyle}" />
                 </Grid>
+
+                <Grid Grid.Row="1" Margin="12,0,12,8">
+                    <StackPanel
+                        x:Name="CustomizePanel"
+                        Spacing="12"
+                        Visibility="Collapsed">
+                        <TextBox
+                            x:Name="CustomizeNameBox"
+                            AutomationProperties.Name="Stack name"
+                            Header="Name"
+                            KeyDown="OnCustomizeNameBoxKeyDown" />
+                        <controls:StackColorPicker
+                            x:Name="InspectorColorPicker"
+                            HorizontalAlignment="Stretch"
+                            Stack="{x:Bind ViewModel}" />
+                    </StackPanel>
+
+                    <Grid
+                        x:Name="CombinePanel"
+                        ColumnSpacing="8"
+                        Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox
+                            x:Name="CombineTargetBox"
+                            AutomationProperties.Name="Stack to combine into this stack"
+                            Header="Add another stack">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="viewModels:DropStackViewModel">
+                                    <TextBlock
+                                        MaxWidth="170"
+                                        Text="{x:Bind Name, Mode=OneWay}"
+                                        TextTrimming="CharacterEllipsis" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Button
+                            Grid.Column="1"
+                            VerticalAlignment="Bottom"
+                            AutomationProperties.Name="Combine selected stack"
+                            Click="OnConfirmCombineClick"
+                            Content="Combine"
+                            Style="{StaticResource AccentButtonStyle}" />
+                        <Button
+                            Grid.Column="2"
+                            VerticalAlignment="Bottom"
+                            AutomationProperties.Name="Cancel stack combination"
+                            Click="OnCancelInlineActionClick"
+                            Content="Cancel" />
+                    </Grid>
+                </Grid>
+
+                <controls:StackItemsOrganizer
+                    x:Name="InspectorOrganizer"
+                    Grid.Row="2"
+                    Margin="8,0,8,8"
+                    MaximumListHeight="336"
+                    OwnsScrolling="True"
+                    Stack="{x:Bind ViewModel}" />
             </Grid>
-
-            <controls:StackItemsOrganizer
-                x:Name="InspectorOrganizer"
-                Grid.Row="2"
-                Margin="12,0,12,8"
-                MaximumListHeight="260"
-                OwnsScrolling="True"
-                Stack="{x:Bind ViewModel}" />
-
-            <CommandBar
-                x:Name="InspectorCommandBar"
-                Grid.Row="3"
-                AutomationProperties.Name="Stack commands"
-                Background="{ThemeResource LayerFillColorDefaultBrush}"
-                DefaultLabelPosition="Collapsed"
-                IsOpen="False">
-                <AppBarButton
-                    x:Name="CombineStacksButton"
-                    AutomationProperties.Name="Combine another stack into this stack"
-                    Click="OnCombineStacksClick"
-                    Icon="Add"
-                    Label="Combine" />
-                <CommandBar.SecondaryCommands>
-                    <AppBarButton
-                        Click="OnRenameClick"
-                        Icon="Rename"
-                        Label="Rename stack" />
-                    <AppBarButton
-                        Click="OnColorClick"
-                        Icon="Highlight"
-                        Label="Stack color" />
-                    <AppBarButton
-                        Click="OnDeleteClick"
-                        Icon="Delete"
-                        Label="Delete stack" />
-                </CommandBar.SecondaryCommands>
-            </CommandBar>
         </Grid>
     </Border>
 </UserControl>

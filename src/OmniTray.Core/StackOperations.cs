@@ -160,7 +160,10 @@ public static class StackOperations
 
         return (
             source.WithItems(remainingItems),
-            DropStack.Create(extractedItems, tint: source.Tint));
+            DropStack.Create(
+                extractedItems,
+                tint: source.Tint,
+                inspectorViewMode: source.InspectorViewMode));
     }
 
     private static HashSet<Guid> ValidateSelectedItems(

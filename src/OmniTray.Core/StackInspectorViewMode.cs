@@ -4,11 +4,10 @@
 // 
 // ------------------------------------------------------------
 
-namespace OmniTray.Views;
+namespace OmniTray.Core;
 
-internal enum TrayInspectorMode
+public enum StackInspectorViewMode
 {
-    Browse,
-    Customize,
-    Combine
+    List,
+    Grid
 }

@@ -5,6 +5,7 @@
 // ------------------------------------------------------------
 
 using System.Collections.Specialized;
+using System.ComponentModel;
 using Windows.System;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
@@ -14,13 +15,18 @@ namespace OmniTray.Controls;
 public sealed partial class TrayInspector : UserControl
 {
     private TrayInspectorMode _mode;
+    private string? _customizeOriginalTint;
     private bool _isDisposed;
+    private bool _isSynchronizingViewSelection;
 
     public TrayInspector(DropStackViewModel viewModel, Window dialogOwner)
     {
         this.ViewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         ArgumentNullException.ThrowIfNull(dialogOwner);
         this.InitializeComponent();
+        this.ViewModel.PropertyChanged += this.OnViewModelPropertyChanged;
+        this.RestoreViewSelection();
+        this.InspectorViewSelector.SelectionChanged += this.OnViewSelectionChanged;
         this.InspectorOrganizer.DialogOwner = dialogOwner;
         App.Current.StackCatalogViewModel.Stacks.CollectionChanged += this.OnCatalogStacksChanged;
     }
@@ -32,15 +38,30 @@ public sealed partial class TrayInspector : UserControl
         set => this.InspectorSurface.Background = value;
     }
 
-    internal event EventHandler? CloseRequested;
+    internal SystemBackdrop? SurfaceBackdrop
+    {
+        get => this.InspectorBackdrop.SystemBackdrop;
+        set => this.InspectorBackdrop.SystemBackdrop = value;
+    }
 
     internal event EventHandler? DeleteRequested;
 
     internal void Open(TrayInspectorMode mode)
     {
+        if (this._mode == TrayInspectorMode.Customize && mode != TrayInspectorMode.Customize)
+        {
+            this.RevertPendingCustomization();
+        }
+
         this._mode = mode;
         this.UpdateStackCommands();
         this.ApplyMode();
+    }
+
+    internal void OnPopupClosed()
+    {
+        this.RevertPendingCustomization();
+        this.CombineTargetBox.ItemsSource = null;
     }
 
     internal void Dispose()
@@ -51,34 +72,33 @@ public sealed partial class TrayInspector : UserControl
         }
 
         this._isDisposed = true;
+        this.InspectorViewSelector.SelectionChanged -= this.OnViewSelectionChanged;
+        this.ViewModel.PropertyChanged -= this.OnViewModelPropertyChanged;
         App.Current.StackCatalogViewModel.Stacks.CollectionChanged -= this.OnCatalogStacksChanged;
     }
 
     private void ApplyMode()
     {
-        this.RenamePanel.Visibility = Visibility.Collapsed;
-        this.RenameTitleButton.Visibility = Visibility.Visible;
-        this.ColorPanel.Visibility = Visibility.Collapsed;
+        this.RestoreViewSelection();
+        this.BrowseHeader.Visibility = Visibility.Visible;
+        this.CustomizeHeader.Visibility = Visibility.Collapsed;
+        this.CustomizePanel.Visibility = Visibility.Collapsed;
         this.CombinePanel.Visibility = Visibility.Collapsed;
         this.InspectorOrganizer.Visibility = Visibility.Visible;
-        this.InspectorCommandBar.Visibility = Visibility.Visible;
 
-        if (this._mode == TrayInspectorMode.Rename)
+        if (this._mode == TrayInspectorMode.Customize)
         {
-            this.RenameBox.Text = this.ViewModel.Name;
-            this.RenameBox.SelectionStart = 0;
-            this.RenameBox.SelectionLength = this.RenameBox.Text.Length;
-            this.RenameTitleButton.Visibility = Visibility.Collapsed;
-            this.RenamePanel.Visibility = Visibility.Visible;
-            _ = this.RenameBox.DispatcherQueue.TryEnqueue(() =>
-                this.RenameBox.Focus(FocusState.Programmatic));
-        }
-        else if (this._mode == TrayInspectorMode.Color)
-        {
+            this._customizeOriginalTint = this.ViewModel.Tint;
+            this.CustomizeNameBox.Text = this.ViewModel.Name;
+            this.CustomizeNameBox.SelectionStart = 0;
+            this.CustomizeNameBox.SelectionLength = this.CustomizeNameBox.Text.Length;
+            this.BrowseHeader.Visibility = Visibility.Collapsed;
+            this.CustomizeHeader.Visibility = Visibility.Visible;
+            this.CustomizePanel.Visibility = Visibility.Visible;
             this.InspectorOrganizer.Visibility = Visibility.Collapsed;
-            this.InspectorCommandBar.Visibility = Visibility.Collapsed;
-            this.ColorPanel.Visibility = Visibility.Visible;
             this.InspectorColorPicker.PrepareForDisplay();
+            _ = this.CustomizeNameBox.DispatcherQueue.TryEnqueue(() =>
+                this.CustomizeNameBox.Focus(FocusState.Programmatic));
         }
         else if (this._mode == TrayInspectorMode.Combine)
         {
@@ -94,14 +114,20 @@ public sealed partial class TrayInspector : UserControl
         }
     }
 
-    private void OnCloseClick(object sender, RoutedEventArgs args) =>
-        this.CloseRequested?.Invoke(this, EventArgs.Empty);
+    private void OnCustomizeClick(object sender, RoutedEventArgs args) =>
+        this.Open(TrayInspectorMode.Customize);
 
-    private void OnRenameClick(object sender, RoutedEventArgs args) =>
-        this.Open(TrayInspectorMode.Rename);
+    private void OnRenameTitlePointerChanged(object sender, PointerRoutedEventArgs args) =>
+        this.UpdateRenameEditIconVisibility();
 
-    private void OnColorClick(object sender, RoutedEventArgs args) =>
-        this.Open(TrayInspectorMode.Color);
+    private void OnRenameTitleFocusChanged(object sender, RoutedEventArgs args) =>
+        this.UpdateRenameEditIconVisibility();
+
+    private void UpdateRenameEditIconVisibility() =>
+        this.RenameEditIcon.Opacity = this.RenameTitleButton.IsPointerOver ||
+            this.RenameTitleButton.FocusState != FocusState.Unfocused
+                ? 1
+                : 0;
 
     private void OnDeleteClick(object sender, RoutedEventArgs args) =>
         this.DeleteRequested?.Invoke(this, EventArgs.Empty);
@@ -109,16 +135,50 @@ public sealed partial class TrayInspector : UserControl
     private void OnCombineStacksClick(object sender, RoutedEventArgs args) =>
         this.Open(TrayInspectorMode.Combine);
 
-    private void OnSaveRenameClick(object sender, RoutedEventArgs args) => this.SaveRename();
+    private void OnSaveCustomizeClick(object sender, RoutedEventArgs args) => this.SaveCustomization();
 
-    private void OnColorSelected(object? sender, EventArgs args) => this.CancelInlineAction();
+    private void OnViewSelectionChanged(object sender, SelectionChangedEventArgs args)
+    {
+        var viewMode = this.InspectorViewSelector.SelectedIndex == 1
+            ? StackInspectorViewMode.Grid
+            : StackInspectorViewMode.List;
+        this.InspectorOrganizer.SetThumbnailView(viewMode == StackInspectorViewMode.Grid);
+        if (!this._isSynchronizingViewSelection && viewMode != this.ViewModel.InspectorViewMode)
+        {
+            this.ViewModel.ChangeInspectorViewMode(viewMode);
+        }
+    }
 
-    private void OnRenameBoxKeyDown(object sender, KeyRoutedEventArgs args)
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(DropStackViewModel.InspectorViewMode))
+        {
+            this.RestoreViewSelection();
+        }
+    }
+
+    private void RestoreViewSelection()
+    {
+        var selectedIndex = this.ViewModel.InspectorViewMode == StackInspectorViewMode.Grid ? 1 : 0;
+        this._isSynchronizingViewSelection = true;
+        try
+        {
+            this.InspectorViewSelector.SelectedIndex = selectedIndex;
+        }
+        finally
+        {
+            this._isSynchronizingViewSelection = false;
+        }
+
+        this.InspectorOrganizer.SetThumbnailView(selectedIndex == 1);
+    }
+
+    private void OnCustomizeNameBoxKeyDown(object sender, KeyRoutedEventArgs args)
     {
         if (args.Key == VirtualKey.Enter)
         {
             args.Handled = true;
-            this.SaveRename();
+            this.SaveCustomization();
         }
         else if (args.Key == VirtualKey.Escape)
         {
@@ -127,16 +187,17 @@ public sealed partial class TrayInspector : UserControl
         }
     }
 
-    private void SaveRename()
+    private void SaveCustomization()
     {
-        if (string.IsNullOrWhiteSpace(this.RenameBox.Text))
+        if (string.IsNullOrWhiteSpace(this.CustomizeNameBox.Text))
         {
-            this.RenameBox.Focus(FocusState.Programmatic);
+            this.CustomizeNameBox.Focus(FocusState.Programmatic);
             return;
         }
 
-        this.ViewModel.Rename(this.RenameBox.Text);
-        this.CancelInlineAction();
+        this.ViewModel.Rename(this.CustomizeNameBox.Text);
+        this._customizeOriginalTint = null;
+        this.ReturnToBrowse();
     }
 
     private void OnCancelInlineActionClick(object sender, RoutedEventArgs args) =>
@@ -144,15 +205,30 @@ public sealed partial class TrayInspector : UserControl
 
     private void CancelInlineAction()
     {
+        this.RevertPendingCustomization();
+        this.ReturnToBrowse();
+    }
+
+    private void ReturnToBrowse()
+    {
         this._mode = TrayInspectorMode.Browse;
-        this.RenamePanel.Visibility = Visibility.Collapsed;
-        this.RenameTitleButton.Visibility = Visibility.Visible;
-        this.ColorPanel.Visibility = Visibility.Collapsed;
-        this.CombinePanel.Visibility = Visibility.Collapsed;
-        this.InspectorOrganizer.Visibility = Visibility.Visible;
-        this.InspectorCommandBar.Visibility = Visibility.Visible;
         this.CombineTargetBox.ItemsSource = null;
+        this.ApplyMode();
         this.InspectorOrganizer.Focus(FocusState.Programmatic);
+    }
+
+    private void RevertPendingCustomization()
+    {
+        if (this._customizeOriginalTint is not { } originalTint)
+        {
+            return;
+        }
+
+        this._customizeOriginalTint = null;
+        if (!string.Equals(this.ViewModel.Tint, originalTint, StringComparison.OrdinalIgnoreCase))
+        {
+            this.ViewModel.ChangeTint(originalTint);
+        }
     }
 
     private void OnConfirmCombineClick(object sender, RoutedEventArgs args)
@@ -177,7 +253,7 @@ public sealed partial class TrayInspector : UserControl
     }
 
     private void UpdateStackCommands() =>
-        this.CombineStacksButton.IsEnabled = App.Current.StackCatalogViewModel.Stacks.Any(
+        this.CombineStacksMenuItem.IsEnabled = App.Current.StackCatalogViewModel.Stacks.Any(
             stack => !ReferenceEquals(stack, this.ViewModel));
 
     private bool UpdateCombineTargets()

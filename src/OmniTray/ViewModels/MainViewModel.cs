@@ -11,6 +11,7 @@ using Windows.Storage;
 using Windows.Storage.FileProperties;
 using Windows.UI;
 using Microsoft.UI;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 
@@ -19,19 +20,29 @@ namespace OmniTray.ViewModels;
 public partial class MainViewModel : BaseViewModel
 {
     private bool _bottomEdgeWindowEnabled = true;
+    private EdgeWindowAlignment _bottomEdgeWindowAlignment = EdgeWindowAlignment.Center;
+    private EdgeWindowSizeMode _bottomEdgeWindowSizeMode = EdgeWindowSizeMode.Reasonable;
     private bool _catalogChangePending;
     private int _catalogMutationDepth;
     private bool _edgeWindowsPaused;
     private bool _gameModeEnabled = true;
     private string _gameModeStatusText = "Game mode is ready.";
+    private StackCardDisplayMode _horizontalStackCardDisplayMode = StackCardDisplayMode.LargeList;
     private bool _isGameModeSuppressing;
     private bool _isRestoring;
     private bool _leftEdgeWindowEnabled = true;
+    private EdgeWindowAlignment _leftEdgeWindowAlignment = EdgeWindowAlignment.Center;
+    private EdgeWindowSizeMode _leftEdgeWindowSizeMode = EdgeWindowSizeMode.Reasonable;
     private bool _rightEdgeWindowEnabled = true;
+    private EdgeWindowAlignment _rightEdgeWindowAlignment = EdgeWindowAlignment.Center;
+    private EdgeWindowSizeMode _rightEdgeWindowSizeMode = EdgeWindowSizeMode.Reasonable;
     private bool _syncAllEdgeContent;
     private bool _syncLeftAndRightEdgeContent;
     private bool _syncTopAndBottomEdgeContent;
     private bool _topEdgeWindowEnabled = true;
+    private EdgeWindowAlignment _topEdgeWindowAlignment = EdgeWindowAlignment.Center;
+    private EdgeWindowSizeMode _topEdgeWindowSizeMode = EdgeWindowSizeMode.Reasonable;
+    private StackCardDisplayMode _verticalStackCardDisplayMode = StackCardDisplayMode.LargeList;
 
     public MainViewModel()
         : base("OmniTray")
@@ -79,6 +90,45 @@ public partial class MainViewModel : BaseViewModel
         this.RightEdgeWindowEnabled ||
         this.TopEdgeWindowEnabled ||
         this.BottomEdgeWindowEnabled;
+
+    public StackCardDisplayMode VerticalStackCardDisplayMode
+    {
+        get => this._verticalStackCardDisplayMode;
+        set
+        {
+            if (!this.SetProperty(ref this._verticalStackCardDisplayMode, value))
+            {
+                return;
+            }
+
+            foreach (var stack in this.Stacks)
+            {
+                stack.VerticalStackCardDisplayMode = value;
+            }
+        }
+    }
+
+    public StackCardDisplayMode HorizontalStackCardDisplayMode
+    {
+        get => this._horizontalStackCardDisplayMode;
+        set
+        {
+            if (!this.SetProperty(ref this._horizontalStackCardDisplayMode, value))
+            {
+                return;
+            }
+
+            foreach (var stack in this.Stacks)
+            {
+                stack.HorizontalStackCardDisplayMode = value;
+            }
+
+            this.OnPropertyChanged(nameof(this.HorizontalStackCardLayout));
+        }
+    }
+
+    public StackCardLayoutMetrics HorizontalStackCardLayout =>
+        StackCardLayoutMetrics.Resolve(this.HorizontalStackCardDisplayMode);
 
     public bool EdgeWindowsPaused
     {
@@ -152,6 +202,54 @@ public partial class MainViewModel : BaseViewModel
         }
     }
 
+    public EdgeWindowSizeMode LeftEdgeWindowSizeMode
+    {
+        get => this._leftEdgeWindowSizeMode;
+        set => this.SetProperty(ref this._leftEdgeWindowSizeMode, value);
+    }
+
+    public EdgeWindowAlignment LeftEdgeWindowAlignment
+    {
+        get => this._leftEdgeWindowAlignment;
+        set => this.SetProperty(ref this._leftEdgeWindowAlignment, value);
+    }
+
+    public EdgeWindowSizeMode RightEdgeWindowSizeMode
+    {
+        get => this._rightEdgeWindowSizeMode;
+        set => this.SetProperty(ref this._rightEdgeWindowSizeMode, value);
+    }
+
+    public EdgeWindowAlignment RightEdgeWindowAlignment
+    {
+        get => this._rightEdgeWindowAlignment;
+        set => this.SetProperty(ref this._rightEdgeWindowAlignment, value);
+    }
+
+    public EdgeWindowSizeMode TopEdgeWindowSizeMode
+    {
+        get => this._topEdgeWindowSizeMode;
+        set => this.SetProperty(ref this._topEdgeWindowSizeMode, value);
+    }
+
+    public EdgeWindowAlignment TopEdgeWindowAlignment
+    {
+        get => this._topEdgeWindowAlignment;
+        set => this.SetProperty(ref this._topEdgeWindowAlignment, value);
+    }
+
+    public EdgeWindowSizeMode BottomEdgeWindowSizeMode
+    {
+        get => this._bottomEdgeWindowSizeMode;
+        set => this.SetProperty(ref this._bottomEdgeWindowSizeMode, value);
+    }
+
+    public EdgeWindowAlignment BottomEdgeWindowAlignment
+    {
+        get => this._bottomEdgeWindowAlignment;
+        set => this.SetProperty(ref this._bottomEdgeWindowAlignment, value);
+    }
+
     public bool SyncLeftAndRightEdgeContent
     {
         get => this._syncLeftAndRightEdgeContent;
@@ -211,6 +309,87 @@ public partial class MainViewModel : BaseViewModel
         EdgeShelfSide.Bottom => this.BottomEdgeWindowEnabled,
         _ => throw new ArgumentOutOfRangeException(nameof(side))
     };
+
+    public void SetEdgeWindowEnabled(EdgeShelfSide side, bool enabled)
+    {
+        switch (side)
+        {
+            case EdgeShelfSide.Left:
+                this.LeftEdgeWindowEnabled = enabled;
+                break;
+            case EdgeShelfSide.Right:
+                this.RightEdgeWindowEnabled = enabled;
+                break;
+            case EdgeShelfSide.Top:
+                this.TopEdgeWindowEnabled = enabled;
+                break;
+            case EdgeShelfSide.Bottom:
+                this.BottomEdgeWindowEnabled = enabled;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(side));
+        }
+    }
+
+    public EdgeWindowSizeMode GetEdgeWindowSizeMode(EdgeShelfSide side) => side switch
+    {
+        EdgeShelfSide.Left => this.LeftEdgeWindowSizeMode,
+        EdgeShelfSide.Right => this.RightEdgeWindowSizeMode,
+        EdgeShelfSide.Top => this.TopEdgeWindowSizeMode,
+        EdgeShelfSide.Bottom => this.BottomEdgeWindowSizeMode,
+        _ => throw new ArgumentOutOfRangeException(nameof(side))
+    };
+
+    public void SetEdgeWindowSizeMode(EdgeShelfSide side, EdgeWindowSizeMode sizeMode)
+    {
+        switch (side)
+        {
+            case EdgeShelfSide.Left:
+                this.LeftEdgeWindowSizeMode = sizeMode;
+                break;
+            case EdgeShelfSide.Right:
+                this.RightEdgeWindowSizeMode = sizeMode;
+                break;
+            case EdgeShelfSide.Top:
+                this.TopEdgeWindowSizeMode = sizeMode;
+                break;
+            case EdgeShelfSide.Bottom:
+                this.BottomEdgeWindowSizeMode = sizeMode;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(side));
+        }
+    }
+
+    public EdgeWindowAlignment GetEdgeWindowAlignment(EdgeShelfSide side) => side switch
+    {
+        EdgeShelfSide.Left => this.LeftEdgeWindowAlignment,
+        EdgeShelfSide.Right => this.RightEdgeWindowAlignment,
+        EdgeShelfSide.Top => this.TopEdgeWindowAlignment,
+        EdgeShelfSide.Bottom => this.BottomEdgeWindowAlignment,
+        _ => throw new ArgumentOutOfRangeException(nameof(side))
+    };
+
+    public void SetEdgeWindowAlignment(EdgeShelfSide side, EdgeWindowAlignment alignment)
+    {
+        switch (side)
+        {
+            case EdgeShelfSide.Left:
+                this.LeftEdgeWindowAlignment = alignment;
+                break;
+            case EdgeShelfSide.Right:
+                this.RightEdgeWindowAlignment = alignment;
+                break;
+            case EdgeShelfSide.Top:
+                this.TopEdgeWindowAlignment = alignment;
+                break;
+            case EdgeShelfSide.Bottom:
+                this.BottomEdgeWindowAlignment = alignment;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(side));
+        }
+    }
 
     internal IReadOnlyList<EdgeShelfState> GetEdgeShelfStates() =>
         Enum.GetValues<EdgeShelfSide>()
@@ -454,6 +633,32 @@ public partial class MainViewModel : BaseViewModel
         {
             this.EndCatalogMutation();
         }
+    }
+
+    public int RemoveEmptyStacks()
+    {
+        var emptyStacks = this.Stacks
+            .Where(static stack => stack.Model.Items.Count == 0)
+            .ToArray();
+        if (emptyStacks.Length == 0)
+        {
+            return 0;
+        }
+
+        this.BeginCatalogMutation();
+        try
+        {
+            foreach (var stack in emptyStacks)
+            {
+                this.RemoveStack(stack);
+            }
+        }
+        finally
+        {
+            this.EndCatalogMutation();
+        }
+
+        return emptyStacks.Length;
     }
 
     public DropStackViewModel SplitStack(
@@ -733,7 +938,11 @@ public partial class MainViewModel : BaseViewModel
 
     private DropStackViewModel CreateStackViewModel(DropStack stack)
     {
-        var stackViewModel = new DropStackViewModel(stack);
+        var stackViewModel = new DropStackViewModel(stack)
+        {
+            VerticalStackCardDisplayMode = this.VerticalStackCardDisplayMode,
+            HorizontalStackCardDisplayMode = this.HorizontalStackCardDisplayMode
+        };
         stackViewModel.ModelChanged += this.OnStackModelChanged;
         return stackViewModel;
     }
@@ -787,8 +996,10 @@ public sealed class DropStackViewModel : ObservableObject
 {
     private readonly HashSet<DropItemViewModel> _previewItems = [];
     private EdgeShelfSide? _assignedEdge;
+    private StackCardDisplayMode _horizontalStackCardDisplayMode = StackCardDisplayMode.LargeList;
     private bool _isSynchronizingItems;
     private DropStack _model;
+    private StackCardDisplayMode _verticalStackCardDisplayMode = StackCardDisplayMode.LargeList;
 
     public DropStackViewModel(DropStack model)
     {
@@ -811,11 +1022,43 @@ public sealed class DropStackViewModel : ObservableObject
 
     public ObservableCollection<DropItemViewModel> Items { get; }
 
+    public StackCardDisplayMode VerticalStackCardDisplayMode
+    {
+        get => this._verticalStackCardDisplayMode;
+        set
+        {
+            if (this.SetProperty(ref this._verticalStackCardDisplayMode, value))
+            {
+                this.OnPropertyChanged(nameof(this.CardLayout));
+            }
+        }
+    }
+
+    public StackCardDisplayMode HorizontalStackCardDisplayMode
+    {
+        get => this._horizontalStackCardDisplayMode;
+        set
+        {
+            if (this.SetProperty(ref this._horizontalStackCardDisplayMode, value))
+            {
+                this.OnPropertyChanged(nameof(this.HorizontalCardLayout));
+            }
+        }
+    }
+
+    public StackCardLayoutMetrics CardLayout =>
+        StackCardLayoutMetrics.Resolve(this.VerticalStackCardDisplayMode);
+
+    public StackCardLayoutMetrics HorizontalCardLayout =>
+        StackCardLayoutMetrics.Resolve(this.HorizontalStackCardDisplayMode);
+
     public string Name => this.Model.Name;
 
     public string CompactName => this.Name.Length <= 12 ? this.Name : $"{this.Name[..11]}…";
 
     public string Tint => this.Model.Tint;
+
+    public StackInspectorViewMode InspectorViewMode => this.Model.InspectorViewMode;
 
     public Color TintColor => ResolveTint(this.Model.Tint);
 
@@ -916,6 +1159,9 @@ public sealed class DropStackViewModel : ObservableObject
     public void Rename(string name) => this.ApplyModel(this.Model.Rename(name));
 
     public void ChangeTint(string tint) => this.ApplyModel(this.Model.ChangeTint(tint));
+
+    public void ChangeInspectorViewMode(StackInspectorViewMode inspectorViewMode) =>
+        this.ApplyModel(this.Model.ChangeInspectorViewMode(inspectorViewMode));
 
     public IReadOnlyList<DropItem> RemoveItems(IEnumerable<Guid> itemIds)
     {
@@ -1126,6 +1372,7 @@ public sealed class DropStackViewModel : ObservableObject
         this.OnPropertyChanged(nameof(this.CompactName));
         this.OnPropertyChanged(nameof(this.Tint));
         this.OnPropertyChanged(nameof(this.TintColor));
+        this.OnPropertyChanged(nameof(this.InspectorViewMode));
         this.OnPropertyChanged(nameof(this.ItemCountText));
         this.OnPropertyChanged(nameof(this.Summary));
         this.OnPropertyChanged(nameof(this.LeadingGlyph));
@@ -1156,6 +1403,292 @@ public sealed class DropStackViewModel : ObservableObject
     }
 
     private static Color ResolveTint(string tint) => StackTintPalette.Resolve(tint);
+}
+
+public sealed class StackCardLayoutMetrics
+{
+    private static readonly StackCardLayoutMetrics SmallList = new()
+    {
+        HeaderMinHeight = 52,
+        PreviewContainerWidth = 48,
+        PreviewContainerHeight = 44,
+        ThirdPreviewWidth = 34,
+        ThirdPreviewHeight = 30,
+        SecondPreviewWidth = 38,
+        SecondPreviewHeight = 33,
+        FrontPreviewWidth = 42,
+        FrontPreviewHeight = 36,
+        PreviewGlyphFontSize = 18,
+        BackCornerRadius = new CornerRadius(5),
+        FrontCornerRadius = new CornerRadius(6),
+        ThirdTranslateY = 5,
+        SecondTranslateY = 2,
+        PreviewMargin = new Thickness(0, 0, 11, 0),
+        PreviewColumnSpan = 1,
+        PreviewHorizontalAlignment = HorizontalAlignment.Left,
+        TextRow = 0,
+        TextColumn = 1,
+        TextColumnSpan = 1,
+        TextVerticalAlignment = VerticalAlignment.Center,
+        TextAlignment = Microsoft.UI.Xaml.TextAlignment.Left,
+        TextMargin = new Thickness(0),
+        HorizontalPanelCollapsedHeight = 122,
+        HorizontalPanelExpandedHeight = 340,
+        HorizontalCardWidth = 200,
+        HorizontalCardHeight = 104,
+        HorizontalPreviewContainerWidth = 58,
+        HorizontalPreviewContainerHeight = 58,
+        HorizontalThirdPreviewWidth = 42,
+        HorizontalThirdPreviewHeight = 37,
+        HorizontalSecondPreviewWidth = 47,
+        HorizontalSecondPreviewHeight = 41,
+        HorizontalFrontPreviewWidth = 52,
+        HorizontalFrontPreviewHeight = 46,
+        HorizontalPreviewGlyphFontSize = 22,
+        HorizontalNameWidth = 120,
+        HorizontalPreviewRow = 0,
+        HorizontalPreviewRowSpan = 2,
+        HorizontalPreviewColumn = 0,
+        HorizontalPreviewColumnSpan = 1,
+        HorizontalPreviewMargin = new Thickness(0, 0, 10, 0),
+        HorizontalTextRow = 0,
+        HorizontalTextRowSpan = 2,
+        HorizontalTextColumn = 1,
+        HorizontalTextColumnSpan = 1,
+        HorizontalTextVerticalAlignment = VerticalAlignment.Center,
+        HorizontalTextAlignment = Microsoft.UI.Xaml.TextAlignment.Left,
+        HorizontalTextMargin = new Thickness(0),
+        HorizontalActionWidth = 84,
+        HorizontalActionHeight = 104,
+        HorizontalActionNameWidth = 76
+    };
+
+    private static readonly StackCardLayoutMetrics LargeList = new()
+    {
+        HeaderMinHeight = 104,
+        PreviewContainerWidth = 136,
+        PreviewContainerHeight = 104,
+        ThirdPreviewWidth = 104,
+        ThirdPreviewHeight = 68,
+        SecondPreviewWidth = 112,
+        SecondPreviewHeight = 74,
+        FrontPreviewWidth = 120,
+        FrontPreviewHeight = 80,
+        PreviewGlyphFontSize = 32,
+        BackCornerRadius = new CornerRadius(7),
+        FrontCornerRadius = new CornerRadius(8),
+        ThirdTranslateY = 7,
+        SecondTranslateY = 3,
+        PreviewMargin = new Thickness(0, 0, 12, 0),
+        PreviewColumnSpan = 1,
+        PreviewHorizontalAlignment = HorizontalAlignment.Left,
+        TextRow = 0,
+        TextColumn = 1,
+        TextColumnSpan = 1,
+        TextVerticalAlignment = VerticalAlignment.Center,
+        TextAlignment = Microsoft.UI.Xaml.TextAlignment.Left,
+        TextMargin = new Thickness(0),
+        HorizontalPanelCollapsedHeight = 122,
+        HorizontalPanelExpandedHeight = 340,
+        HorizontalCardWidth = 300,
+        HorizontalCardHeight = 104,
+        HorizontalPreviewContainerWidth = 136,
+        HorizontalPreviewContainerHeight = 104,
+        HorizontalThirdPreviewWidth = 104,
+        HorizontalThirdPreviewHeight = 68,
+        HorizontalSecondPreviewWidth = 112,
+        HorizontalSecondPreviewHeight = 74,
+        HorizontalFrontPreviewWidth = 120,
+        HorizontalFrontPreviewHeight = 80,
+        HorizontalPreviewGlyphFontSize = 32,
+        HorizontalNameWidth = 148,
+        HorizontalPreviewRow = 0,
+        HorizontalPreviewRowSpan = 2,
+        HorizontalPreviewColumn = 0,
+        HorizontalPreviewColumnSpan = 1,
+        HorizontalPreviewMargin = new Thickness(0, 0, 12, 0),
+        HorizontalTextRow = 0,
+        HorizontalTextRowSpan = 2,
+        HorizontalTextColumn = 1,
+        HorizontalTextColumnSpan = 1,
+        HorizontalTextVerticalAlignment = VerticalAlignment.Center,
+        HorizontalTextAlignment = Microsoft.UI.Xaml.TextAlignment.Left,
+        HorizontalTextMargin = new Thickness(0),
+        HorizontalActionWidth = 152,
+        HorizontalActionHeight = 104,
+        HorizontalActionNameWidth = 144
+    };
+
+    private static readonly StackCardLayoutMetrics ThumbnailIcon = new()
+    {
+        HeaderMinHeight = 144,
+        PreviewContainerWidth = 136,
+        PreviewContainerHeight = 104,
+        ThirdPreviewWidth = 104,
+        ThirdPreviewHeight = 68,
+        SecondPreviewWidth = 112,
+        SecondPreviewHeight = 74,
+        FrontPreviewWidth = 120,
+        FrontPreviewHeight = 80,
+        PreviewGlyphFontSize = 32,
+        BackCornerRadius = new CornerRadius(7),
+        FrontCornerRadius = new CornerRadius(8),
+        ThirdTranslateY = 7,
+        SecondTranslateY = 3,
+        PreviewMargin = new Thickness(0),
+        PreviewColumnSpan = 3,
+        PreviewHorizontalAlignment = HorizontalAlignment.Center,
+        TextRow = 1,
+        TextColumn = 0,
+        TextColumnSpan = 3,
+        TextVerticalAlignment = VerticalAlignment.Top,
+        TextAlignment = Microsoft.UI.Xaml.TextAlignment.Center,
+        TextMargin = new Thickness(0, 4, 0, 0),
+        HorizontalPanelCollapsedHeight = 160,
+        HorizontalPanelExpandedHeight = 378,
+        HorizontalCardWidth = 152,
+        HorizontalCardHeight = 144,
+        HorizontalPreviewContainerWidth = 136,
+        HorizontalPreviewContainerHeight = 104,
+        HorizontalThirdPreviewWidth = 104,
+        HorizontalThirdPreviewHeight = 68,
+        HorizontalSecondPreviewWidth = 112,
+        HorizontalSecondPreviewHeight = 74,
+        HorizontalFrontPreviewWidth = 120,
+        HorizontalFrontPreviewHeight = 80,
+        HorizontalPreviewGlyphFontSize = 32,
+        HorizontalNameWidth = 144,
+        HorizontalPreviewRow = 0,
+        HorizontalPreviewRowSpan = 1,
+        HorizontalPreviewColumn = 0,
+        HorizontalPreviewColumnSpan = 2,
+        HorizontalPreviewMargin = new Thickness(0),
+        HorizontalTextRow = 1,
+        HorizontalTextRowSpan = 1,
+        HorizontalTextColumn = 0,
+        HorizontalTextColumnSpan = 2,
+        HorizontalTextVerticalAlignment = VerticalAlignment.Top,
+        HorizontalTextAlignment = Microsoft.UI.Xaml.TextAlignment.Center,
+        HorizontalTextMargin = new Thickness(0, 5, 0, 0),
+        HorizontalActionWidth = 152,
+        HorizontalActionHeight = 144,
+        HorizontalActionNameWidth = 144
+    };
+
+    private StackCardLayoutMetrics()
+    {
+    }
+
+    public double HeaderMinHeight { get; private init; }
+
+    public double PreviewContainerWidth { get; private init; }
+
+    public double PreviewContainerHeight { get; private init; }
+
+    public double ThirdPreviewWidth { get; private init; }
+
+    public double ThirdPreviewHeight { get; private init; }
+
+    public double SecondPreviewWidth { get; private init; }
+
+    public double SecondPreviewHeight { get; private init; }
+
+    public double FrontPreviewWidth { get; private init; }
+
+    public double FrontPreviewHeight { get; private init; }
+
+    public double PreviewGlyphFontSize { get; private init; }
+
+    public CornerRadius BackCornerRadius { get; private init; }
+
+    public CornerRadius FrontCornerRadius { get; private init; }
+
+    public double ThirdTranslateY { get; private init; }
+
+    public double SecondTranslateY { get; private init; }
+
+    public Thickness PreviewMargin { get; private init; }
+
+    public int PreviewColumnSpan { get; private init; }
+
+    public HorizontalAlignment PreviewHorizontalAlignment { get; private init; }
+
+    public int TextRow { get; private init; }
+
+    public int TextColumn { get; private init; }
+
+    public int TextColumnSpan { get; private init; }
+
+    public VerticalAlignment TextVerticalAlignment { get; private init; }
+
+    public TextAlignment TextAlignment { get; private init; }
+
+    public Thickness TextMargin { get; private init; }
+
+    public double HorizontalPanelCollapsedHeight { get; private init; }
+
+    public double HorizontalPanelExpandedHeight { get; private init; }
+
+    public double HorizontalCardWidth { get; private init; }
+
+    public double HorizontalCardHeight { get; private init; }
+
+    public double HorizontalPreviewContainerWidth { get; private init; }
+
+    public double HorizontalPreviewContainerHeight { get; private init; }
+
+    public double HorizontalThirdPreviewWidth { get; private init; }
+
+    public double HorizontalThirdPreviewHeight { get; private init; }
+
+    public double HorizontalSecondPreviewWidth { get; private init; }
+
+    public double HorizontalSecondPreviewHeight { get; private init; }
+
+    public double HorizontalFrontPreviewWidth { get; private init; }
+
+    public double HorizontalFrontPreviewHeight { get; private init; }
+
+    public double HorizontalPreviewGlyphFontSize { get; private init; }
+
+    public double HorizontalNameWidth { get; private init; }
+
+    public int HorizontalPreviewRow { get; private init; }
+
+    public int HorizontalPreviewRowSpan { get; private init; }
+
+    public int HorizontalPreviewColumn { get; private init; }
+
+    public int HorizontalPreviewColumnSpan { get; private init; }
+
+    public Thickness HorizontalPreviewMargin { get; private init; }
+
+    public int HorizontalTextRow { get; private init; }
+
+    public int HorizontalTextRowSpan { get; private init; }
+
+    public int HorizontalTextColumn { get; private init; }
+
+    public int HorizontalTextColumnSpan { get; private init; }
+
+    public VerticalAlignment HorizontalTextVerticalAlignment { get; private init; }
+
+    public TextAlignment HorizontalTextAlignment { get; private init; }
+
+    public Thickness HorizontalTextMargin { get; private init; }
+
+    public double HorizontalActionWidth { get; private init; }
+
+    public double HorizontalActionHeight { get; private init; }
+
+    public double HorizontalActionNameWidth { get; private init; }
+
+    public static StackCardLayoutMetrics Resolve(StackCardDisplayMode displayMode) => displayMode switch
+    {
+        StackCardDisplayMode.SmallList => SmallList,
+        StackCardDisplayMode.ThumbnailIcon => ThumbnailIcon,
+        _ => LargeList
+    };
 }
 
 public sealed class DropItemViewModel : ObservableObject
@@ -1219,7 +1752,7 @@ public sealed class DropItemViewModel : ObservableObject
         StorageItemThumbnail? thumbnail = null;
         try
         {
-            const uint thumbnailSize = 64;
+            const uint thumbnailSize = 120;
             if (this.Model.Kind == DropItemKind.Folder)
             {
                 var folder = await StorageFolder.GetFolderFromPathAsync(this.Model.SourcePath);

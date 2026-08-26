@@ -26,7 +26,7 @@ namespace OmniTray.Views;
 ///     permanently <see langword="true" />, so the native acrylic effect is always
 ///     rendered.
 /// </remarks>
-public sealed class AlwaysActiveDesktopAcrylicBackdrop : SystemBackdrop
+public sealed partial class AlwaysActiveDesktopAcrylicBackdrop : SystemBackdrop
 {
     /// <summary>
     ///     Identifies the <see cref="Kind" /> dependency property.
@@ -56,19 +56,19 @@ public sealed class AlwaysActiveDesktopAcrylicBackdrop : SystemBackdrop
     {
         base.OnTargetConnected(connectedTarget, xamlRoot);
 
-        var configuration = new SystemBackdropConfiguration { IsInputActive = true, Theme = ResolveTheme(xamlRoot) };
+        if (!DesktopAcrylicController.IsSupported())
+        {
+            return;
+        }
+
+        var defaultConfiguration = this.GetDefaultSystemBackdropConfiguration(connectedTarget, xamlRoot);
+        var configuration = CreateAlwaysActiveConfiguration(defaultConfiguration);
 
         var controller = new DesktopAcrylicController { Kind = this.Kind };
         controller.SetSystemBackdropConfiguration(configuration);
         controller.AddSystemBackdropTarget(connectedTarget);
 
-        var target = new BackdropTarget(controller, configuration, xamlRoot);
-        this._targets[connectedTarget] = target;
-
-        if (xamlRoot.Content is FrameworkElement rootElement)
-        {
-            rootElement.ActualThemeChanged += target.OnActualThemeChanged;
-        }
+        this._targets.Add(connectedTarget, new BackdropTarget(controller, configuration));
     }
 
     protected override void OnTargetDisconnected(ICompositionSupportsSystemBackdrop disconnectedTarget)
@@ -77,14 +77,24 @@ public sealed class AlwaysActiveDesktopAcrylicBackdrop : SystemBackdrop
 
         if (this._targets.Remove(disconnectedTarget, out var target))
         {
-            if (target.XamlRoot.Content is FrameworkElement rootElement)
-            {
-                rootElement.ActualThemeChanged -= target.OnActualThemeChanged;
-            }
-
             target.Controller.RemoveSystemBackdropTarget(disconnectedTarget);
             target.Controller.Dispose();
         }
+    }
+
+    protected override void OnDefaultSystemBackdropConfigurationChanged(
+        ICompositionSupportsSystemBackdrop target,
+        XamlRoot xamlRoot)
+    {
+        if (!this._targets.TryGetValue(target, out var backdropTarget))
+        {
+            return;
+        }
+
+        var defaultConfiguration = this.GetDefaultSystemBackdropConfiguration(target, xamlRoot);
+        backdropTarget.Configuration.Theme = defaultConfiguration.Theme;
+        backdropTarget.Configuration.IsHighContrast = defaultConfiguration.IsHighContrast;
+        backdropTarget.Configuration.IsInputActive = true;
     }
 
     private static void OnKindChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -98,37 +108,25 @@ public sealed class AlwaysActiveDesktopAcrylicBackdrop : SystemBackdrop
         }
     }
 
-    private static SystemBackdropTheme ResolveTheme(XamlRoot xamlRoot) =>
-        xamlRoot.Content is FrameworkElement rootElement
-            ? rootElement.ActualTheme switch
-            {
-                ElementTheme.Dark => SystemBackdropTheme.Dark,
-                ElementTheme.Light => SystemBackdropTheme.Light,
-                _ => SystemBackdropTheme.Default
-            }
-            : SystemBackdropTheme.Default;
+    private static SystemBackdropConfiguration CreateAlwaysActiveConfiguration(
+        SystemBackdropConfiguration defaultConfiguration) =>
+        new()
+        {
+            Theme = defaultConfiguration.Theme,
+            IsHighContrast = defaultConfiguration.IsHighContrast,
+            IsInputActive = true
+        };
 
     private sealed class BackdropTarget
     {
-        public BackdropTarget(
-            DesktopAcrylicController controller,
-            SystemBackdropConfiguration configuration,
-            XamlRoot xamlRoot)
+        public BackdropTarget(DesktopAcrylicController controller, SystemBackdropConfiguration configuration)
         {
             this.Controller = controller;
             this.Configuration = configuration;
-            this.XamlRoot = xamlRoot;
         }
 
         public DesktopAcrylicController Controller { get; }
 
         public SystemBackdropConfiguration Configuration { get; }
-
-        public XamlRoot XamlRoot { get; }
-
-        public void OnActualThemeChanged(FrameworkElement sender, object args)
-        {
-            this.Configuration.Theme = ResolveTheme(this.XamlRoot);
-        }
     }
 }

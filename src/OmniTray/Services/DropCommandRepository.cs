@@ -14,9 +14,6 @@ internal sealed class DropCommandRepository
 {
     private const string CatalogFileName = "drop-command-catalog.json";
     private const string TemporaryCatalogFileName = "drop-command-catalog.tmp";
-    private const int CurrentVersion = 3;
-    // Version 1 remains readable; its per-command acceptedKinds field is intentionally ignored.
-    private const int FirstSupportedVersion = 1;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     public async Task<DropCommandCatalogState> LoadAsync()
@@ -38,12 +35,6 @@ internal sealed class DropCommandRepository
                 if (document is null)
                 {
                     throw new JsonException("The command catalog is empty.");
-                }
-
-                if (document.Version < FirstSupportedVersion || document.Version > CurrentVersion)
-                {
-                    await PreserveUnsupportedCatalogAsync(file, document.Version);
-                    return DropCommandCatalogState.Empty;
                 }
 
                 var commands = document.Commands.Select(RestoreCommand).ToArray();
@@ -93,7 +84,6 @@ internal sealed class DropCommandRepository
         ArgumentNullException.ThrowIfNull(state);
         var document = new DropCommandCatalogDocument
         {
-            Version = CurrentVersion,
             Commands = [.. state.Commands.Select(CreateCommandDocument)],
             Layouts = [.. state.Layouts.Select(CreateLayoutDocument)],
             OpenWindows =
@@ -216,20 +206,6 @@ internal sealed class DropCommandRepository
             // An empty command catalogue is still usable if quarantine fails.
         }
     }
-
-    private static async Task PreserveUnsupportedCatalogAsync(StorageFile file, int version)
-    {
-        try
-        {
-            await file.RenameAsync(
-                $"drop-command-catalog.unsupported-v{version}-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}.json",
-                NameCollisionOption.GenerateUniqueName);
-        }
-        catch
-        {
-            // Starting with an empty catalog remains possible if the unsupported file cannot move.
-        }
-    }
 }
 
 internal sealed record DropCommandCatalogState(
@@ -252,8 +228,6 @@ internal sealed record DropCommandWindowState(
 
 internal sealed class DropCommandCatalogDocument
 {
-    public int Version { get; set; }
-
     public List<DropCommandDocument> Commands { get; set; } = [];
 
     public List<DropCommandLayoutDocument> Layouts { get; set; } = [];

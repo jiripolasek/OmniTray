@@ -1,5 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
-
 <UserControl
     x:Class="OmniTray.Controls.DropCommandSurface"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -14,7 +12,10 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Grid x:Name="HeaderGrid" Margin="4,2,4,4" ColumnSpacing="6">
+        <Grid
+            x:Name="HeaderGrid"
+            Margin="4,2,4,4"
+            ColumnSpacing="6">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
@@ -45,9 +46,9 @@
             MaxHeight="220"
             IsItemClickEnabled="False"
             ItemsSource="{x:Bind Items, Mode=OneWay}"
-            SelectionMode="None"
             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-            ScrollViewer.VerticalScrollBarVisibility="Auto">
+            ScrollViewer.VerticalScrollBarVisibility="Auto"
+            SelectionMode="None">
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
                     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -199,9 +200,7 @@
                     Visibility="Collapsed" />
             </Grid>
 
-            <ItemsControl
-                x:Name="HorizontalItems"
-                ItemsSource="{x:Bind Items, Mode=OneWay}">
+            <ItemsControl x:Name="HorizontalItems" ItemsSource="{x:Bind Items, Mode=OneWay}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <StackPanel Orientation="Horizontal" Spacing="2" />
@@ -231,9 +230,7 @@
                                 Tag="{x:Bind}">
                                 <StackPanel Spacing="5">
                                     <Grid Width="52" Height="46">
-                                        <Border
-                                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                            CornerRadius="8">
+                                        <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="8">
                                             <FontIcon FontSize="21" Glyph="{x:Bind Glyph}" />
                                         </Border>
                                         <FontIcon

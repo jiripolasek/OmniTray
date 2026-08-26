@@ -14,6 +14,14 @@ using OmniTray.Controls;
 
 namespace OmniTray.Views;
 
+internal enum TrayInspectorPlacement
+{
+    Top,
+    Right,
+    Bottom,
+    Left
+}
+
 internal sealed class TrayInspectorPopup : IDisposable
 {
     private readonly TrayInspector _content;
@@ -27,19 +35,24 @@ internal sealed class TrayInspectorPopup : IDisposable
     private bool _isPopupOpen;
     private bool _isPreparingForClose;
     private TrayInspectorMode _mode;
-    private SystemBackdrop? _pendingBackdrop;
     private Action? _pendingPopupAction;
 
-    public TrayInspectorPopup(Window dialogOwner, Popup popup, DropStackViewModel viewModel)
+    public TrayInspectorPopup(
+        Window dialogOwner,
+        Popup popup,
+        FrameworkElement placementTarget,
+        DropStackViewModel viewModel,
+        TrayInspectorPlacement preferredPlacement)
     {
         this._dialogOwner = dialogOwner ?? throw new ArgumentNullException(nameof(dialogOwner));
         this._popup = popup ?? throw new ArgumentNullException(nameof(popup));
+        this._popup.PlacementTarget = placementTarget ?? throw new ArgumentNullException(nameof(placementTarget));
+        this._popup.DesiredPlacement = ToPopupPlacementMode(preferredPlacement);
         this._viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         this._content = new TrayInspector(viewModel, dialogOwner);
         this._popup.Child = this._content;
         this._popup.Opened += this.OnPopupOpened;
         this._popup.Closed += this.OnPopupClosed;
-        this._content.CloseRequested += this.OnCloseRequested;
         this._content.DeleteRequested += this.OnDeleteRequested;
         this._content.ActualThemeChanged += this.OnActualThemeChanged;
         this._viewModel.PropertyChanged += this.OnViewModelPropertyChanged;
@@ -124,10 +137,14 @@ internal sealed class TrayInspectorPopup : IDisposable
         this._closePreparationCompleted = null;
         this._popup.Opened -= this.OnPopupOpened;
         this._popup.Closed -= this.OnPopupClosed;
-        this._content.CloseRequested -= this.OnCloseRequested;
         this._content.DeleteRequested -= this.OnDeleteRequested;
         this._content.ActualThemeChanged -= this.OnActualThemeChanged;
         this._viewModel.PropertyChanged -= this.OnViewModelPropertyChanged;
+        if (ReferenceEquals(this._popup.Child, this._content))
+        {
+            this._popup.Child = null;
+        }
+
         this._content.Dispose();
     }
 
@@ -135,17 +152,22 @@ internal sealed class TrayInspectorPopup : IDisposable
     {
         this._isPopupOpen = true;
         this._isPopupClosing = false;
-        if (this._pendingBackdrop is { } backdrop)
-        {
-            this._pendingBackdrop = null;
-            this._popup.SystemBackdrop = backdrop;
-        }
-
         this._content.Open(this._mode);
     }
 
+    private static PopupPlacementMode ToPopupPlacementMode(TrayInspectorPlacement placement) =>
+        placement switch
+        {
+            TrayInspectorPlacement.Top => PopupPlacementMode.Top,
+            TrayInspectorPlacement.Right => PopupPlacementMode.Right,
+            TrayInspectorPlacement.Bottom => PopupPlacementMode.Bottom,
+            TrayInspectorPlacement.Left => PopupPlacementMode.Left,
+            _ => throw new ArgumentOutOfRangeException(nameof(placement), placement, null)
+        };
+
     private void OnPopupClosed(object? sender, object args)
     {
+        this._content.OnPopupClosed();
         this._isPopupOpen = false;
         this._isPopupClosing = false;
         if (this._isPreparingForClose)
@@ -159,8 +181,6 @@ internal sealed class TrayInspectorPopup : IDisposable
         this._pendingPopupAction = null;
         this.EnqueueAfterPopupClosed(action);
     }
-
-    private void OnCloseRequested(object? sender, EventArgs args) => this._popup.IsOpen = false;
 
     private void OnDeleteRequested(object? sender, EventArgs args) =>
         _ = this.ConfirmDeleteAsync();
@@ -236,14 +256,15 @@ internal sealed class TrayInspectorPopup : IDisposable
         }
         else if (args.PropertyName == nameof(DropStackViewModel.TintColor))
         {
-            var backdrop = this._pendingBackdrop ?? (this._popup.IsOpen ? this._popup.SystemBackdrop : null);
-            if (backdrop is TintedAcrylicBackdrop tintedBackdrop)
+            var usesUntintedBackdrop = StackTintPalette.IsNeutral(this._viewModel.Tint) &&
+                                       !StackTintPalette.UseSystemAccentForNeutral;
+            if (!usesUntintedBackdrop && this._content.SurfaceBackdrop is TintedAcrylicBackdrop tintedBackdrop)
             {
                 tintedBackdrop.TintColor = this._viewModel.TintColor;
             }
-            else if (!TintedAcrylicBackdrop.IsSupported)
+            else
             {
-                this.ApplyFallbackBackground();
+                this.ApplyBackdrop();
             }
         }
     }
@@ -260,28 +281,30 @@ internal sealed class TrayInspectorPopup : IDisposable
     {
         if (!TintedAcrylicBackdrop.IsSupported)
         {
+            this._content.SurfaceBackdrop = null;
             this.ApplyFallbackBackground();
             return;
         }
 
         this._content.SurfaceBackground = new SolidColorBrush(Colors.Transparent);
-        this.SetBackdrop(StackTintPalette.IsNeutral(this._viewModel.Tint)
-            ? new DesktopAcrylicBackdrop()
-            : new TintedAcrylicBackdrop(this._viewModel.TintColor));
-    }
-
-    // Assigning Popup.SystemBackdrop while the popup is closed faults because
-    // the popup has no realized island yet, so cache it until Opened.
-    private void SetBackdrop(SystemBackdrop backdrop)
-    {
-        if (this._popup.IsOpen)
+        if (StackTintPalette.IsNeutral(this._viewModel.Tint) &&
+            !StackTintPalette.UseSystemAccentForNeutral)
         {
-            this._pendingBackdrop = null;
-            this._popup.SystemBackdrop = backdrop;
+            if (this._content.SurfaceBackdrop is not DesktopAcrylicBackdrop)
+            {
+                this._content.SurfaceBackdrop = new DesktopAcrylicBackdrop();
+            }
+
             return;
         }
 
-        this._pendingBackdrop = backdrop;
+        if (this._content.SurfaceBackdrop is TintedAcrylicBackdrop tintedBackdrop)
+        {
+            tintedBackdrop.TintColor = this._viewModel.TintColor;
+            return;
+        }
+
+        this._content.SurfaceBackdrop = new TintedAcrylicBackdrop(this._viewModel.TintColor);
     }
 
     private void ApplyFallbackBackground() =>
@@ -289,7 +312,8 @@ internal sealed class TrayInspectorPopup : IDisposable
 
     private SolidColorBrush CreateFallbackBackground()
     {
-        if (!StackTintPalette.IsNeutral(this._viewModel.Tint))
+        if (!StackTintPalette.IsNeutral(this._viewModel.Tint) ||
+            StackTintPalette.UseSystemAccentForNeutral)
         {
             return new SolidColorBrush(
                 TintedAcrylicBackdrop.CreateFallbackColor(

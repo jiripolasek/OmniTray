@@ -5,13 +5,18 @@
 // ------------------------------------------------------------
 
 using Windows.ApplicationModel.DataTransfer;
+using Microsoft.UI.Dispatching;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml.Input;
 
 namespace OmniTray.Controls;
 
 internal sealed partial class StackTrayContent : UserControl, ITrayWindowContent
 {
+    private static readonly TimeSpan InspectorHoverDelay = TimeSpan.FromMilliseconds(700);
     private readonly TrayInspectorPopup _inspectorPopup;
+    private readonly DispatcherQueueTimer _inspectorHoverTimer;
+    private FrameworkElement? _inspectorHoverTarget;
     private bool _isDisposed;
 
     public StackTrayContent(Window owner, DropStackViewModel viewModel, bool isMinimal)
@@ -23,8 +28,16 @@ internal sealed partial class StackTrayContent : UserControl, ITrayWindowContent
         this.NormalContent.Visibility = isMinimal ? Visibility.Collapsed : Visibility.Visible;
         this.MinimalContent.Visibility = isMinimal ? Visibility.Visible : Visibility.Collapsed;
         this.DropHintOverlay.Visibility = Visibility.Collapsed;
-        this.InspectorPopup.PlacementTarget = isMinimal ? this.MinimalContent : this.ExploreButton;
-        this._inspectorPopup = new TrayInspectorPopup(owner, this.InspectorPopup, viewModel);
+        this._inspectorHoverTimer = this.DispatcherQueue.CreateTimer();
+        this._inspectorHoverTimer.Interval = InspectorHoverDelay;
+        this._inspectorHoverTimer.IsRepeating = false;
+        this._inspectorHoverTimer.Tick += this.OnInspectorHoverTimerTick;
+        this._inspectorPopup = new TrayInspectorPopup(
+            owner,
+            this.InspectorPopup,
+            this.InspectorPlacementTarget,
+            viewModel,
+            TrayInspectorPlacement.Bottom);
         this.ContextActions =
         [
             new TrayContextAction(
@@ -36,9 +49,9 @@ internal sealed partial class StackTrayContent : UserControl, ITrayWindowContent
                 Symbol.Paste,
                 () => _ = App.Current.InsertClipboardContentAsync(this.ViewModel)),
             new TrayContextAction(
-                "Rename",
+                "Customize",
                 Symbol.Rename,
-                () => this._inspectorPopup.Show(TrayInspectorMode.Rename)),
+                () => this._inspectorPopup.Show(TrayInspectorMode.Customize)),
             new TrayContextAction(
                 "Delete stack",
                 Symbol.Delete,
@@ -65,11 +78,14 @@ internal sealed partial class StackTrayContent : UserControl, ITrayWindowContent
         }
 
         this._isDisposed = true;
+        this.CancelInspectorHover();
+        this._inspectorHoverTimer.Tick -= this.OnInspectorHoverTimerTick;
         this._inspectorPopup.Dispose();
     }
 
     private void OnDragOver(object sender, DragEventArgs args)
     {
+        this.CancelInspectorHover();
         args.Handled = true;
         if (DragDropDataService.HasStackReference(args.DataView))
         {
@@ -148,12 +164,15 @@ internal sealed partial class StackTrayContent : UserControl, ITrayWindowContent
         }
     }
 
-    private void OnStackDragStarting(UIElement sender, DragStartingEventArgs args) =>
+    private void OnStackDragStarting(UIElement sender, DragStartingEventArgs args)
+    {
+        this.CancelInspectorHover();
         DragDropDataService.Write(
             args.Data,
             this.ViewModel.Model,
             this.ViewModel.Name,
             App.Current.AllowMoveOnDragOutPreference);
+    }
 
     private async void OnStackDropCompleted(UIElement sender, DropCompletedEventArgs args) =>
         await App.Current.CompleteStackDragAsync(args.DropResult);
@@ -207,6 +226,55 @@ internal sealed partial class StackTrayContent : UserControl, ITrayWindowContent
 
     private void OnExploreClick(object sender, RoutedEventArgs args) =>
         this._inspectorPopup.Show(TrayInspectorMode.Browse);
+
+    private void OnInspectorHoverPointerEntered(object sender, PointerRoutedEventArgs args)
+    {
+        if (!App.Current.OpenInspectorOnHoverPreference ||
+            args.Pointer.PointerDeviceType != PointerDeviceType.Mouse ||
+            DragDropDataService.HasActiveDrag ||
+            sender is not FrameworkElement target)
+        {
+            return;
+        }
+
+        this._inspectorHoverTarget = target;
+        this._inspectorHoverTimer.Stop();
+        this._inspectorHoverTimer.Start();
+    }
+
+    private void OnInspectorHoverPointerExited(object sender, PointerRoutedEventArgs args)
+    {
+        if (ReferenceEquals(this._inspectorHoverTarget, sender))
+        {
+            this.CancelInspectorHover();
+        }
+    }
+
+    private void OnInspectorHoverPointerPressed(object sender, PointerRoutedEventArgs args) =>
+        this.CancelInspectorHover();
+
+    private void OnInspectorHoverTimerTick(DispatcherQueueTimer sender, object args)
+    {
+        sender.Stop();
+        var target = this._inspectorHoverTarget;
+        this._inspectorHoverTarget = null;
+        if (this._isDisposed ||
+            !App.Current.OpenInspectorOnHoverPreference ||
+            target is null ||
+            target.XamlRoot is null ||
+            DragDropDataService.HasActiveDrag)
+        {
+            return;
+        }
+
+        this._inspectorPopup.Show(TrayInspectorMode.Browse);
+    }
+
+    private void CancelInspectorHover()
+    {
+        this._inspectorHoverTarget = null;
+        this._inspectorHoverTimer.Stop();
+    }
 
     private void SetDropHintVisible(bool isVisible)
     {

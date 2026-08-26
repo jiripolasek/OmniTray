@@ -18,8 +18,9 @@ internal sealed class ListInsertionAdornerController
 {
     private readonly string _adornerName;
     private readonly ListView _list;
-    private readonly Orientation _orientation;
     private InsertionAdorner? _activeAdorner;
+    private Orientation _orientation;
+    private bool _wraps;
 
     public ListInsertionAdornerController(
         ListView list,
@@ -29,6 +30,13 @@ internal sealed class ListInsertionAdornerController
         this._list = list;
         this._adornerName = adornerName;
         this._orientation = orientation;
+    }
+
+    public void SetLayout(Orientation orientation, bool wraps = false)
+    {
+        this.Clear();
+        this._orientation = orientation;
+        this._wraps = wraps;
     }
 
     public ListInsertionTarget? Resolve(Point position)
@@ -46,6 +54,35 @@ internal sealed class ListInsertionAdornerController
         if (realized.Length == 0)
         {
             return null;
+        }
+
+        if (this._wraps)
+        {
+            var rowAnchor = realized.MinBy(value =>
+                Math.Abs((value.Bounds.Y + (value.Bounds.Height / 2)) - position.Y));
+            var rowTolerance = Math.Max(1, rowAnchor.Bounds.Height / 2);
+            var row = realized
+                .Where(value => Math.Abs(
+                    (value.Bounds.Y + (value.Bounds.Height / 2)) -
+                    (rowAnchor.Bounds.Y + (rowAnchor.Bounds.Height / 2))) < rowTolerance)
+                .OrderBy(static value => value.Bounds.X)
+                .ToArray();
+            foreach (var value in row)
+            {
+                if (position.X < value.Bounds.X + (value.Bounds.Width / 2))
+                {
+                    return new ListInsertionTarget(
+                        value.Index,
+                        value.Index,
+                        InsertionPlacement.Before);
+                }
+            }
+
+            var lastInRow = row[^1];
+            return new ListInsertionTarget(
+                lastInRow.Index + 1,
+                lastInRow.Index,
+                InsertionPlacement.After);
         }
 
         var pointerAxis = this._orientation == Orientation.Vertical ? position.Y : position.X;

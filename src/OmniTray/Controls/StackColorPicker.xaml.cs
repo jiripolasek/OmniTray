@@ -24,8 +24,6 @@ public sealed partial class StackColorPicker : UserControl
         this.BuildPalette();
         this.NeutralSwatch.Background = new SolidColorBrush(
             StackTintPalette.Resolve(DropStack.DefaultTint));
-        this.SystemAccentSwatch.Background = new SolidColorBrush(
-            StackTintPalette.Resolve(DropStack.SystemAccentTint));
     }
 
     public DropStackViewModel? Stack
@@ -52,8 +50,6 @@ public sealed partial class StackColorPicker : UserControl
     {
         this.NeutralSwatch.Background = new SolidColorBrush(
             StackTintPalette.Resolve(DropStack.DefaultTint));
-        this.SystemAccentSwatch.Background = new SolidColorBrush(
-            StackTintPalette.Resolve(DropStack.SystemAccentTint));
         this.UpdateSelection();
         _ = this.NeutralButton.DispatcherQueue.TryEnqueue(() => this.NeutralButton.Focus(FocusState.Programmatic));
     }
@@ -62,10 +58,14 @@ public sealed partial class StackColorPicker : UserControl
     {
         for (var column = 0; column < PaletteColumnCount; column++)
         {
-            this.PaletteGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            this.PaletteGrid.ColumnDefinitions.Add(new ColumnDefinition
+            {
+                Width = new GridLength(1, GridUnitType.Star)
+            });
         }
 
-        var rowCount = (StackTintPalette.Presets.Count + PaletteColumnCount - 1) / PaletteColumnCount;
+        var itemCount = StackTintPalette.Presets.Count + 1;
+        var rowCount = (itemCount + PaletteColumnCount - 1) / PaletteColumnCount;
         for (var row = 0; row < rowCount; row++)
         {
             this.PaletteGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -96,6 +96,7 @@ public sealed partial class StackColorPicker : UserControl
                 Width = 30,
                 Height = 30,
                 Padding = new Thickness(1),
+                HorizontalAlignment = HorizontalAlignment.Center,
                 Background = new SolidColorBrush(Colors.Transparent),
                 BorderThickness = new Thickness(0),
                 CornerRadius = new CornerRadius(6),
@@ -105,8 +106,9 @@ public sealed partial class StackColorPicker : UserControl
             AutomationProperties.SetName(button, preset.Name);
             ToolTipService.SetToolTip(button, preset.Name);
             button.Click += this.OnPresetClick;
-            Grid.SetColumn(button, index % PaletteColumnCount);
-            Grid.SetRow(button, index / PaletteColumnCount);
+            var displayIndex = index + 1;
+            Grid.SetColumn(button, displayIndex % PaletteColumnCount);
+            Grid.SetRow(button, displayIndex / PaletteColumnCount);
             this.PaletteGrid.Children.Add(button);
             this._presetSelections.Add((preset, selection));
         }
@@ -131,11 +133,6 @@ public sealed partial class StackColorPicker : UserControl
         this.SelectTint(DropStack.DefaultTint);
     }
 
-    private void OnSystemAccentClick(object sender, RoutedEventArgs args)
-    {
-        this.SelectTint(DropStack.SystemAccentTint);
-    }
-
     private void OnPresetClick(object sender, RoutedEventArgs args)
     {
         if ((sender as FrameworkElement)?.Tag is not StackTintPreset preset)
@@ -150,13 +147,7 @@ public sealed partial class StackColorPicker : UserControl
     {
         var tint = this.Stack?.Tint ?? this._getTint?.Invoke();
         var usesNeutral = tint is not null && StackTintPalette.IsNeutral(tint);
-        var usesSystemAccent = tint is not null && StackTintPalette.IsSystemAccent(tint);
-        this.NeutralButton.IsChecked = usesNeutral;
         this.NeutralSelection.Visibility = usesNeutral
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-        this.SystemAccentButton.IsChecked = usesSystemAccent;
-        this.SystemAccentSelection.Visibility = usesSystemAccent
             ? Visibility.Visible
             : Visibility.Collapsed;
 

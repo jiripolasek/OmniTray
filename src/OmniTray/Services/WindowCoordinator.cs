@@ -20,6 +20,7 @@ internal sealed partial class WindowCoordinator
     private readonly EdgeWindowController _edgeWindowController;
 
     private readonly DropCommandCatalogViewModel _dropCommandCatalog;
+    private readonly MainViewModel _viewModel;
     private readonly Dictionary<Guid, TrayWindowSession> _dropCommandWindows = [];
     private readonly Dictionary<Guid, TrayWindowSession> _trayWindows = [];
     private bool _isClosing;
@@ -31,13 +32,17 @@ internal sealed partial class WindowCoordinator
     public WindowCoordinator(
         MainViewModel viewModel,
         DropCommandCatalogViewModel dropCommandCatalog,
-        DispatcherQueue dispatcherQueue)
+        DispatcherQueue dispatcherQueue,
+        Func<bool> isShakeToCreateTrayEnabled)
     {
+        this._viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         this._dropCommandCatalog = dropCommandCatalog ??
                                    throw new ArgumentNullException(nameof(dropCommandCatalog));
         this._edgeWindowController = new EdgeWindowController(
-            viewModel,
-            dispatcherQueue);
+            this._viewModel,
+            dispatcherQueue,
+            isShakeToCreateTrayEnabled,
+            this.OnShakeToCreateTray);
     }
 
     public event EventHandler? TrayWindowStatesChanged;
@@ -64,13 +69,23 @@ internal sealed partial class WindowCoordinator
         this._isPopupVisible = true;
     }
 
-    public void ShowTray(DropStackViewModel stack)
+    public void ShowTray(DropStackViewModel stack) => this.ShowTray(stack, null, true);
+
+    private void ShowTray(DropStackViewModel stack, PointInt32? pointer, bool hidePopup)
     {
         ArgumentNullException.ThrowIfNull(stack);
-        this.HidePopup();
+        if (hidePopup)
+        {
+            this.HidePopup();
+        }
 
         if (this._trayWindows.TryGetValue(stack.Model.Id, out var existingSession))
         {
+            if (pointer is { } existingPointer)
+            {
+                PositionTrayWindowAtPointer(existingSession, existingPointer, true);
+            }
+
             existingSession.Activate();
             return;
         }
@@ -78,7 +93,15 @@ internal sealed partial class WindowCoordinator
         var session = this.CreateTrayWindowSession(stack);
         var placementSlot = this._trayWindows.Count + this._dropCommandWindows.Count;
         this._trayWindows.Add(stack.Model.Id, session);
-        PositionTrayWindow(session.ActiveWindow, placementSlot);
+        if (pointer is { } targetPointer)
+        {
+            PositionTrayWindowAtPointer(session, targetPointer, false);
+        }
+        else
+        {
+            PositionTrayWindow(session.ActiveWindow, placementSlot);
+        }
+
         session.Activate();
         this.TrayWindowStatesChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -234,6 +257,8 @@ internal sealed partial class WindowCoordinator
         this._edgeWindowController.Show(side);
     }
 
+    public void HideAllEdgeShelves() => this._edgeWindowController.HideAll();
+
     public void ShowToast(
         string message,
         InfoBarSeverity severity,
@@ -299,6 +324,7 @@ internal sealed partial class WindowCoordinator
 
     public void HidePopup()
     {
+        this._popupWindow?.CloseStackInspector();
         this._popupWindow?.AppWindow.Hide();
         this._isPopupVisible = false;
     }
@@ -324,6 +350,7 @@ internal sealed partial class WindowCoordinator
             }
 
             args.Cancel = true;
+            window.CloseStackInspector();
             window.AppWindow.Hide();
             this._isPopupVisible = false;
         };
@@ -433,7 +460,7 @@ internal sealed partial class WindowCoordinator
 
     private static void PositionPopupWindow(Window window)
     {
-        var width = DipsToPixels(window, 420);
+        var width = DipsToPixels(window, OmniTrayPopupWindow.DefaultWidthInDips);
         var height = DipsToPixels(window, 640);
         var margin = DipsToPixels(window, PopupEdgeInsetInDips);
         var workArea = GetWorkArea(window);
@@ -510,6 +537,50 @@ internal sealed partial class WindowCoordinator
             workArea.Y + workArea.Height - height - margin - (row * (height + gap)),
             width,
             height));
+    }
+
+    private static void PositionTrayWindowAtPointer(
+        TrayWindowSession session,
+        PointInt32 pointer,
+        bool preserveCurrentSize)
+    {
+        var window = session.ActiveWindow;
+        var workArea = DisplayArea.GetFromPoint(pointer, DisplayAreaFallback.Nearest).WorkArea;
+
+        // Moving first lets the window report the destination display's DPI before sizing it.
+        window.AppWindow.Move(new PointInt32(workArea.X, workArea.Y));
+        var requestedSize = preserveCurrentSize
+            ? window.AppWindow.Size
+            : new SizeInt32(
+                DipsToPixels(window, TrayWindow.DefaultWidthInDips),
+                DipsToPixels(window, TrayWindow.DefaultHeightInDips));
+        var width = Math.Min(requestedSize.Width, workArea.Width);
+        var height = Math.Min(requestedSize.Height, workArea.Height);
+        var titleBarHeight = session.IsMinimalMode
+            ? 0
+            : Math.Min(DipsToPixels(window, 48), height / 2);
+        var contentCenterY = titleBarHeight + ((height - titleBarHeight) / 2);
+        var maximumX = workArea.X + workArea.Width - width;
+        var maximumY = workArea.Y + workArea.Height - height;
+        window.AppWindow.MoveAndResize(new RectInt32(
+            Math.Clamp(pointer.X - (width / 2), workArea.X, maximumX),
+            Math.Clamp(pointer.Y - contentCenterY, workArea.Y, maximumY),
+            width,
+            height));
+    }
+
+    private void OnShakeToCreateTray(PointInt32 pointer)
+    {
+        if (this._isClosing)
+        {
+            return;
+        }
+
+        var stack = DragDropDataService.ActiveStackReferenceId is { } stackId
+            ? this._viewModel.Stacks.FirstOrDefault(candidate => candidate.Model.Id == stackId)
+            : null;
+        stack ??= this._viewModel.AddStack(DropStack.CreateEmpty());
+        this.ShowTray(stack, pointer, false);
     }
 
     private static void PositionTrayWindow(Window window, TrayWindowState state) =>

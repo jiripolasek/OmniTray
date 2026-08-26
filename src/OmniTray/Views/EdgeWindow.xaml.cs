@@ -6,15 +6,19 @@
 
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Numerics;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.UI.ViewManagement;
 using Microsoft.UI.Composition;
 using Microsoft.UI.Input;
+using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using OmniTray.Controls;
+using DispatcherQueuePriority = Microsoft.UI.Dispatching.DispatcherQueuePriority;
 
 namespace OmniTray.Views;
 
@@ -27,8 +31,13 @@ public sealed partial class EdgeWindow : TransparentWindow
 
     private readonly Compositor _compositor;
     private readonly InsetClip _contentClip;
+    private readonly AutoSuggestBox _filterBox;
+    private readonly ObservableCollection<DropStackViewModel> _filteredEdgeStacks = [];
     private readonly ListInsertionAdornerController _horizontalStackInsertionAdorner;
     private readonly PointerEventHandler _stackPointerMovedHandler;
+    private readonly Flyout _searchFlyout;
+    private readonly TrayInspectorPopupHost _inspectorPopupHost;
+    private readonly HashSet<DropStackViewModel> _trackedStacks = [];
     private readonly ListInsertionAdornerController _verticalStackInsertionAdorner;
     private ListView _activeStackList = null!;
     private ScalarKeyFrameAnimation? _contentClipAnimation;
@@ -37,6 +46,7 @@ public sealed partial class EdgeWindow : TransparentWindow
     private ScalarKeyFrameAnimation? _hintRailAnimation;
     private DropStackViewModel? _horizontalExpandedStack;
     private bool _isExpandedTarget;
+    private bool _isFilterApplied;
     private bool _isStackDragOperationActive;
     private double _panelHeight;
     private double _panelWidth;
@@ -49,9 +59,24 @@ public sealed partial class EdgeWindow : TransparentWindow
         this.ViewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         this.Side = side;
         this.EdgeStacks = this.ViewModel.GetEdgeStacks(side);
-        this.ShelfTitle = $"{side.GetDisplayName()} edge shelf";
         this._stackPointerMovedHandler = this.OnStackPointerMoved;
         this.InitializeComponent();
+        this._inspectorPopupHost = new TrayInspectorPopupHost(this, this.StackInspectorPopup);
+        this._filterBox = new AutoSuggestBox
+        {
+            Width = 280,
+            PlaceholderText = "Filter stacks",
+            QueryIcon = new SymbolIcon(Symbol.Find)
+        };
+        AutomationProperties.SetName(this._filterBox, "Filter stacks on this shelf");
+        this._filterBox.TextChanged += this.OnFilterBoxTextChanged;
+        this._searchFlyout = new Flyout
+        {
+            Content = this._filterBox,
+            Placement = FlyoutPlacementMode.BottomEdgeAlignedRight
+        };
+        this._searchFlyout.Opened += this.OnSearchFlyoutOpened;
+        this._searchFlyout.Closed += this.OnSearchFlyoutClosed;
         var commandSurfaceId = DropCommandSurfaceIds.ForEdge(side);
         this.VerticalCommandSurface.SurfaceId = commandSurfaceId;
         this.VerticalCommandSurface.OwnerWindow = this;
@@ -80,6 +105,7 @@ public sealed partial class EdgeWindow : TransparentWindow
             Orientation.Horizontal);
         this.ConfigureOrientation();
         this.EdgeStacks.CollectionChanged += this.OnEdgeStacksChanged;
+        this.SynchronizeTrackedStacks();
         this.EdgeStackList.Loaded += (_, _) => this.CacheActiveStackScrollViewer(this.EdgeStackList);
         this.HorizontalStackList.Loaded += (_, _) => this.CacheActiveStackScrollViewer(this.HorizontalStackList);
         this.UpdateEmptyState();
@@ -90,8 +116,6 @@ public sealed partial class EdgeWindow : TransparentWindow
     public EdgeShelfSide Side { get; }
 
     public ObservableCollection<DropStackViewModel> EdgeStacks { get; }
-
-    public string ShelfTitle { get; }
 
     internal bool IsHorizontalDetailExpanded => this._horizontalExpandedStack is not null;
 
@@ -208,7 +232,18 @@ public sealed partial class EdgeWindow : TransparentWindow
 
     public void Detach()
     {
+        this._inspectorPopupHost.Dispose();
         this.EdgeStacks.CollectionChanged -= this.OnEdgeStacksChanged;
+        foreach (var stack in this._trackedStacks)
+        {
+            stack.PropertyChanged -= this.OnStackPropertyChanged;
+        }
+
+        this._trackedStacks.Clear();
+        this._filterBox.TextChanged -= this.OnFilterBoxTextChanged;
+        this._searchFlyout.Opened -= this.OnSearchFlyoutOpened;
+        this._searchFlyout.Closed -= this.OnSearchFlyoutClosed;
+        this._searchFlyout.Hide();
         if (this._horizontalExpandedStack is { } expandedStack)
         {
             expandedStack.ModelChanged -= this.OnHorizontalExpandedStackChanged;
@@ -634,6 +669,16 @@ public sealed partial class EdgeWindow : TransparentWindow
         args.Handled = true;
         this.ExternalDragEntered?.Invoke(this, EventArgs.Empty);
         var controller = this.GetStackInsertionAdorner(list);
+        if (this._isFilterApplied)
+        {
+            controller.Clear();
+            args.AcceptedOperation = DataPackageOperation.None;
+            args.DragUIOverride.Caption = "Close search to reorder stacks";
+            args.DragUIOverride.IsCaptionVisible = true;
+            args.DragUIOverride.IsContentVisible = true;
+            return;
+        }
+
         var target = controller.Resolve(args.GetPosition(list));
         var source = DragDropDataService.ActiveStackReferenceId is { } stackId
             ? this.ViewModel.Stacks.FirstOrDefault(stack => stack.Model.Id == stackId)
@@ -676,6 +721,12 @@ public sealed partial class EdgeWindow : TransparentWindow
 
         args.Handled = true;
         var controller = this.GetStackInsertionAdorner(list);
+        if (this._isFilterApplied)
+        {
+            controller.Clear();
+            return;
+        }
+
         var target = controller.Resolve(args.GetPosition(list));
         controller.Clear();
         if (target is null)
@@ -756,7 +807,16 @@ public sealed partial class EdgeWindow : TransparentWindow
             hoverBackground.Opacity = isPointerOver ? 1 : 0;
         }
 
-        if (header?.FindName("PopOutButton") is Button button)
+        SetVerticalStackHeaderActionHover(header, "InspectorButton", isPointerOver);
+        SetVerticalStackHeaderActionHover(header, "PopOutButton", isPointerOver);
+    }
+
+    private static void SetVerticalStackHeaderActionHover(
+        FrameworkElement? header,
+        string buttonName,
+        bool isPointerOver)
+    {
+        if (header?.FindName(buttonName) is Button button)
         {
             button.Opacity = isPointerOver ? 0.92 : 0;
             button.IsHitTestVisible = isPointerOver;
@@ -764,24 +824,24 @@ public sealed partial class EdgeWindow : TransparentWindow
     }
 
     private void OnStackPointerEntered(object sender, PointerRoutedEventArgs args) =>
-        SetPopOutOpacity(sender as FrameworkElement, 0.92);
+        SetStackActionOpacity(sender as FrameworkElement, 0.92);
 
     private void OnStackPointerExited(object sender, PointerRoutedEventArgs args)
     {
-        if (sender is not FrameworkElement root ||
-            root.FindName("PopOutButton") is not Button { FocusState: FocusState.Unfocused } button)
+        if (sender is not FrameworkElement root)
         {
             return;
         }
 
-        button.Opacity = root.FindName("OrganizerPanel") is FrameworkElement { Visibility: Visibility.Visible }
+        var opacity = root.FindName("OrganizerPanel") is FrameworkElement { Visibility: Visibility.Visible }
             ? 0.92
             : this.Side.IsVertical()
                 ? 0.22
                 : 0.16;
+        SetStackActionOpacity(root, opacity, true);
     }
 
-    private void OnPopOutButtonGotFocus(object sender, RoutedEventArgs args)
+    private void OnStackActionButtonGotFocus(object sender, RoutedEventArgs args)
     {
         if (sender is Button button)
         {
@@ -789,13 +849,51 @@ public sealed partial class EdgeWindow : TransparentWindow
         }
     }
 
-    private void OnPopOutButtonLostFocus(object sender, RoutedEventArgs args)
+    private void OnStackActionButtonLostFocus(object sender, RoutedEventArgs args)
     {
         if (sender is Button button)
         {
             button.Opacity = this.Side.IsVertical() ? 0.22 : 0.16;
         }
     }
+
+    private void OnInspectStackClick(object sender, RoutedEventArgs args)
+    {
+        if (GetTaggedStack(sender) is not { } stack)
+        {
+            return;
+        }
+
+        var placementTarget = sender as Button ??
+                              this._activeStackList.ContainerFromItem(stack) as FrameworkElement ??
+                              this.ShelfSurface;
+        var placement = this.GetInspectorPlacement();
+        if (sender is MenuFlyoutItem)
+        {
+            this.DispatcherQueue.TryEnqueue(
+                DispatcherQueuePriority.Low,
+                () => this._inspectorPopupHost.Show(placementTarget, stack, placement));
+            return;
+        }
+
+        this._inspectorPopupHost.Show(placementTarget, stack, placement);
+    }
+
+    private TrayInspectorPlacement GetInspectorPlacement() =>
+        this.Side switch
+        {
+            EdgeShelfSide.Left => TrayInspectorPlacement.Right,
+            EdgeShelfSide.Right => TrayInspectorPlacement.Left,
+            EdgeShelfSide.Top => TrayInspectorPlacement.Bottom,
+            EdgeShelfSide.Bottom => TrayInspectorPlacement.Top,
+            _ => throw new ArgumentOutOfRangeException(nameof(this.Side))
+        };
+
+    private void OnStackInspectorPopupOpened(object? sender, object args) =>
+        this.PointerInteractionStarted?.Invoke(this, EventArgs.Empty);
+
+    private void OnStackInspectorPopupClosed(object? sender, object args) =>
+        this.PointerInteractionEnded?.Invoke(this, EventArgs.Empty);
 
     private void OnOpenTrayMenuClick(object sender, RoutedEventArgs args)
     {
@@ -831,9 +929,23 @@ public sealed partial class EdgeWindow : TransparentWindow
         }
     }
 
-    private static void SetPopOutOpacity(FrameworkElement? root, double opacity)
+    private static void SetStackActionOpacity(
+        FrameworkElement? root,
+        double opacity,
+        bool onlyUnfocused = false)
     {
-        if (root?.FindName("PopOutButton") is Button button)
+        SetStackActionOpacity(root, "InspectorButton", opacity, onlyUnfocused);
+        SetStackActionOpacity(root, "PopOutButton", opacity, onlyUnfocused);
+    }
+
+    private static void SetStackActionOpacity(
+        FrameworkElement? root,
+        string buttonName,
+        double opacity,
+        bool onlyUnfocused)
+    {
+        if (root?.FindName(buttonName) is Button button &&
+            (!onlyUnfocused || button.FocusState == FocusState.Unfocused))
         {
             button.Opacity = opacity;
         }
@@ -855,6 +967,7 @@ public sealed partial class EdgeWindow : TransparentWindow
 
         this._horizontalExpandedStack = stack;
         this.HorizontalOrganizer.Stack = stack;
+        this.HorizontalDetailInspectButton.Tag = stack;
         this.HorizontalDetailPopOutButton.Tag = stack;
         this.HorizontalStackList.SelectedItem = stack;
         this.HorizontalDetailPanel.Visibility = stack is null ? Visibility.Collapsed : Visibility.Visible;
@@ -954,6 +1067,197 @@ public sealed partial class EdgeWindow : TransparentWindow
 
         args.DragUIOverride.Caption = direction < 0 ? "Scroll toward start" : "Scroll toward end";
     }
+
+    private void OnSearchClick(object sender, RoutedEventArgs args)
+    {
+        if (sender is FrameworkElement anchor)
+        {
+            this._searchFlyout.ShowAt(anchor);
+        }
+    }
+
+    private void OnFilterBoxTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args) =>
+        this.ApplyFilter();
+
+    private void OnSearchFlyoutOpened(object? sender, object args)
+    {
+        this.PointerInteractionStarted?.Invoke(this, EventArgs.Empty);
+        this.DispatcherQueue.TryEnqueue(() =>
+        {
+            var focusTarget = (Control?)FindDescendant<TextBox>(this._filterBox) ?? this._filterBox;
+            focusTarget.Focus(FocusState.Programmatic);
+            if (focusTarget is TextBox textBox)
+            {
+                textBox.SelectAll();
+            }
+        });
+    }
+
+    private void OnSearchFlyoutClosed(object? sender, object args)
+    {
+        if (!string.IsNullOrEmpty(this._filterBox.Text))
+        {
+            this._filterBox.Text = string.Empty;
+        }
+        else
+        {
+            this.ApplyFilter();
+        }
+
+        this.PointerInteractionEnded?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnMoreClick(object sender, RoutedEventArgs args)
+    {
+        if (sender is not FrameworkElement anchor)
+        {
+            return;
+        }
+
+        var flyout = this.CreateShelfOptionsFlyout();
+        flyout.Closed += (_, _) => this.PointerInteractionEnded?.Invoke(this, EventArgs.Empty);
+        this.PointerInteractionStarted?.Invoke(this, EventArgs.Empty);
+        flyout.ShowAt(anchor);
+    }
+
+    private MenuFlyout CreateShelfOptionsFlyout()
+    {
+        var flyout = new MenuFlyout();
+        var sizeMode = this.ViewModel.GetEdgeWindowSizeMode(this.Side);
+        var sizeMenu = new MenuFlyoutSubItem { Text = "Size" };
+        sizeMenu.Items.Add(CreateRadioMenuItem(
+            "Reasonable",
+            "EdgeShelfSize",
+            sizeMode == EdgeWindowSizeMode.Reasonable,
+            () => this.ViewModel.SetEdgeWindowSizeMode(this.Side, EdgeWindowSizeMode.Reasonable)));
+        sizeMenu.Items.Add(CreateRadioMenuItem(
+            "Stretch along edge",
+            "EdgeShelfSize",
+            sizeMode == EdgeWindowSizeMode.Stretch,
+            () => this.ViewModel.SetEdgeWindowSizeMode(this.Side, EdgeWindowSizeMode.Stretch)));
+        flyout.Items.Add(sizeMenu);
+
+        var alignment = this.ViewModel.GetEdgeWindowAlignment(this.Side);
+        var positionMenu = new MenuFlyoutSubItem
+        {
+            Text = "Position",
+            IsEnabled = sizeMode == EdgeWindowSizeMode.Reasonable
+        };
+        var startText = this.Side.IsVertical() ? "Top" : "Left";
+        var endText = this.Side.IsVertical() ? "Bottom" : "Right";
+        positionMenu.Items.Add(CreateRadioMenuItem(
+            startText,
+            "EdgeShelfPosition",
+            alignment == EdgeWindowAlignment.Start,
+            () => this.ViewModel.SetEdgeWindowAlignment(this.Side, EdgeWindowAlignment.Start)));
+        positionMenu.Items.Add(CreateRadioMenuItem(
+            "Center",
+            "EdgeShelfPosition",
+            alignment == EdgeWindowAlignment.Center,
+            () => this.ViewModel.SetEdgeWindowAlignment(this.Side, EdgeWindowAlignment.Center)));
+        positionMenu.Items.Add(CreateRadioMenuItem(
+            endText,
+            "EdgeShelfPosition",
+            alignment == EdgeWindowAlignment.End,
+            () => this.ViewModel.SetEdgeWindowAlignment(this.Side, EdgeWindowAlignment.End)));
+        flyout.Items.Add(positionMenu);
+
+        var displayMode = this.Side.IsVertical()
+            ? this.ViewModel.VerticalStackCardDisplayMode
+            : this.ViewModel.HorizontalStackCardDisplayMode;
+        var layoutMenu = new MenuFlyoutSubItem { Text = "Stack layout" };
+        layoutMenu.Items.Add(CreateRadioMenuItem(
+            "Small list",
+            "EdgeShelfStackLayout",
+            displayMode == StackCardDisplayMode.SmallList,
+            () => this.SetStackCardDisplayMode(StackCardDisplayMode.SmallList)));
+        layoutMenu.Items.Add(CreateRadioMenuItem(
+            "Large list",
+            "EdgeShelfStackLayout",
+            displayMode == StackCardDisplayMode.LargeList,
+            () => this.SetStackCardDisplayMode(StackCardDisplayMode.LargeList)));
+        layoutMenu.Items.Add(CreateRadioMenuItem(
+            "Thumbnail icons",
+            "EdgeShelfStackLayout",
+            displayMode == StackCardDisplayMode.ThumbnailIcon,
+            () => this.SetStackCardDisplayMode(StackCardDisplayMode.ThumbnailIcon)));
+        flyout.Items.Add(layoutMenu);
+
+        flyout.Items.Add(new MenuFlyoutSeparator());
+        var dockItem = new MenuFlyoutItem
+        {
+            Text = "Dock",
+            IsEnabled = false
+        };
+        AutomationProperties.SetHelpText(dockItem, "Reserved for a future Windows AppBar implementation.");
+        flyout.Items.Add(dockItem);
+
+        var disableItem = new MenuFlyoutItem { Text = "Disable edge window" };
+        disableItem.Click += this.OnDisableEdgeWindowClick;
+        flyout.Items.Add(disableItem);
+
+        var hideAllItem = new MenuFlyoutItem { Text = "Hide all" };
+        hideAllItem.Click += (_, _) => App.Current.HideAllEdgeShelves();
+        flyout.Items.Add(hideAllItem);
+
+        var sweepItem = new MenuFlyoutItem { Text = "Sweep empty stacks" };
+        sweepItem.Click += this.OnSweepEmptyStacksClick;
+        flyout.Items.Add(sweepItem);
+
+        flyout.Items.Add(new MenuFlyoutSeparator());
+        var settingsItem = new MenuFlyoutItem
+        {
+            Text = "Settings",
+            Icon = new FontIcon { Glyph = "\uE713" }
+        };
+        settingsItem.Click += (_, _) => App.Current.ShowSettings();
+        flyout.Items.Add(settingsItem);
+        return flyout;
+    }
+
+    private static RadioMenuFlyoutItem CreateRadioMenuItem(
+        string text,
+        string groupName,
+        bool isChecked,
+        Action selected)
+    {
+        var item = new RadioMenuFlyoutItem
+        {
+            Text = text,
+            GroupName = groupName,
+            IsChecked = isChecked
+        };
+        item.Click += (_, _) => selected();
+        return item;
+    }
+
+    private void SetStackCardDisplayMode(StackCardDisplayMode displayMode)
+    {
+        if (this.Side.IsVertical())
+        {
+            this.ViewModel.VerticalStackCardDisplayMode = displayMode;
+        }
+        else
+        {
+            this.ViewModel.HorizontalStackCardDisplayMode = displayMode;
+        }
+    }
+
+    private void OnSweepEmptyStacksClick(object sender, RoutedEventArgs args)
+    {
+        var removedCount = App.Current.SweepEmptyStacks();
+        ShowStatus(
+            removedCount switch
+            {
+                0 => "There are no empty stacks to sweep.",
+                1 => "Swept 1 empty stack.",
+                _ => $"Swept {removedCount} empty stacks."
+            },
+            removedCount == 0 ? InfoBarSeverity.Informational : InfoBarSeverity.Success);
+    }
+
+    private void OnDisableEdgeWindowClick(object sender, RoutedEventArgs args) =>
+        this.DispatcherQueue.TryEnqueue(() => this.ViewModel.SetEdgeWindowEnabled(this.Side, false));
 
     private void OnCollapseClick(object sender, RoutedEventArgs args) =>
         this.CollapseRequested?.Invoke(this, EventArgs.Empty);
@@ -1151,18 +1455,93 @@ public sealed partial class EdgeWindow : TransparentWindow
             this.SetHorizontalExpandedStack(null);
         }
 
+        this.SynchronizeTrackedStacks();
+        this.ApplyFilter();
+    }
+
+    private void OnStackPropertyChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (this._isFilterApplied && args.PropertyName == nameof(DropStackViewModel.Model))
+        {
+            this.ApplyFilter();
+        }
+    }
+
+    private void SynchronizeTrackedStacks()
+    {
+        var currentStacks = this.EdgeStacks.ToHashSet();
+        foreach (var staleStack in this._trackedStacks.Where(stack => !currentStacks.Contains(stack)).ToArray())
+        {
+            staleStack.PropertyChanged -= this.OnStackPropertyChanged;
+            this._trackedStacks.Remove(staleStack);
+        }
+
+        foreach (var stack in currentStacks.Where(stack => !this._trackedStacks.Contains(stack)))
+        {
+            stack.PropertyChanged += this.OnStackPropertyChanged;
+            this._trackedStacks.Add(stack);
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        var query = this._filterBox.Text.Trim();
+        if (query.Length == 0)
+        {
+            if (this._isFilterApplied)
+            {
+                this._isFilterApplied = false;
+                this._filteredEdgeStacks.Clear();
+                this.EdgeStackList.ItemsSource = this.EdgeStacks;
+                this.HorizontalStackList.ItemsSource = this.EdgeStacks;
+            }
+
+            this.UpdateEmptyState();
+            return;
+        }
+
+        if (!this._isFilterApplied)
+        {
+            this._isFilterApplied = true;
+            this.EdgeStackList.ItemsSource = this._filteredEdgeStacks;
+            this.HorizontalStackList.ItemsSource = this._filteredEdgeStacks;
+        }
+
+        var matches = this.EdgeStacks
+            .Where(stack => StackFilter.Matches(stack.Model, query))
+            .ToArray();
+        this._filteredEdgeStacks.Clear();
+        foreach (var stack in matches)
+        {
+            this._filteredEdgeStacks.Add(stack);
+        }
+
+        if (this._horizontalExpandedStack is { } expandedStack && !this._filteredEdgeStacks.Contains(expandedStack))
+        {
+            this.SetHorizontalExpandedStack(null);
+        }
+
         this.UpdateEmptyState();
     }
 
     private void UpdateEmptyState()
     {
         var hasStacks = this.EdgeStacks.Count > 0;
-        this.VerticalEmptyState.Visibility = hasStacks ? Visibility.Collapsed : Visibility.Visible;
-        this.EdgeStackList.Visibility = hasStacks ? Visibility.Visible : Visibility.Collapsed;
-        this.HorizontalEmptyState.Visibility = hasStacks ? Visibility.Collapsed : Visibility.Visible;
-        this.HorizontalStackList.Visibility = hasStacks ? Visibility.Visible : Visibility.Collapsed;
+        var hasDisplayedStacks = this._isFilterApplied
+            ? this._filteredEdgeStacks.Count > 0
+            : hasStacks;
+        var hasNoMatches = this._isFilterApplied && hasStacks && !hasDisplayedStacks;
+        this.VerticalEmptyState.Visibility = hasDisplayedStacks ? Visibility.Collapsed : Visibility.Visible;
+        this.EdgeStackList.Visibility = hasDisplayedStacks ? Visibility.Visible : Visibility.Collapsed;
+        this.HorizontalEmptyState.Visibility = hasDisplayedStacks ? Visibility.Collapsed : Visibility.Visible;
+        this.HorizontalStackList.Visibility = hasDisplayedStacks ? Visibility.Visible : Visibility.Collapsed;
+        this.VerticalEmptyStateTitle.Text = hasNoMatches ? "No matching stacks" : "No stacks on this edge";
+        this.VerticalEmptyStateDescription.Text = hasNoMatches
+            ? "Try a different filter."
+            : "Drop content here or add a stack from OmniTray.";
+        this.HorizontalEmptyState.Text = hasNoMatches ? "No matching stacks" : "Drop here to make a stack";
 
-        if (!hasStacks)
+        if (!hasDisplayedStacks)
         {
             this.SetHorizontalExpandedStack(null);
         }

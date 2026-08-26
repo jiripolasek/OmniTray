@@ -1,14 +1,20 @@
 // ------------------------------------------------------------
-// 
+//
 // Copyright (c) Jiří Polášek. All rights reserved.
-// 
+//
 // ------------------------------------------------------------
 
-namespace OmniTray.Views;
+namespace OmniTray.Core;
 
-internal enum TrayInspectorMode
+public enum EdgeWindowSizeMode
 {
-    Browse,
-    Customize,
-    Combine
+    Reasonable,
+    Stretch
+}
+
+public enum EdgeWindowAlignment
+{
+    Start,
+    Center,
+    End
 }

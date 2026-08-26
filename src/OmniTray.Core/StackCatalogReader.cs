@@ -11,9 +11,6 @@ namespace OmniTray.Core;
 
 public static class StackCatalogReader
 {
-    public const int EarliestSupportedVersion = 1;
-    public const int CurrentVersion = 5;
-
     public static IReadOnlyList<DropStack> ReadStacks(string json)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(json);
@@ -22,11 +19,6 @@ public static class StackCatalogReader
                           json,
                           StackCatalogReadJsonContext.Default.StackCatalogReadDocument) ??
                       throw new JsonException("The stack catalog was empty.");
-        if (catalog.Version is < EarliestSupportedVersion or > CurrentVersion)
-        {
-            throw new JsonException($"Stack catalog version {catalog.Version} is not supported.");
-        }
-
         var stacks = catalog.Stacks.Select(RestoreStack).ToArray();
         if (stacks.Select(static stack => stack.Id).Distinct().Count() != stacks.Length)
         {
@@ -47,13 +39,12 @@ public static class StackCatalogReader
             item.SourcePath,
             item.Text,
             item.IsOwned,
-            item.CreatedAt)));
+            item.CreatedAt)),
+        stack.InspectorViewMode);
 }
 
 internal sealed class StackCatalogReadDocument
 {
-    public int Version { get; set; }
-
     public List<StackReadDocument> Stacks { get; set; } = [];
 }
 
@@ -64,6 +55,8 @@ internal sealed class StackReadDocument
     public string Name { get; set; } = string.Empty;
 
     public string Tint { get; set; } = string.Empty;
+
+    public StackInspectorViewMode InspectorViewMode { get; set; } = StackInspectorViewMode.List;
 
     public List<ItemReadDocument> Items { get; set; } = [];
 }

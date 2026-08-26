@@ -59,13 +59,15 @@ internal sealed class TrayWindowAppearanceController : IDisposable
         }
         else if (args.PropertyName == nameof(TrayContentViewModel.TintColor))
         {
-            if (this._window.SystemBackdrop is TintedAcrylicBackdrop backdrop)
+            var usesUntintedBackdrop = StackTintPalette.IsNeutral(this._viewModel.Tint) &&
+                                       !StackTintPalette.UseSystemAccentForNeutral;
+            if (!usesUntintedBackdrop && this._window.SystemBackdrop is TintedAcrylicBackdrop backdrop)
             {
                 backdrop.TintColor = this._viewModel.TintColor;
             }
-            else if (!TintedAcrylicBackdrop.IsSupported)
+            else
             {
-                this.ApplyFallbackBackground();
+                this.ApplyBackdrop();
             }
         }
     }
@@ -87,7 +89,8 @@ internal sealed class TrayWindowAppearanceController : IDisposable
         }
 
         this._root.Background = new SolidColorBrush(Colors.Transparent);
-        this._window.SystemBackdrop = StackTintPalette.IsNeutral(this._viewModel.Tint)
+        this._window.SystemBackdrop = StackTintPalette.IsNeutral(this._viewModel.Tint) &&
+                                      !StackTintPalette.UseSystemAccentForNeutral
             ? new DesktopAcrylicBackdrop()
             : new TintedAcrylicBackdrop(this._viewModel.TintColor);
     }
@@ -97,7 +100,8 @@ internal sealed class TrayWindowAppearanceController : IDisposable
 
     private SolidColorBrush CreateFallbackBackground()
     {
-        if (!StackTintPalette.IsNeutral(this._viewModel.Tint))
+        if (!StackTintPalette.IsNeutral(this._viewModel.Tint) ||
+            StackTintPalette.UseSystemAccentForNeutral)
         {
             return new SolidColorBrush(
                 TintedAcrylicBackdrop.CreateFallbackColor(

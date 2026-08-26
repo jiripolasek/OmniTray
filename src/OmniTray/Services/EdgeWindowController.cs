@@ -25,7 +25,10 @@ internal sealed partial class EdgeWindowController : IDisposable
     private readonly DispatcherQueueTimer _displayTimer;
     private readonly DispatcherQueueTimer _gameModeTimer;
     private readonly Dictionary<EdgeHostKey, EdgeWindowHost> _hosts = [];
+    private readonly Func<bool> _isShakeToCreateTrayEnabled;
     private readonly DispatcherQueueTimer _pointerTimer;
+    private readonly Action<PointInt32> _shakeToCreateTray;
+    private readonly MouseShakeGestureDetector _shakeDetector;
 
     private readonly MainViewModel _viewModel;
     private NativePoint _buttonDownPoint;
@@ -37,11 +40,25 @@ internal sealed partial class EdgeWindowController : IDisposable
     private WindowActivityHelper.UserNotificationState? _lastNotificationState;
     private bool _leftButtonWasDown;
     private bool _likelyDrag;
+    private bool _shakeTriggeredForCurrentPress;
 
-    public EdgeWindowController(MainViewModel viewModel, DispatcherQueue dispatcherQueue)
+    public EdgeWindowController(
+        MainViewModel viewModel,
+        DispatcherQueue dispatcherQueue,
+        Func<bool> isShakeToCreateTrayEnabled,
+        Action<PointInt32> shakeToCreateTray)
     {
         this._viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         this._dispatcherQueue = dispatcherQueue ?? throw new ArgumentNullException(nameof(dispatcherQueue));
+        this._isShakeToCreateTrayEnabled = isShakeToCreateTrayEnabled ??
+                                           throw new ArgumentNullException(nameof(isShakeToCreateTrayEnabled));
+        this._shakeToCreateTray = shakeToCreateTray ?? throw new ArgumentNullException(nameof(shakeToCreateTray));
+        var minimumShakeStroke = Math.Max(
+            32,
+            Math.Max(
+                Math.Abs(GetSystemMetrics(HorizontalDragMetric)),
+                Math.Abs(GetSystemMetrics(VerticalDragMetric))) * 4);
+        this._shakeDetector = new MouseShakeGestureDetector(minimumShakeStroke);
 
         this._pointerTimer = dispatcherQueue.CreateTimer();
         this._pointerTimer.Interval = TimeSpan.FromMilliseconds(40);
@@ -111,14 +128,32 @@ internal sealed partial class EdgeWindowController : IDisposable
         }
     }
 
+    public void HideAll(bool animate = true)
+    {
+        this._hoverHostKey = null;
+        this._edgeHoverStarted = null;
+        this._likelyDrag = false;
+        foreach (var host in this._hosts.Values)
+        {
+            host.Hide(animate);
+        }
+    }
+
     private void OnPointerTick(DispatcherQueueTimer sender, object args)
     {
-        if (this.IsRevealSuppressed || !this._viewModel.HasEnabledEdgeWindows)
+        if (!TryGetCursorDisplay(out var displayArea, out var cursor))
         {
             return;
         }
 
-        if (!TryGetCursorDisplay(out var displayArea, out var cursor))
+        var now = DateTimeOffset.UtcNow;
+        this.UpdateLikelyDrag(cursor);
+        if (this.TryHandleShake(cursor, now) || this._shakeTriggeredForCurrentPress)
+        {
+            return;
+        }
+
+        if (this.IsRevealSuppressed || !this._viewModel.HasEnabledEdgeWindows)
         {
             return;
         }
@@ -129,8 +164,6 @@ internal sealed partial class EdgeWindowController : IDisposable
             this.ReconcileDisplays();
         }
 
-        var now = DateTimeOffset.UtcNow;
-        this.UpdateLikelyDrag(cursor);
         if (this._likelyDrag)
         {
             this.ShowDragHints(displayKey);
@@ -220,11 +253,44 @@ internal sealed partial class EdgeWindowController : IDisposable
                 this.ReconcileDisplays();
                 break;
 
+            case nameof(MainViewModel.LeftEdgeWindowSizeMode):
+            case nameof(MainViewModel.LeftEdgeWindowAlignment):
+                this.UpdatePlacement(EdgeShelfSide.Left);
+                break;
+
+            case nameof(MainViewModel.RightEdgeWindowSizeMode):
+            case nameof(MainViewModel.RightEdgeWindowAlignment):
+                this.UpdatePlacement(EdgeShelfSide.Right);
+                break;
+
+            case nameof(MainViewModel.TopEdgeWindowSizeMode):
+            case nameof(MainViewModel.TopEdgeWindowAlignment):
+                this.UpdatePlacement(EdgeShelfSide.Top);
+                break;
+
+            case nameof(MainViewModel.BottomEdgeWindowSizeMode):
+            case nameof(MainViewModel.BottomEdgeWindowAlignment):
+                this.UpdatePlacement(EdgeShelfSide.Bottom);
+                break;
+
+            case nameof(MainViewModel.HorizontalStackCardDisplayMode):
+                this.UpdatePlacement(EdgeShelfSide.Top);
+                this.UpdatePlacement(EdgeShelfSide.Bottom);
+                break;
+
             case nameof(MainViewModel.SyncLeftAndRightEdgeContent):
             case nameof(MainViewModel.SyncTopAndBottomEdgeContent):
             case nameof(MainViewModel.SyncAllEdgeContent):
                 this.RecreateHosts();
                 break;
+        }
+    }
+
+    private void UpdatePlacement(EdgeShelfSide side)
+    {
+        foreach (var host in this._hosts.Values.Where(host => host.Key.Side == side))
+        {
+            host.UpdatePlacement();
         }
     }
 
@@ -398,6 +464,8 @@ internal sealed partial class EdgeWindowController : IDisposable
         {
             this._buttonDownPoint = cursor;
             this._likelyDrag = false;
+            this._shakeTriggeredForCurrentPress = false;
+            this._shakeDetector.Reset();
         }
         else if (leftButtonDown && !this._likelyDrag)
         {
@@ -409,9 +477,33 @@ internal sealed partial class EdgeWindowController : IDisposable
         else if (!leftButtonDown)
         {
             this._likelyDrag = false;
+            this._shakeTriggeredForCurrentPress = false;
+            this._shakeDetector.Reset();
         }
 
         this._leftButtonWasDown = leftButtonDown;
+    }
+
+    private bool TryHandleShake(NativePoint cursor, DateTimeOffset now)
+    {
+        if (!this._isShakeToCreateTrayEnabled() || !this._likelyDrag || this._shakeTriggeredForCurrentPress)
+        {
+            return false;
+        }
+
+        if (!this._shakeDetector.Update(cursor.X, cursor.Y, now))
+        {
+            return false;
+        }
+
+        this._shakeTriggeredForCurrentPress = true;
+        foreach (var host in this._hosts.Values)
+        {
+            host.Hide(false);
+        }
+
+        this._shakeToCreateTray(new PointInt32(cursor.X, cursor.Y));
+        return true;
     }
 
     private void OnHostCollapseRequested(object? sender, EventArgs args)
@@ -470,15 +562,14 @@ internal sealed partial class EdgeWindowController : IDisposable
         private const int ExtendedWindowStyle = -20;
         private const nint TransparentExtendedStyle = 0x00000020;
         private const nint NoActivateExtendedStyle = 0x08000000;
-        private const int DesignVerticalWidth = 360;
+        private const int DesignVerticalWidth = OmniTrayPopupWindow.DefaultWidthInDips;
         private const int DesignVerticalHeight = 680;
         private const int DesignHorizontalWidth = 760;
-        private const int DesignHorizontalCollapsedHeight = 122;
-        private const int DesignHorizontalExpandedHeight = 340;
         private const int DesignShadowMargin = 48;
         private const int DesignExpandedInset = 11;
         private static readonly TimeSpan ManualOpenGracePeriod = TimeSpan.FromSeconds(2);
         private readonly Func<bool> _isRevealSuppressed;
+        private readonly MainViewModel _viewModel;
 
         private readonly EdgeWindow _window;
         private readonly nint _windowHandle;
@@ -508,12 +599,13 @@ internal sealed partial class EdgeWindowController : IDisposable
         {
             this.Key = key;
             this._workArea = workArea;
+            this._viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
             this._isRevealSuppressed
                 = isRevealSuppressed ?? throw new ArgumentNullException(nameof(isRevealSuppressed));
-            this._window = new EdgeWindow(viewModel, key.Side);
+            this._window = new EdgeWindow(this._viewModel, key.Side);
             this._windowHandle = WindowNative.GetWindowHandle(this._window);
             this.ConfigureWindow();
-            this.ConfigurePlacement();
+            this.ConfigurePlacement(true);
 
             this._window.CollapseRequested += this.OnCollapseRequested;
             this._window.PointerInteractionStarted += this.OnPointerInteractionStarted;
@@ -700,6 +792,12 @@ internal sealed partial class EdgeWindowController : IDisposable
 
         public void NoteInteraction() => this.LastInteraction = DateTimeOffset.UtcNow;
 
+        public void UpdatePlacement()
+        {
+            this.ConfigurePlacement();
+            this._visiblePanelRect = this.GetPanelRect(this._isTargetExpanded);
+        }
+
         private void ConfigureWindow()
         {
             if (this._window.AppWindow.Presenter is OverlappedPresenter presenter)
@@ -711,50 +809,86 @@ internal sealed partial class EdgeWindowController : IDisposable
             }
         }
 
-        private void ConfigurePlacement()
+        private void ConfigurePlacement(bool moveToWorkAreaForDpi = false)
         {
-            this._window.AppWindow.Move(new PointInt32(this._workArea.X, this._workArea.Y));
+            if (moveToWorkAreaForDpi)
+            {
+                this._window.AppWindow.Move(new PointInt32(this._workArea.X, this._workArea.Y));
+            }
+
             var dpi = GetDpiForWindow(this._windowHandle);
             this._scale = dpi == 0 ? 1 : dpi / 96d;
             this._hintThickness = Math.Max(1, (int)Math.Round(EdgeWindow.HintThickness * this._scale));
             this._expandedInset = Math.Max(0, (int)Math.Round(DesignExpandedInset * this._scale));
             this._shadowMargin = Math.Max(0, (int)Math.Round(DesignShadowMargin * this._scale));
+            var sizeMode = this._viewModel.GetEdgeWindowSizeMode(this.Key.Side);
+            var alignment = this._viewModel.GetEdgeWindowAlignment(this.Key.Side);
 
             if (this.Key.Side.IsVertical())
             {
                 this._panelWidth = Math.Min(
                     Math.Max(this._hintThickness, this._workArea.Width - this._expandedInset - this._shadowMargin),
                     Math.Max(this._hintThickness, (int)Math.Round(DesignVerticalWidth * this._scale)));
-                this._panelHeight = Math.Min(
-                    Math.Max(this._hintThickness, this._workArea.Height - (this._shadowMargin * 2)),
-                    Math.Max(this._hintThickness, (int)Math.Round(DesignVerticalHeight * this._scale)));
+                var leadingMargin = sizeMode == EdgeWindowSizeMode.Stretch || alignment == EdgeWindowAlignment.Start
+                    ? this._expandedInset
+                    : this._shadowMargin;
+                var trailingMargin = sizeMode == EdgeWindowSizeMode.Stretch || alignment == EdgeWindowAlignment.End
+                    ? this._expandedInset
+                    : this._shadowMargin;
+                var availableHeight = Math.Max(
+                    this._hintThickness,
+                    this._workArea.Height - leadingMargin - trailingMargin);
+                this._panelHeight = sizeMode == EdgeWindowSizeMode.Stretch
+                    ? availableHeight
+                    : Math.Min(
+                        availableHeight,
+                        Math.Max(this._hintThickness, (int)Math.Round(DesignVerticalHeight * this._scale)));
                 this._hostWidth = this._panelWidth + this._expandedInset + this._shadowMargin;
-                this._hostHeight = this._panelHeight + (this._shadowMargin * 2);
+                this._hostHeight = this._panelHeight + leadingMargin + trailingMargin;
                 this._hostX = this.Key.Side == EdgeShelfSide.Left
                     ? this._workArea.X
                     : this._workArea.X + this._workArea.Width - this._hostWidth;
-                this._hostY = this._workArea.Y + Math.Max(0, (this._workArea.Height - this._hostHeight) / 2);
+                this._hostY = this._workArea.Y + ResolveAxisOffset(
+                    this._workArea.Height,
+                    this._hostHeight,
+                    sizeMode,
+                    alignment);
                 this._panelX = this.Key.Side == EdgeShelfSide.Left ? this._expandedInset : this._shadowMargin;
-                this._panelY = this._shadowMargin;
+                this._panelY = leadingMargin;
             }
             else
             {
                 var designHeight = this._window.IsHorizontalDetailExpanded
-                    ? DesignHorizontalExpandedHeight
-                    : DesignHorizontalCollapsedHeight;
-                this._panelWidth = Math.Min(
-                    Math.Max(this._hintThickness, this._workArea.Width - (this._shadowMargin * 2)),
-                    Math.Max(this._hintThickness, (int)Math.Round(DesignHorizontalWidth * this._scale)));
+                    ? this._viewModel.HorizontalStackCardLayout.HorizontalPanelExpandedHeight
+                    : this._viewModel.HorizontalStackCardLayout.HorizontalPanelCollapsedHeight;
+                var leadingMargin = sizeMode == EdgeWindowSizeMode.Stretch || alignment == EdgeWindowAlignment.Start
+                    ? this._expandedInset
+                    : this._shadowMargin;
+                var trailingMargin = sizeMode == EdgeWindowSizeMode.Stretch || alignment == EdgeWindowAlignment.End
+                    ? this._expandedInset
+                    : this._shadowMargin;
+                var availableWidth = Math.Max(
+                    this._hintThickness,
+                    this._workArea.Width - leadingMargin - trailingMargin);
+                this._panelWidth = sizeMode == EdgeWindowSizeMode.Stretch
+                    ? availableWidth
+                    : Math.Min(
+                        availableWidth,
+                        Math.Max(this._hintThickness, (int)Math.Round(DesignHorizontalWidth * this._scale)));
                 this._panelHeight = Math.Min(
                     Math.Max(this._hintThickness, this._workArea.Height - this._expandedInset - this._shadowMargin),
                     Math.Max(this._hintThickness, (int)Math.Round(designHeight * this._scale)));
-                this._hostWidth = this._panelWidth + (this._shadowMargin * 2);
+                this._hostWidth = this._panelWidth + leadingMargin + trailingMargin;
                 this._hostHeight = this._panelHeight + this._expandedInset + this._shadowMargin;
-                this._hostX = this._workArea.X + Math.Max(0, (this._workArea.Width - this._hostWidth) / 2);
+                this._hostX = this._workArea.X + ResolveAxisOffset(
+                    this._workArea.Width,
+                    this._hostWidth,
+                    sizeMode,
+                    alignment);
                 this._hostY = this.Key.Side == EdgeShelfSide.Top
                     ? this._workArea.Y
                     : this._workArea.Y + this._workArea.Height - this._hostHeight;
-                this._panelX = this._shadowMargin;
+                this._panelX = leadingMargin;
                 this._panelY = this.Key.Side == EdgeShelfSide.Top ? this._expandedInset : this._shadowMargin;
             }
 
@@ -765,6 +899,27 @@ internal sealed partial class EdgeWindowController : IDisposable
                 this._panelX / this._scale, this._panelY / this._scale, this._expandedInset / this._scale);
             this._window.AppWindow.MoveAndResize(new RectInt32(this._hostX, this._hostY, this._hostWidth,
                 this._hostHeight));
+        }
+
+        private static int ResolveAxisOffset(
+            int workAreaLength,
+            int hostLength,
+            EdgeWindowSizeMode sizeMode,
+            EdgeWindowAlignment alignment)
+        {
+            if (sizeMode == EdgeWindowSizeMode.Stretch)
+            {
+                return 0;
+            }
+
+            var remaining = Math.Max(0, workAreaLength - hostLength);
+            return alignment switch
+            {
+                EdgeWindowAlignment.Start => 0,
+                EdgeWindowAlignment.Center => remaining / 2,
+                EdgeWindowAlignment.End => remaining,
+                _ => throw new ArgumentOutOfRangeException(nameof(alignment))
+            };
         }
 
         private void OnHorizontalDetailExpansionChanged(object? sender, EventArgs args)

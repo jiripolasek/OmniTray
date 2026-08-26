@@ -55,7 +55,9 @@ public sealed class StackOperationsTests
         var first = DropItem.CreateText("first");
         var second = DropItem.CreateText("second");
         var third = DropItem.CreateText("third");
-        var source = DropStack.Create([first, second, third]);
+        var source = DropStack.Create(
+            [first, second, third],
+            inspectorViewMode: StackInspectorViewMode.Grid);
 
         var (remaining, extracted) = StackOperations.Split(source, [second.Id]);
 
@@ -68,6 +70,8 @@ public sealed class StackOperationsTests
         Assert.AreEqual(source.Id, remaining.Id);
         Assert.AreEqual(source.Name, remaining.Name);
         Assert.AreEqual(source.Tint, extracted.Tint);
+        Assert.AreEqual(StackInspectorViewMode.Grid, remaining.InspectorViewMode);
+        Assert.AreEqual(StackInspectorViewMode.Grid, extracted.InspectorViewMode);
     }
 
     [TestMethod]
@@ -140,6 +144,36 @@ public sealed class StackOperationsTests
 
         Assert.AreEqual("Neutral", populated.Tint);
         Assert.AreEqual("Neutral", empty.Tint);
+    }
+
+    [TestMethod]
+    public void StackChanges_PreservePerStackInspectorViewMode()
+    {
+        var first = DropItem.CreateText("first");
+        var second = DropItem.CreateText("second");
+        var source = DropStack.Create([first], inspectorViewMode: StackInspectorViewMode.Grid);
+
+        var changed = source
+            .Rename("Reading")
+            .ChangeTint("Violet")
+            .Append([second])
+            .ReorderItems([second.Id, first.Id]);
+
+        Assert.AreEqual(StackInspectorViewMode.Grid, changed.InspectorViewMode);
+    }
+
+    [TestMethod]
+    public void ChangeInspectorViewMode_UpdatesOnlyTheViewPreference()
+    {
+        var source = DropStack.Create([DropItem.CreateText("first")], "Reading", "Mint");
+
+        var changed = source.ChangeInspectorViewMode(StackInspectorViewMode.Grid);
+
+        Assert.AreEqual(source.Id, changed.Id);
+        Assert.AreEqual(source.Name, changed.Name);
+        Assert.AreEqual(source.Tint, changed.Tint);
+        Assert.AreSame(source.Items, changed.Items);
+        Assert.AreEqual(StackInspectorViewMode.Grid, changed.InspectorViewMode);
     }
 
     [TestMethod]

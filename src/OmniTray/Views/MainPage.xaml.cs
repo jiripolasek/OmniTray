@@ -24,6 +24,7 @@ public sealed partial class MainPage : Page
     private readonly PointerEventHandler _stackPointerMovedHandler;
     private readonly HashSet<DropStackViewModel> _trackedStacks = [];
     private FrameworkElement? _expandedStackOrganizer;
+    private TrayInspectorPopupHost? _inspectorPopupHost;
     private bool _isDragOverPopup;
     private bool _isFilterApplied;
     private bool _isStackDragOperationActive;
@@ -50,7 +51,20 @@ public sealed partial class MainPage : Page
         this.UpdateSelectedPopupSection();
     }
 
-    internal void SetOwnerWindow(Window owner) => this.PopupCommandSurface.OwnerWindow = owner;
+    internal void SetOwnerWindow(Window owner)
+    {
+        ArgumentNullException.ThrowIfNull(owner);
+        this.PopupCommandSurface.OwnerWindow = owner;
+        this._inspectorPopupHost ??= new TrayInspectorPopupHost(owner, this.StackInspectorPopup);
+    }
+
+    internal void CloseStackInspector() => this._inspectorPopupHost?.Close();
+
+    internal void DisposeStackInspector()
+    {
+        this._inspectorPopupHost?.Dispose();
+        this._inspectorPopupHost = null;
+    }
 
     public MainViewModel ViewModel => App.Current.StackCatalogViewModel;
 
@@ -472,11 +486,42 @@ public sealed partial class MainPage : Page
             hoverBackground.Opacity = isPointerOver ? 1 : 0;
         }
 
-        if (header?.FindName("PopOutButton") is Button button)
+        SetStackHeaderActionHover(header, "InspectorButton", isPointerOver);
+        SetStackHeaderActionHover(header, "PopOutButton", isPointerOver);
+    }
+
+    private static void SetStackHeaderActionHover(
+        FrameworkElement? header,
+        string buttonName,
+        bool isPointerOver)
+    {
+        if (header?.FindName(buttonName) is Button button)
         {
             button.Opacity = isPointerOver ? 0.92 : 0;
             button.IsHitTestVisible = isPointerOver;
         }
+    }
+
+    private void OnInspectStackClick(object sender, RoutedEventArgs args)
+    {
+        if (this._inspectorPopupHost is not { } inspectorPopupHost ||
+            GetTaggedStack(sender) is not { } stack)
+        {
+            return;
+        }
+
+        var placementTarget = sender as Button ??
+                              this.StackList.ContainerFromItem(stack) as FrameworkElement ??
+                              this.RootGrid;
+        if (sender is MenuFlyoutItem)
+        {
+            this.DispatcherQueue.TryEnqueue(
+                DispatcherQueuePriority.Low,
+                () => inspectorPopupHost.Show(placementTarget, stack, TrayInspectorPlacement.Left));
+            return;
+        }
+
+        inspectorPopupHost.Show(placementTarget, stack, TrayInspectorPlacement.Left);
     }
 
     private void OnOpenTrayMenuClick(object sender, RoutedEventArgs args)

@@ -43,6 +43,7 @@ public partial class App : Application
     {
         this.InitializeComponent();
         this._appSettingsService = new AppSettingsService();
+        StackTintPalette.UseSystemAccentForNeutral = this._appSettingsService.UseSystemAccentForNeutral;
         this._dispatcherQueue = DispatcherQueue.GetForCurrentThread();
         this.StackCatalogViewModel.EdgeWindowsPaused = this._appSettingsService.EdgeWindowsPaused;
         this.StackCatalogViewModel.GameModeEnabled = this._appSettingsService.EdgeGameModeEnabled;
@@ -50,6 +51,20 @@ public partial class App : Application
         this.StackCatalogViewModel.RightEdgeWindowEnabled = this._appSettingsService.RightEdgeWindowEnabled;
         this.StackCatalogViewModel.TopEdgeWindowEnabled = this._appSettingsService.TopEdgeWindowEnabled;
         this.StackCatalogViewModel.BottomEdgeWindowEnabled = this._appSettingsService.BottomEdgeWindowEnabled;
+        this.StackCatalogViewModel.VerticalStackCardDisplayMode =
+            this._appSettingsService.VerticalStackCardDisplayMode;
+        this.StackCatalogViewModel.HorizontalStackCardDisplayMode =
+            this._appSettingsService.HorizontalStackCardDisplayMode;
+        foreach (var side in Enum.GetValues<EdgeShelfSide>())
+        {
+            this.StackCatalogViewModel.SetEdgeWindowSizeMode(
+                side,
+                this._appSettingsService.GetEdgeWindowSizeMode(side));
+            this.StackCatalogViewModel.SetEdgeWindowAlignment(
+                side,
+                this._appSettingsService.GetEdgeWindowAlignment(side));
+        }
+
         this.StackCatalogViewModel.SyncLeftAndRightEdgeContent
             = this._appSettingsService.SyncLeftAndRightEdgeContent;
         this.StackCatalogViewModel.SyncTopAndBottomEdgeContent
@@ -81,6 +96,35 @@ public partial class App : Application
         set => this._appSettingsService.AllowMoveOnDragOut = value;
     }
 
+    internal bool OpenInspectorOnHoverPreference
+    {
+        get => this._appSettingsService.OpenInspectorOnHover;
+        set => this._appSettingsService.OpenInspectorOnHover = value;
+    }
+
+    internal bool ShakeToCreateTrayPreference
+    {
+        get => this._appSettingsService.ShakeToCreateTray;
+        set => this._appSettingsService.ShakeToCreateTray = value;
+    }
+
+    internal bool UseSystemAccentForNeutralPreference
+    {
+        get => this._appSettingsService.UseSystemAccentForNeutral;
+        set
+        {
+            if (this._appSettingsService.UseSystemAccentForNeutral == value)
+            {
+                return;
+            }
+
+            this._appSettingsService.UseSystemAccentForNeutral = value;
+            StackTintPalette.UseSystemAccentForNeutral = value;
+            this.StackCatalogViewModel.RefreshSystemColors();
+            this.DropCommandCatalogViewModel.RefreshSystemColors();
+        }
+    }
+
     internal ToastPosition ToastPositionPreference
     {
         get => this._appSettingsService.ToastPosition;
@@ -100,7 +144,8 @@ public partial class App : Application
         this._windows = new WindowCoordinator(
             this.StackCatalogViewModel,
             this.DropCommandCatalogViewModel,
-            this._dispatcherQueue);
+            this._dispatcherQueue,
+            () => this._appSettingsService.ShakeToCreateTray);
         this._windows.TrayWindowStatesChanged += (_, _) => this.QueueCatalogSave();
         this._windows.DropCommandWindowStatesChanged += (_, _) => this.QueueDropCommandSave();
         this._windows.RestoreTrays(
@@ -109,11 +154,6 @@ public partial class App : Application
         this._windows.RestoreDropCommandWindows(
             commandCatalog.OpenWindows,
             commandId => this.DropCommandCatalogViewModel.FindCommand(commandId));
-        if (catalog.NeedsMigration)
-        {
-            this.QueueCatalogSave();
-        }
-
         this.InitializeTrayIcon();
         this.CompleteInitialization();
     }
@@ -126,6 +166,8 @@ public partial class App : Application
 
     public void ShowEdgeShelf(EdgeShelfSide side = EdgeShelfSide.Right) =>
         this.RunOnUiThread(() => this._windows?.ShowEdgeShelf(side));
+
+    public void HideAllEdgeShelves() => this.RunOnUiThread(() => this._windows?.HideAllEdgeShelves());
 
     public void OpenTray(DropStackViewModel stack) => this.RunOnUiThread(() => this._windows?.ShowTray(stack));
 
@@ -286,6 +328,8 @@ public partial class App : Application
         this.StackCatalogViewModel.ClearStacks();
         await ContentStore.DeleteOwnedAsync(ownedItems);
     }
+
+    public int SweepEmptyStacks() => this.StackCatalogViewModel.RemoveEmptyStacks();
 
     public async Task RemoveItemsAsync(DropStackViewModel stack, IEnumerable<Guid> itemIds)
     {
@@ -660,6 +704,36 @@ public partial class App : Application
                 this.UpdateEdgeMenuState();
                 break;
 
+            case nameof(MainViewModel.VerticalStackCardDisplayMode):
+                this._appSettingsService.VerticalStackCardDisplayMode =
+                    this.StackCatalogViewModel.VerticalStackCardDisplayMode;
+                break;
+
+            case nameof(MainViewModel.HorizontalStackCardDisplayMode):
+                this._appSettingsService.HorizontalStackCardDisplayMode =
+                    this.StackCatalogViewModel.HorizontalStackCardDisplayMode;
+                break;
+
+            case nameof(MainViewModel.LeftEdgeWindowSizeMode):
+            case nameof(MainViewModel.LeftEdgeWindowAlignment):
+                this.SaveEdgeWindowPresentation(EdgeShelfSide.Left);
+                break;
+
+            case nameof(MainViewModel.RightEdgeWindowSizeMode):
+            case nameof(MainViewModel.RightEdgeWindowAlignment):
+                this.SaveEdgeWindowPresentation(EdgeShelfSide.Right);
+                break;
+
+            case nameof(MainViewModel.TopEdgeWindowSizeMode):
+            case nameof(MainViewModel.TopEdgeWindowAlignment):
+                this.SaveEdgeWindowPresentation(EdgeShelfSide.Top);
+                break;
+
+            case nameof(MainViewModel.BottomEdgeWindowSizeMode):
+            case nameof(MainViewModel.BottomEdgeWindowAlignment):
+                this.SaveEdgeWindowPresentation(EdgeShelfSide.Bottom);
+                break;
+
             case nameof(MainViewModel.SyncLeftAndRightEdgeContent):
                 this._appSettingsService.SyncLeftAndRightEdgeContent
                     = this.StackCatalogViewModel.SyncLeftAndRightEdgeContent;
@@ -674,6 +748,16 @@ public partial class App : Application
                 this._appSettingsService.SyncAllEdgeContent = this.StackCatalogViewModel.SyncAllEdgeContent;
                 break;
         }
+    }
+
+    private void SaveEdgeWindowPresentation(EdgeShelfSide side)
+    {
+        this._appSettingsService.SetEdgeWindowSizeMode(
+            side,
+            this.StackCatalogViewModel.GetEdgeWindowSizeMode(side));
+        this._appSettingsService.SetEdgeWindowAlignment(
+            side,
+            this.StackCatalogViewModel.GetEdgeWindowAlignment(side));
     }
 
     private void UpdateEdgeMenuState()

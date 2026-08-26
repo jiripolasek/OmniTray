@@ -5,9 +5,10 @@
     xmlns:controls="using:OmniTray.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:primitives="using:Microsoft.UI.Xaml.Controls.Primitives"
     xmlns:viewModels="using:OmniTray.ViewModels"
     xmlns:views="using:OmniTray.Views"
-    Title="OmniTray edge shelf"
+    Title="Shelf"
     mc:Ignorable="d">
     <Grid x:Name="RootSurface">
         <Grid.Resources>
@@ -30,8 +31,6 @@
                 <Setter Property="CornerRadius" Value="8" />
             </Style>
             <Style x:Key="LargeTargetButtonStyle" TargetType="Button">
-                <Setter Property="Width" Value="84" />
-                <Setter Property="Height" Value="104" />
                 <Setter Property="Padding" Value="4" />
                 <Setter Property="Background" Value="Transparent" />
                 <Setter Property="BorderThickness" Value="0" />
@@ -56,7 +55,7 @@
                 CornerRadius="12"
                 IsHitTestVisible="False">
                 <SystemBackdropElement.SystemBackdrop>
-                    <DesktopAcrylicBackdrop />
+                    <views:AlwaysActiveDesktopAcrylicBackdrop />
                 </SystemBackdropElement.SystemBackdrop>
                 <SystemBackdropElement.Shadow>
                     <ThemeShadow />
@@ -87,18 +86,51 @@
                                 VerticalAlignment="Center"
                                 FontSize="18"
                                 FontWeight="SemiBold"
-                                Text="{x:Bind ShelfTitle}" />
-                            <Button
+                                Text="Shelf" />
+                            <StackPanel
                                 Grid.Column="1"
-                                Width="34"
-                                Height="34"
-                                AutomationProperties.Name="Hide edge shelf"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Click="OnCollapseClick"
-                                ToolTipService.ToolTip="Hide">
-                                <FontIcon FontSize="12" Glyph="&#xE711;" />
-                            </Button>
+                                VerticalAlignment="Center"
+                                Orientation="Horizontal">
+                                <Button
+                                    x:Name="VerticalSearchButton"
+                                    Width="32"
+                                    Height="32"
+                                    Padding="0"
+                                    AutomationProperties.HelpText="Open a live filter for the stacks on this shelf"
+                                    AutomationProperties.Name="Search stacks"
+                                    Click="OnSearchClick"
+                                    Style="{StaticResource SubtleButtonStyle}"
+                                    ToolTipService.ToolTip="Search stacks (Ctrl+F)">
+                                    <Button.KeyboardAccelerators>
+                                        <KeyboardAccelerator Key="F" Modifiers="Control" />
+                                    </Button.KeyboardAccelerators>
+                                    <FontIcon
+                                        FontSize="14"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Glyph="&#xE721;" />
+                                </Button>
+                                <Button
+                                    x:Name="VerticalMoreButton"
+                                    Width="32"
+                                    Height="32"
+                                    Padding="0"
+                                    AutomationProperties.Name="Shelf options"
+                                    Click="OnMoreClick"
+                                    Style="{StaticResource SubtleButtonStyle}"
+                                    ToolTipService.ToolTip="Shelf options">
+                                    <FontIcon FontSize="14" Glyph="&#xE712;" />
+                                </Button>
+                                <Button
+                                    Width="32"
+                                    Height="32"
+                                    Padding="0"
+                                    AutomationProperties.Name="Hide edge shelf"
+                                    Click="OnCollapseClick"
+                                    Style="{StaticResource SubtleButtonStyle}"
+                                    ToolTipService.ToolTip="Hide">
+                                    <FontIcon FontSize="12" Glyph="&#xE711;" />
+                                </Button>
+                            </StackPanel>
                         </Grid>
 
                         <Grid Grid.Row="1" Margin="10,0,10,4">
@@ -136,6 +168,11 @@
                                             <Grid.ContextFlyout>
                                                 <MenuFlyout>
                                                     <MenuFlyoutItem
+                                                        Click="OnInspectStackClick"
+                                                        Icon="View"
+                                                        Tag="{x:Bind}"
+                                                        Text="Inspect" />
+                                                    <MenuFlyoutItem
                                                         Click="OnOpenTrayMenuClick"
                                                         Tag="{x:Bind}"
                                                         Text="Pop out as tray">
@@ -143,6 +180,7 @@
                                                             <FontIcon Glyph="&#xE8A7;" />
                                                         </MenuFlyoutItem.Icon>
                                                     </MenuFlyoutItem>
+                                                    <MenuFlyoutSeparator />
                                                     <MenuFlyoutItem
                                                         Click="OnInsertClipboardContentMenuClick"
                                                         Icon="Paste"
@@ -223,7 +261,11 @@
                                                         Tag="{x:Bind}"
                                                         Unloaded="OnStackDragSurfaceUnloaded">
                                                         <Button.Resources />
-                                                        <Grid MinHeight="58" Padding="7,5">
+                                                        <Grid MinHeight="{x:Bind CardLayout.HeaderMinHeight, Mode=OneWay}" Padding="7,5">
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto" />
+                                                                <RowDefinition Height="Auto" />
+                                                            </Grid.RowDefinitions>
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="Auto" />
                                                                 <ColumnDefinition Width="*" />
@@ -231,22 +273,24 @@
                                                                 <ColumnDefinition Width="Auto" />
                                                             </Grid.ColumnDefinitions>
                                                             <Grid
-                                                                Width="44"
-                                                                Height="42"
-                                                                Margin="0,0,10,0">
+                                                                Grid.ColumnSpan="{x:Bind CardLayout.PreviewColumnSpan, Mode=OneWay}"
+                                                                Width="{x:Bind CardLayout.PreviewContainerWidth, Mode=OneWay}"
+                                                                Height="{x:Bind CardLayout.PreviewContainerHeight, Mode=OneWay}"
+                                                                Margin="{x:Bind CardLayout.PreviewMargin, Mode=OneWay}"
+                                                                HorizontalAlignment="{x:Bind CardLayout.PreviewHorizontalAlignment, Mode=OneWay}">
                                                                 <Border
-                                                                    Width="31"
-                                                                    Height="27"
+                                                                    Width="{x:Bind CardLayout.ThirdPreviewWidth, Mode=OneWay}"
+                                                                    Height="{x:Bind CardLayout.ThirdPreviewHeight, Mode=OneWay}"
                                                                     HorizontalAlignment="Center"
                                                                     VerticalAlignment="Center"
                                                                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                                                     BorderBrush="{x:Bind TintBrush}"
                                                                     BorderThickness="1"
-                                                                    CornerRadius="5"
+                                                                    CornerRadius="{x:Bind CardLayout.BackCornerRadius, Mode=OneWay}"
                                                                     Opacity="0.55"
                                                                     Visibility="{x:Bind ThirdLayerVisibility, Mode=OneWay}">
                                                                     <Border.RenderTransform>
-                                                                        <CompositeTransform Rotation="12" TranslateY="5" />
+                                                                        <CompositeTransform Rotation="12" TranslateY="{x:Bind CardLayout.ThirdTranslateY, Mode=OneWay}" />
                                                                     </Border.RenderTransform>
                                                                     <Image
                                                                         Source="{x:Bind ThirdPreviewThumbnailSource, Mode=OneWay}"
@@ -254,18 +298,18 @@
                                                                         Visibility="{x:Bind ThirdPreviewThumbnailVisibility, Mode=OneWay}" />
                                                                 </Border>
                                                                 <Border
-                                                                    Width="35"
-                                                                    Height="30"
+                                                                    Width="{x:Bind CardLayout.SecondPreviewWidth, Mode=OneWay}"
+                                                                    Height="{x:Bind CardLayout.SecondPreviewHeight, Mode=OneWay}"
                                                                     HorizontalAlignment="Center"
                                                                     VerticalAlignment="Center"
                                                                     Background="{ThemeResource LayerFillColorDefaultBrush}"
                                                                     BorderBrush="{x:Bind TintBrush}"
                                                                     BorderThickness="1"
-                                                                    CornerRadius="5"
+                                                                    CornerRadius="{x:Bind CardLayout.BackCornerRadius, Mode=OneWay}"
                                                                     Opacity="0.78"
                                                                     Visibility="{x:Bind SecondLayerVisibility, Mode=OneWay}">
                                                                     <Border.RenderTransform>
-                                                                        <CompositeTransform Rotation="-9" TranslateY="2" />
+                                                                        <CompositeTransform Rotation="-9" TranslateY="{x:Bind CardLayout.SecondTranslateY, Mode=OneWay}" />
                                                                     </Border.RenderTransform>
                                                                     <Image
                                                                         Source="{x:Bind SecondPreviewThumbnailSource, Mode=OneWay}"
@@ -273,21 +317,21 @@
                                                                         Visibility="{x:Bind SecondPreviewThumbnailVisibility, Mode=OneWay}" />
                                                                 </Border>
                                                                 <Border
-                                                                    Width="39"
-                                                                    Height="33"
+                                                                    Width="{x:Bind CardLayout.FrontPreviewWidth, Mode=OneWay}"
+                                                                    Height="{x:Bind CardLayout.FrontPreviewHeight, Mode=OneWay}"
                                                                     HorizontalAlignment="Center"
                                                                     VerticalAlignment="Center"
                                                                     Background="{ThemeResource LayerFillColorDefaultBrush}"
                                                                     BorderBrush="{x:Bind TintBrush}"
                                                                     BorderThickness="1"
-                                                                    CornerRadius="6">
+                                                                    CornerRadius="{x:Bind CardLayout.FrontCornerRadius, Mode=OneWay}">
                                                                     <Grid>
                                                                         <Image
                                                                             Source="{x:Bind PreviewThumbnailSource, Mode=OneWay}"
                                                                             Stretch="UniformToFill"
                                                                             Visibility="{x:Bind PreviewThumbnailVisibility, Mode=OneWay}" />
                                                                         <FontIcon
-                                                                            FontSize="16"
+                                                                            FontSize="{x:Bind CardLayout.PreviewGlyphFontSize, Mode=OneWay}"
                                                                             Foreground="{x:Bind TintBrush}"
                                                                             Glyph="{x:Bind LeadingGlyph, Mode=OneWay}"
                                                                             Visibility="{x:Bind PreviewGlyphVisibility, Mode=OneWay}" />
@@ -295,27 +339,54 @@
                                                                 </Border>
                                                             </Grid>
                                                             <StackPanel
-                                                                Grid.Column="1"
-                                                                VerticalAlignment="Center"
+                                                                Grid.Row="{x:Bind CardLayout.TextRow, Mode=OneWay}"
+                                                                Grid.Column="{x:Bind CardLayout.TextColumn, Mode=OneWay}"
+                                                                Grid.ColumnSpan="{x:Bind CardLayout.TextColumnSpan, Mode=OneWay}"
+                                                                Margin="{x:Bind CardLayout.TextMargin, Mode=OneWay}"
+                                                                HorizontalAlignment="Stretch"
+                                                                VerticalAlignment="{x:Bind CardLayout.TextVerticalAlignment, Mode=OneWay}"
                                                                 Spacing="1">
                                                                 <TextBlock
                                                                     FontWeight="SemiBold"
                                                                     MaxLines="1"
                                                                     Text="{x:Bind Name, Mode=OneWay}"
+                                                                    TextAlignment="{x:Bind CardLayout.TextAlignment, Mode=OneWay}"
                                                                     TextTrimming="CharacterEllipsis" />
                                                                 <TextBlock
                                                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                                     Style="{ThemeResource CaptionTextBlockStyle}"
-                                                                    Text="{x:Bind ItemCountText, Mode=OneWay}" />
+                                                                    Text="{x:Bind ItemCountText, Mode=OneWay}"
+                                                                    TextAlignment="{x:Bind CardLayout.TextAlignment, Mode=OneWay}" />
                                                             </StackPanel>
                                                             <FontIcon
                                                                 x:Name="ExpansionGlyph"
+                                                                Grid.RowSpan="2"
                                                                 Grid.Column="3"
                                                                 VerticalAlignment="Center"
                                                                 FontSize="11"
                                                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                                 Glyph="&#xE70D;" />
                                                         </Grid>
+                                                    </Button>
+                                                    <Button
+                                                        x:Name="InspectorButton"
+                                                        Width="30"
+                                                        Height="30"
+                                                        Margin="0,0,60,0"
+                                                        Padding="0"
+                                                        HorizontalAlignment="Right"
+                                                        VerticalAlignment="Center"
+                                                        AutomationProperties.Name="Inspect stack"
+                                                        Background="Transparent"
+                                                        BorderThickness="0"
+                                                        Canvas.ZIndex="2"
+                                                        Click="OnInspectStackClick"
+                                                        IsHitTestVisible="False"
+                                                        IsTabStop="False"
+                                                        Opacity="0"
+                                                        Tag="{x:Bind}"
+                                                        ToolTipService.ToolTip="Inspect stack">
+                                                        <SymbolIcon Symbol="View" />
                                                     </Button>
                                                     <Button
                                                         x:Name="PopOutButton"
@@ -370,8 +441,12 @@
                                     FontSize="30"
                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                     Glyph="&#xE8F1;" />
-                                <TextBlock FontWeight="SemiBold" Text="No stacks on this edge" />
                                 <TextBlock
+                                    x:Name="VerticalEmptyStateTitle"
+                                    FontWeight="SemiBold"
+                                    Text="No stacks on this edge" />
+                                <TextBlock
+                                    x:Name="VerticalEmptyStateDescription"
                                     MaxWidth="260"
                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                     Text="Drop content here or add a stack from OmniTray."
@@ -433,17 +508,17 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <Grid x:Name="HorizontalTargetRail" MinHeight="122">
+                        <Grid x:Name="HorizontalTargetRail" MinHeight="{x:Bind ViewModel.HorizontalStackCardLayout.HorizontalPanelCollapsedHeight, Mode=OneWay}">
                             <ScrollViewer
                                 x:Name="HorizontalRailScrollViewer"
-                                Padding="10,8,44,8"
+                                Padding="10,8,108,8"
                                 HorizontalScrollBarVisibility="Auto"
                                 HorizontalScrollMode="Enabled"
                                 VerticalScrollBarVisibility="Disabled"
                                 VerticalScrollMode="Disabled"
                                 ZoomMode="Disabled">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
-                                    <Grid MinWidth="150" MinHeight="104">
+                                    <Grid MinWidth="{x:Bind ViewModel.HorizontalStackCardLayout.HorizontalCardWidth, Mode=OneWay}" MinHeight="{x:Bind ViewModel.HorizontalStackCardLayout.HorizontalCardHeight, Mode=OneWay}">
                                         <ListView
                                             x:Name="HorizontalStackList"
                                             AllowDrop="True"
@@ -468,8 +543,8 @@
                                             <ListView.ItemTemplate>
                                                 <DataTemplate x:DataType="viewModels:DropStackViewModel">
                                                     <Grid
-                                                        Width="84"
-                                                        Height="104"
+                                                        Width="{x:Bind HorizontalCardLayout.HorizontalCardWidth, Mode=OneWay}"
+                                                        Height="{x:Bind HorizontalCardLayout.HorizontalCardHeight, Mode=OneWay}"
                                                         AllowDrop="True"
                                                         AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"
                                                         DragLeave="OnStackDragLeave"
@@ -484,6 +559,11 @@
                                                         <Grid.ContextFlyout>
                                                             <MenuFlyout>
                                                                 <MenuFlyoutItem
+                                                                    Click="OnInspectStackClick"
+                                                                    Icon="View"
+                                                                    Tag="{x:Bind}"
+                                                                    Text="Inspect" />
+                                                                <MenuFlyoutItem
                                                                     Click="OnOpenTrayMenuClick"
                                                                     Tag="{x:Bind}"
                                                                     Text="Pop out as tray">
@@ -491,6 +571,7 @@
                                                                         <FontIcon Glyph="&#xE8A7;" />
                                                                     </MenuFlyoutItem.Icon>
                                                                 </MenuFlyoutItem>
+                                                                <MenuFlyoutSeparator />
                                                                 <MenuFlyoutItem
                                                                     Click="OnInsertClipboardContentMenuClick"
                                                                     Icon="Paste"
@@ -532,14 +613,28 @@
                                                             </MenuFlyout>
                                                         </Grid.ContextFlyout>
 
-                                                        <StackPanel
-                                                            HorizontalAlignment="Center"
-                                                            VerticalAlignment="Center"
-                                                            Spacing="5">
-                                                            <Grid Width="58" Height="58">
+                                                        <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto" />
+                                                                <RowDefinition Height="Auto" />
+                                                            </Grid.RowDefinitions>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <Grid
+                                                                Grid.Row="{x:Bind HorizontalCardLayout.HorizontalPreviewRow, Mode=OneWay}"
+                                                                Grid.RowSpan="{x:Bind HorizontalCardLayout.HorizontalPreviewRowSpan, Mode=OneWay}"
+                                                                Grid.Column="{x:Bind HorizontalCardLayout.HorizontalPreviewColumn, Mode=OneWay}"
+                                                                Grid.ColumnSpan="{x:Bind HorizontalCardLayout.HorizontalPreviewColumnSpan, Mode=OneWay}"
+                                                                Width="{x:Bind HorizontalCardLayout.HorizontalPreviewContainerWidth, Mode=OneWay}"
+                                                                Height="{x:Bind HorizontalCardLayout.HorizontalPreviewContainerHeight, Mode=OneWay}"
+                                                                Margin="{x:Bind HorizontalCardLayout.HorizontalPreviewMargin, Mode=OneWay}"
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center">
                                                                 <Border
-                                                                    Width="42"
-                                                                    Height="37"
+                                                                    Width="{x:Bind HorizontalCardLayout.HorizontalThirdPreviewWidth, Mode=OneWay}"
+                                                                    Height="{x:Bind HorizontalCardLayout.HorizontalThirdPreviewHeight, Mode=OneWay}"
                                                                     HorizontalAlignment="Center"
                                                                     VerticalAlignment="Center"
                                                                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
@@ -557,8 +652,8 @@
                                                                         Visibility="{x:Bind ThirdPreviewThumbnailVisibility, Mode=OneWay}" />
                                                                 </Border>
                                                                 <Border
-                                                                    Width="47"
-                                                                    Height="41"
+                                                                    Width="{x:Bind HorizontalCardLayout.HorizontalSecondPreviewWidth, Mode=OneWay}"
+                                                                    Height="{x:Bind HorizontalCardLayout.HorizontalSecondPreviewHeight, Mode=OneWay}"
                                                                     HorizontalAlignment="Center"
                                                                     VerticalAlignment="Center"
                                                                     Background="{ThemeResource LayerFillColorDefaultBrush}"
@@ -576,8 +671,8 @@
                                                                         Visibility="{x:Bind SecondPreviewThumbnailVisibility, Mode=OneWay}" />
                                                                 </Border>
                                                                 <Border
-                                                                    Width="52"
-                                                                    Height="46"
+                                                                    Width="{x:Bind HorizontalCardLayout.HorizontalFrontPreviewWidth, Mode=OneWay}"
+                                                                    Height="{x:Bind HorizontalCardLayout.HorizontalFrontPreviewHeight, Mode=OneWay}"
                                                                     HorizontalAlignment="Center"
                                                                     VerticalAlignment="Center"
                                                                     Background="{ThemeResource LayerFillColorDefaultBrush}"
@@ -590,7 +685,7 @@
                                                                             Stretch="UniformToFill"
                                                                             Visibility="{x:Bind PreviewThumbnailVisibility, Mode=OneWay}" />
                                                                         <FontIcon
-                                                                            FontSize="22"
+                                                                            FontSize="{x:Bind HorizontalCardLayout.HorizontalPreviewGlyphFontSize, Mode=OneWay}"
                                                                             Foreground="{x:Bind TintBrush}"
                                                                             Glyph="{x:Bind LeadingGlyph, Mode=OneWay}"
                                                                             Visibility="{x:Bind PreviewGlyphVisibility, Mode=OneWay}" />
@@ -613,6 +708,26 @@
                                                                         Text="{x:Bind TileCountBadgeText, Mode=OneWay}" />
                                                                 </Border>
                                                                 <Button
+                                                                    x:Name="InspectorButton"
+                                                                    Width="25"
+                                                                    Height="25"
+                                                                    Margin="0,-4,20,0"
+                                                                    Padding="0"
+                                                                    HorizontalAlignment="Right"
+                                                                    VerticalAlignment="Top"
+                                                                    AutomationProperties.Name="Inspect stack"
+                                                                    Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+                                                                    BorderThickness="0"
+                                                                    Canvas.ZIndex="2"
+                                                                    Click="OnInspectStackClick"
+                                                                    GotFocus="OnStackActionButtonGotFocus"
+                                                                    LostFocus="OnStackActionButtonLostFocus"
+                                                                    Opacity="0.16"
+                                                                    Tag="{x:Bind}"
+                                                                    ToolTipService.ToolTip="Inspect stack">
+                                                                    <SymbolIcon Symbol="View" />
+                                                                </Button>
+                                                                <Button
                                                                     x:Name="PopOutButton"
                                                                     Width="25"
                                                                     Height="25"
@@ -625,8 +740,8 @@
                                                                     BorderThickness="0"
                                                                     Canvas.ZIndex="2"
                                                                     Click="OnOpenTrayMenuClick"
-                                                                    GotFocus="OnPopOutButtonGotFocus"
-                                                                    LostFocus="OnPopOutButtonLostFocus"
+                                                                    GotFocus="OnStackActionButtonGotFocus"
+                                                                    LostFocus="OnStackActionButtonLostFocus"
                                                                     Opacity="0.16"
                                                                     Tag="{x:Bind}"
                                                                     ToolTipService.ToolTip="Pop out as tray">
@@ -634,15 +749,21 @@
                                                                 </Button>
                                                             </Grid>
                                                             <TextBlock
-                                                                Width="78"
-                                                                HorizontalAlignment="Center"
+                                                                Grid.Row="{x:Bind HorizontalCardLayout.HorizontalTextRow, Mode=OneWay}"
+                                                                Grid.RowSpan="{x:Bind HorizontalCardLayout.HorizontalTextRowSpan, Mode=OneWay}"
+                                                                Grid.Column="{x:Bind HorizontalCardLayout.HorizontalTextColumn, Mode=OneWay}"
+                                                                Grid.ColumnSpan="{x:Bind HorizontalCardLayout.HorizontalTextColumnSpan, Mode=OneWay}"
+                                                                Width="{x:Bind HorizontalCardLayout.HorizontalNameWidth, Mode=OneWay}"
+                                                                Margin="{x:Bind HorizontalCardLayout.HorizontalTextMargin, Mode=OneWay}"
+                                                                HorizontalAlignment="Stretch"
+                                                                VerticalAlignment="{x:Bind HorizontalCardLayout.HorizontalTextVerticalAlignment, Mode=OneWay}"
                                                                 FontSize="12"
                                                                 MaxLines="2"
-                                                                Text="{x:Bind CompactName, Mode=OneWay}"
-                                                                TextAlignment="Center"
+                                                                Text="{x:Bind Name, Mode=OneWay}"
+                                                                TextAlignment="{x:Bind HorizontalCardLayout.HorizontalTextAlignment, Mode=OneWay}"
                                                                 TextTrimming="CharacterEllipsis"
                                                                 TextWrapping="WrapWholeWords" />
-                                                        </StackPanel>
+                                                        </Grid>
                                                         <Border
                                                             x:Name="StackDropOutline"
                                                             BorderBrush="{x:Bind TintBrush}"
@@ -667,6 +788,8 @@
 
                                     <Button
                                         x:Name="HorizontalNewStackButton"
+                                        Width="{x:Bind ViewModel.HorizontalStackCardLayout.HorizontalActionWidth, Mode=OneWay}"
+                                        Height="{x:Bind ViewModel.HorizontalStackCardLayout.HorizontalActionHeight, Mode=OneWay}"
                                         AllowDrop="True"
                                         AutomationProperties.HelpText="Click for an empty stack, or drop content to create a stack"
                                         AutomationProperties.Name="New stack"
@@ -689,7 +812,7 @@
                                                     Glyph="&#xE710;" />
                                             </Border>
                                             <TextBlock
-                                                Width="76"
+                                                Width="{x:Bind ViewModel.HorizontalStackCardLayout.HorizontalActionNameWidth, Mode=OneWay}"
                                                 FontSize="12"
                                                 Text="New stack"
                                                 TextAlignment="Center"
@@ -707,20 +830,52 @@
                                 </StackPanel>
                             </ScrollViewer>
 
-                            <Button
-                                Width="32"
-                                Height="32"
+                            <StackPanel
                                 Margin="0,2,4,0"
                                 HorizontalAlignment="Right"
                                 VerticalAlignment="Top"
-                                AutomationProperties.Name="Hide edge shelf"
-                                Background="Transparent"
-                                BorderThickness="0"
                                 Canvas.ZIndex="3"
-                                Click="OnCollapseClick"
-                                ToolTipService.ToolTip="Hide">
-                                <FontIcon FontSize="11" Glyph="&#xE711;" />
-                            </Button>
+                                Orientation="Horizontal">
+                                <Button
+                                    x:Name="HorizontalSearchButton"
+                                    Width="32"
+                                    Height="32"
+                                    Padding="0"
+                                    AutomationProperties.HelpText="Open a live filter for the stacks on this shelf"
+                                    AutomationProperties.Name="Search stacks"
+                                    Click="OnSearchClick"
+                                    Style="{StaticResource SubtleButtonStyle}"
+                                    ToolTipService.ToolTip="Search stacks (Ctrl+F)">
+                                    <Button.KeyboardAccelerators>
+                                        <KeyboardAccelerator Key="F" Modifiers="Control" />
+                                    </Button.KeyboardAccelerators>
+                                    <FontIcon
+                                        FontSize="14"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Glyph="&#xE721;" />
+                                </Button>
+                                <Button
+                                    x:Name="HorizontalMoreButton"
+                                    Width="32"
+                                    Height="32"
+                                    Padding="0"
+                                    AutomationProperties.Name="Shelf options"
+                                    Click="OnMoreClick"
+                                    Style="{StaticResource SubtleButtonStyle}"
+                                    ToolTipService.ToolTip="Shelf options">
+                                    <FontIcon FontSize="14" Glyph="&#xE712;" />
+                                </Button>
+                                <Button
+                                    Width="32"
+                                    Height="32"
+                                    Padding="0"
+                                    AutomationProperties.Name="Hide edge shelf"
+                                    Click="OnCollapseClick"
+                                    Style="{StaticResource SubtleButtonStyle}"
+                                    ToolTipService.ToolTip="Hide">
+                                    <FontIcon FontSize="11" Glyph="&#xE711;" />
+                                </Button>
+                            </StackPanel>
                         </Grid>
 
                         <Border
@@ -737,11 +892,12 @@
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
                                 <Grid Margin="0,0,0,4" ColumnSpacing="8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
                                     <StackPanel Orientation="Horizontal" Spacing="7">
                                         <FontIcon
                                             VerticalAlignment="Center"
@@ -760,8 +916,21 @@
                                             Style="{ThemeResource CaptionTextBlockStyle}" />
                                     </StackPanel>
                                     <Button
-                                        x:Name="HorizontalDetailPopOutButton"
+                                        x:Name="HorizontalDetailInspectButton"
                                         Grid.Column="1"
+                                        Width="30"
+                                        Height="30"
+                                        Padding="0"
+                                        AutomationProperties.Name="Inspect stack"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Click="OnInspectStackClick"
+                                        ToolTipService.ToolTip="Inspect stack">
+                                        <SymbolIcon Symbol="View" />
+                                    </Button>
+                                    <Button
+                                        x:Name="HorizontalDetailPopOutButton"
+                                        Grid.Column="2"
                                         Width="30"
                                         Height="30"
                                         Padding="0"
@@ -773,7 +942,7 @@
                                         <FontIcon FontSize="13" Glyph="&#xE8A7;" />
                                     </Button>
                                     <Button
-                                        Grid.Column="2"
+                                        Grid.Column="3"
                                         Width="30"
                                         Height="30"
                                         Padding="0"
@@ -842,5 +1011,13 @@
                 </Border>
             </Grid>
         </Grid>
+
+        <primitives:Popup
+            x:Name="StackInspectorPopup"
+            Closed="OnStackInspectorPopupClosed"
+            IsLightDismissEnabled="True"
+            LightDismissOverlayMode="Off"
+            Opened="OnStackInspectorPopupOpened"
+            ShouldConstrainToRootBounds="False" />
     </Grid>
 </views:TransparentWindow>

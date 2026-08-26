@@ -87,6 +87,90 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         set => this._main.BottomEdgeWindowEnabled = value;
     }
 
+    public int VerticalStackCardDisplayModeIndex
+    {
+        get => (int)this._main.VerticalStackCardDisplayMode;
+        set
+        {
+            if (Enum.IsDefined(typeof(StackCardDisplayMode), value))
+            {
+                this._main.VerticalStackCardDisplayMode = (StackCardDisplayMode)value;
+            }
+        }
+    }
+
+    public int HorizontalStackCardDisplayModeIndex
+    {
+        get => (int)this._main.HorizontalStackCardDisplayMode;
+        set
+        {
+            if (Enum.IsDefined(typeof(StackCardDisplayMode), value))
+            {
+                this._main.HorizontalStackCardDisplayMode = (StackCardDisplayMode)value;
+            }
+        }
+    }
+
+    public int LeftEdgeWindowSizeModeIndex
+    {
+        get => (int)this._main.LeftEdgeWindowSizeMode;
+        set => this.SetEdgeWindowSizeMode(EdgeShelfSide.Left, value);
+    }
+
+    public int LeftEdgeWindowAlignmentIndex
+    {
+        get => (int)this._main.LeftEdgeWindowAlignment;
+        set => this.SetEdgeWindowAlignment(EdgeShelfSide.Left, value);
+    }
+
+    public bool CanPositionLeftEdgeWindow =>
+        this._main.LeftEdgeWindowSizeMode == EdgeWindowSizeMode.Reasonable;
+
+    public int RightEdgeWindowSizeModeIndex
+    {
+        get => (int)this._main.RightEdgeWindowSizeMode;
+        set => this.SetEdgeWindowSizeMode(EdgeShelfSide.Right, value);
+    }
+
+    public int RightEdgeWindowAlignmentIndex
+    {
+        get => (int)this._main.RightEdgeWindowAlignment;
+        set => this.SetEdgeWindowAlignment(EdgeShelfSide.Right, value);
+    }
+
+    public bool CanPositionRightEdgeWindow =>
+        this._main.RightEdgeWindowSizeMode == EdgeWindowSizeMode.Reasonable;
+
+    public int TopEdgeWindowSizeModeIndex
+    {
+        get => (int)this._main.TopEdgeWindowSizeMode;
+        set => this.SetEdgeWindowSizeMode(EdgeShelfSide.Top, value);
+    }
+
+    public int TopEdgeWindowAlignmentIndex
+    {
+        get => (int)this._main.TopEdgeWindowAlignment;
+        set => this.SetEdgeWindowAlignment(EdgeShelfSide.Top, value);
+    }
+
+    public bool CanPositionTopEdgeWindow =>
+        this._main.TopEdgeWindowSizeMode == EdgeWindowSizeMode.Reasonable;
+
+    public int BottomEdgeWindowSizeModeIndex
+    {
+        get => (int)this._main.BottomEdgeWindowSizeMode;
+        set => this.SetEdgeWindowSizeMode(EdgeShelfSide.Bottom, value);
+    }
+
+    public int BottomEdgeWindowAlignmentIndex
+    {
+        get => (int)this._main.BottomEdgeWindowAlignment;
+        set => this.SetEdgeWindowAlignment(EdgeShelfSide.Bottom, value);
+    }
+
+    public bool CanPositionBottomEdgeWindow =>
+        this._main.BottomEdgeWindowSizeMode == EdgeWindowSizeMode.Reasonable;
+
     public bool SyncLeftAndRightEdgeContent
     {
         get => this._main.SyncLeftAndRightEdgeContent;
@@ -218,9 +302,63 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         return false;
     }
 
+    private void SetEdgeWindowSizeMode(EdgeShelfSide side, int value)
+    {
+        if (Enum.IsDefined(typeof(EdgeWindowSizeMode), value))
+        {
+            this._main.SetEdgeWindowSizeMode(side, (EdgeWindowSizeMode)value);
+        }
+    }
+
+    private void SetEdgeWindowAlignment(EdgeShelfSide side, int value)
+    {
+        if (Enum.IsDefined(typeof(EdgeWindowAlignment), value))
+        {
+            this._main.SetEdgeWindowAlignment(side, (EdgeWindowAlignment)value);
+        }
+    }
+
     private void OnMainPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
         this.OnPropertyChanged(args.PropertyName);
+        switch (args.PropertyName)
+        {
+            case nameof(MainViewModel.VerticalStackCardDisplayMode):
+                this.OnPropertyChanged(nameof(this.VerticalStackCardDisplayModeIndex));
+                break;
+            case nameof(MainViewModel.HorizontalStackCardDisplayMode):
+                this.OnPropertyChanged(nameof(this.HorizontalStackCardDisplayModeIndex));
+                break;
+            case nameof(MainViewModel.LeftEdgeWindowSizeMode):
+                this.OnPropertyChanged(nameof(this.LeftEdgeWindowSizeModeIndex));
+                this.OnPropertyChanged(nameof(this.CanPositionLeftEdgeWindow));
+                break;
+            case nameof(MainViewModel.LeftEdgeWindowAlignment):
+                this.OnPropertyChanged(nameof(this.LeftEdgeWindowAlignmentIndex));
+                break;
+            case nameof(MainViewModel.RightEdgeWindowSizeMode):
+                this.OnPropertyChanged(nameof(this.RightEdgeWindowSizeModeIndex));
+                this.OnPropertyChanged(nameof(this.CanPositionRightEdgeWindow));
+                break;
+            case nameof(MainViewModel.RightEdgeWindowAlignment):
+                this.OnPropertyChanged(nameof(this.RightEdgeWindowAlignmentIndex));
+                break;
+            case nameof(MainViewModel.TopEdgeWindowSizeMode):
+                this.OnPropertyChanged(nameof(this.TopEdgeWindowSizeModeIndex));
+                this.OnPropertyChanged(nameof(this.CanPositionTopEdgeWindow));
+                break;
+            case nameof(MainViewModel.TopEdgeWindowAlignment):
+                this.OnPropertyChanged(nameof(this.TopEdgeWindowAlignmentIndex));
+                break;
+            case nameof(MainViewModel.BottomEdgeWindowSizeMode):
+                this.OnPropertyChanged(nameof(this.BottomEdgeWindowSizeModeIndex));
+                this.OnPropertyChanged(nameof(this.CanPositionBottomEdgeWindow));
+                break;
+            case nameof(MainViewModel.BottomEdgeWindowAlignment):
+                this.OnPropertyChanged(nameof(this.BottomEdgeWindowAlignmentIndex));
+                break;
+        }
+
         if (args.PropertyName == nameof(MainViewModel.SyncAllEdgeContent))
         {
             this.OnPropertyChanged(nameof(this.CanConfigurePairedEdgeContentSync));

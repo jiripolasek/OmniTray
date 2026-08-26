@@ -207,7 +207,7 @@
                             <TextBlock Style="{ThemeResource TitleTextBlockStyle}" Text="Stacks &amp; trays" />
                             <TextBlock
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Text="Configure drag-out behavior and which edge trays stay active."
+                                Text="Configure stack interaction, appearance, drag-out behavior, and which edge trays stay active."
                                 TextWrapping="Wrap" />
                         </StackPanel>
 
@@ -215,7 +215,65 @@
                             <TextBlock
                                 Margin="0,0,0,6"
                                 Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                Text="Interaction" />
+                            <toolkit:SettingsCard Description="Pause over a stack preview or minimal tray icon to open its inspector." Header="Open inspector on hover">
+                                <ToggleSwitch
+                                    x:Name="OpenInspectorOnHoverToggle"
+                                    AutomationProperties.Name="Open tray inspector on hover"
+                                    OffContent="Off"
+                                    OnContent="On"
+                                    Toggled="OnOpenInspectorOnHoverToggled" />
+                            </toolkit:SettingsCard>
+                        </StackPanel>
+
+                        <StackPanel Spacing="6">
+                            <TextBlock
+                                Margin="0,0,0,6"
+                                Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                Text="Appearance" />
+                            <toolkit:SettingsCard Description="Show every tray set to Neutral using the Windows accent color." Header="Use Windows accent for neutral trays">
+                                <ToggleSwitch
+                                    x:Name="UseSystemAccentForNeutralToggle"
+                                    AutomationProperties.Name="Use Windows accent for neutral trays"
+                                    OffContent="Off"
+                                    OnContent="On"
+                                    Toggled="OnUseSystemAccentForNeutralToggled" />
+                            </toolkit:SettingsCard>
+                            <toolkit:SettingsCard Description="Used in the main popup and on the left and right edge shelves." Header="Vertical stack cards">
+                                <ComboBox
+                                    MinWidth="{StaticResource SettingActionControlMinWidth}"
+                                    AutomationProperties.Name="Vertical stack card style"
+                                    SelectedIndex="{x:Bind ViewModel.VerticalStackCardDisplayModeIndex, Mode=TwoWay}">
+                                    <ComboBoxItem Content="Small list" />
+                                    <ComboBoxItem Content="Large list" />
+                                    <ComboBoxItem Content="Thumbnail icons" />
+                                </ComboBox>
+                            </toolkit:SettingsCard>
+                            <toolkit:SettingsCard Description="Used on the top and bottom edge shelves." Header="Horizontal stack cards">
+                                <ComboBox
+                                    MinWidth="{StaticResource SettingActionControlMinWidth}"
+                                    AutomationProperties.Name="Horizontal stack card style"
+                                    SelectedIndex="{x:Bind ViewModel.HorizontalStackCardDisplayModeIndex, Mode=TwoWay}">
+                                    <ComboBoxItem Content="Small list" />
+                                    <ComboBoxItem Content="Large list" />
+                                    <ComboBoxItem Content="Thumbnail icons" />
+                                </ComboBox>
+                            </toolkit:SettingsCard>
+                        </StackPanel>
+
+                        <StackPanel Spacing="6">
+                            <TextBlock
+                                Margin="0,0,0,6"
+                                Style="{ThemeResource BodyStrongTextBlockStyle}"
                                 Text="Drag behavior" />
+                            <toolkit:SettingsCard Description="While dragging files, text, images, or stack items, quickly shake the mouse to open a new tray under the pointer, then release to drop." Header="Shake to create a tray">
+                                <ToggleSwitch
+                                    x:Name="ShakeToCreateTrayToggle"
+                                    AutomationProperties.Name="Shake the mouse while dragging to create a tray"
+                                    OffContent="Off"
+                                    OnContent="On"
+                                    Toggled="OnShakeToCreateTrayToggled" />
+                            </toolkit:SettingsCard>
                             <toolkit:SettingsCard Description="Regular drags copy. When enabled, hold Shift as you start dragging original files to allow a move." Header="Allow Shift-drag to move original files">
                                 <ToggleSwitch
                                     x:Name="AllowMoveOnDragOutToggle"
@@ -232,36 +290,108 @@
                                 Style="{ThemeResource BodyStrongTextBlockStyle}"
                                 Text="Edge trays" />
 
-                            <toolkit:SettingsExpander Description="Create only the edge windows you use. Each enabled side appears on every connected display." Header="Enabled edge trays">
+                            <toolkit:SettingsExpander Description="Enable and arrange each edge tray independently. Settings apply on every connected display." Header="Edge tray layout">
                                 <TextBlock Text="Per display" />
                                 <toolkit:SettingsExpander.Items>
-                                    <toolkit:SettingsCard Description="Enable the left edge window." Header="Left">
-                                        <ToggleSwitch
-                                            AutomationProperties.Name="Enable left edge window"
-                                            IsOn="{x:Bind ViewModel.LeftEdgeWindowEnabled, Mode=TwoWay}"
-                                            OffContent="Off"
-                                            OnContent="On" />
+                                    <toolkit:SettingsCard Description="Configure the tray attached to the left edge." Header="Left edge">
+                                        <StackPanel MinWidth="{StaticResource SettingActionControlMinWidth}" Spacing="8">
+                                            <ToggleSwitch
+                                                AutomationProperties.Name="Enable left edge window"
+                                                IsOn="{x:Bind ViewModel.LeftEdgeWindowEnabled, Mode=TwoWay}"
+                                                OffContent="Off"
+                                                OnContent="On" />
+                                            <ComboBox
+                                                AutomationProperties.Name="Left edge window size"
+                                                Header="Size"
+                                                SelectedIndex="{x:Bind ViewModel.LeftEdgeWindowSizeModeIndex, Mode=TwoWay}">
+                                                <ComboBoxItem Content="Reasonable" />
+                                                <ComboBoxItem Content="Stretch along edge" />
+                                            </ComboBox>
+                                            <ComboBox
+                                                AutomationProperties.Name="Left edge window position"
+                                                Header="Position"
+                                                IsEnabled="{x:Bind ViewModel.CanPositionLeftEdgeWindow, Mode=OneWay}"
+                                                SelectedIndex="{x:Bind ViewModel.LeftEdgeWindowAlignmentIndex, Mode=TwoWay}">
+                                                <ComboBoxItem Content="Top" />
+                                                <ComboBoxItem Content="Center" />
+                                                <ComboBoxItem Content="Bottom" />
+                                            </ComboBox>
+                                        </StackPanel>
                                     </toolkit:SettingsCard>
-                                    <toolkit:SettingsCard Description="Enable the right edge window." Header="Right">
-                                        <ToggleSwitch
-                                            AutomationProperties.Name="Enable right edge window"
-                                            IsOn="{x:Bind ViewModel.RightEdgeWindowEnabled, Mode=TwoWay}"
-                                            OffContent="Off"
-                                            OnContent="On" />
+                                    <toolkit:SettingsCard Description="Configure the tray attached to the right edge." Header="Right edge">
+                                        <StackPanel MinWidth="{StaticResource SettingActionControlMinWidth}" Spacing="8">
+                                            <ToggleSwitch
+                                                AutomationProperties.Name="Enable right edge window"
+                                                IsOn="{x:Bind ViewModel.RightEdgeWindowEnabled, Mode=TwoWay}"
+                                                OffContent="Off"
+                                                OnContent="On" />
+                                            <ComboBox
+                                                AutomationProperties.Name="Right edge window size"
+                                                Header="Size"
+                                                SelectedIndex="{x:Bind ViewModel.RightEdgeWindowSizeModeIndex, Mode=TwoWay}">
+                                                <ComboBoxItem Content="Reasonable" />
+                                                <ComboBoxItem Content="Stretch along edge" />
+                                            </ComboBox>
+                                            <ComboBox
+                                                AutomationProperties.Name="Right edge window position"
+                                                Header="Position"
+                                                IsEnabled="{x:Bind ViewModel.CanPositionRightEdgeWindow, Mode=OneWay}"
+                                                SelectedIndex="{x:Bind ViewModel.RightEdgeWindowAlignmentIndex, Mode=TwoWay}">
+                                                <ComboBoxItem Content="Top" />
+                                                <ComboBoxItem Content="Center" />
+                                                <ComboBoxItem Content="Bottom" />
+                                            </ComboBox>
+                                        </StackPanel>
                                     </toolkit:SettingsCard>
-                                    <toolkit:SettingsCard Description="Enable the top edge window." Header="Top">
-                                        <ToggleSwitch
-                                            AutomationProperties.Name="Enable top edge window"
-                                            IsOn="{x:Bind ViewModel.TopEdgeWindowEnabled, Mode=TwoWay}"
-                                            OffContent="Off"
-                                            OnContent="On" />
+                                    <toolkit:SettingsCard Description="Configure the tray attached to the top edge." Header="Top edge">
+                                        <StackPanel MinWidth="{StaticResource SettingActionControlMinWidth}" Spacing="8">
+                                            <ToggleSwitch
+                                                AutomationProperties.Name="Enable top edge window"
+                                                IsOn="{x:Bind ViewModel.TopEdgeWindowEnabled, Mode=TwoWay}"
+                                                OffContent="Off"
+                                                OnContent="On" />
+                                            <ComboBox
+                                                AutomationProperties.Name="Top edge window size"
+                                                Header="Size"
+                                                SelectedIndex="{x:Bind ViewModel.TopEdgeWindowSizeModeIndex, Mode=TwoWay}">
+                                                <ComboBoxItem Content="Reasonable" />
+                                                <ComboBoxItem Content="Stretch along edge" />
+                                            </ComboBox>
+                                            <ComboBox
+                                                AutomationProperties.Name="Top edge window position"
+                                                Header="Position"
+                                                IsEnabled="{x:Bind ViewModel.CanPositionTopEdgeWindow, Mode=OneWay}"
+                                                SelectedIndex="{x:Bind ViewModel.TopEdgeWindowAlignmentIndex, Mode=TwoWay}">
+                                                <ComboBoxItem Content="Left" />
+                                                <ComboBoxItem Content="Center" />
+                                                <ComboBoxItem Content="Right" />
+                                            </ComboBox>
+                                        </StackPanel>
                                     </toolkit:SettingsCard>
-                                    <toolkit:SettingsCard Description="Enable the bottom edge window." Header="Bottom">
-                                        <ToggleSwitch
-                                            AutomationProperties.Name="Enable bottom edge window"
-                                            IsOn="{x:Bind ViewModel.BottomEdgeWindowEnabled, Mode=TwoWay}"
-                                            OffContent="Off"
-                                            OnContent="On" />
+                                    <toolkit:SettingsCard Description="Configure the tray attached to the bottom edge." Header="Bottom edge">
+                                        <StackPanel MinWidth="{StaticResource SettingActionControlMinWidth}" Spacing="8">
+                                            <ToggleSwitch
+                                                AutomationProperties.Name="Enable bottom edge window"
+                                                IsOn="{x:Bind ViewModel.BottomEdgeWindowEnabled, Mode=TwoWay}"
+                                                OffContent="Off"
+                                                OnContent="On" />
+                                            <ComboBox
+                                                AutomationProperties.Name="Bottom edge window size"
+                                                Header="Size"
+                                                SelectedIndex="{x:Bind ViewModel.BottomEdgeWindowSizeModeIndex, Mode=TwoWay}">
+                                                <ComboBoxItem Content="Reasonable" />
+                                                <ComboBoxItem Content="Stretch along edge" />
+                                            </ComboBox>
+                                            <ComboBox
+                                                AutomationProperties.Name="Bottom edge window position"
+                                                Header="Position"
+                                                IsEnabled="{x:Bind ViewModel.CanPositionBottomEdgeWindow, Mode=OneWay}"
+                                                SelectedIndex="{x:Bind ViewModel.BottomEdgeWindowAlignmentIndex, Mode=TwoWay}">
+                                                <ComboBoxItem Content="Left" />
+                                                <ComboBoxItem Content="Center" />
+                                                <ComboBoxItem Content="Right" />
+                                            </ComboBox>
+                                        </StackPanel>
                                     </toolkit:SettingsCard>
                                 </toolkit:SettingsExpander.Items>
                             </toolkit:SettingsExpander>

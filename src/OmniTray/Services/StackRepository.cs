@@ -14,8 +14,6 @@ internal sealed class StackRepository
 {
     private const string CatalogFileName = "stack-catalog.json";
     private const string TemporaryCatalogFileName = "stack-catalog.tmp";
-    private const int EarliestSupportedVersion = StackCatalogReader.EarliestSupportedVersion;
-    private const int CurrentVersion = StackCatalogReader.CurrentVersion;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     public async Task<StackCatalogState> LoadAsync()
@@ -41,32 +39,16 @@ internal sealed class StackRepository
                     throw new JsonException("The stack catalog was empty.");
                 }
 
-                if (catalog.Version is < EarliestSupportedVersion or > CurrentVersion)
-                {
-                    await PreserveUnsupportedCatalogAsync(file, catalog.Version);
-                    return StackCatalogState.Empty;
-                }
-
                 var stacks = catalog.Stacks.Select(RestoreStack).ToArray();
                 if (stacks.Select(static stack => stack.Id).Distinct().Count() != stacks.Length)
                 {
                     throw new JsonException("Stack IDs must be unique in the catalog.");
                 }
 
-                var openTrayWindows = catalog.Version >= 2
-                    ? RestoreOpenTrayWindows(catalog.OpenTrayWindows)
-                    : [];
-                var edgeShelves = catalog.Version switch
-                {
-                    >= 4 => RestoreEdgeShelves(catalog.EdgeShelves, stacks),
-                    3 => RestoreLegacyEdgePanel(catalog.EdgePanel, stacks),
-                    _ => CreateLegacyDefaultShelves(stacks)
-                };
                 return new StackCatalogState(
                     stacks,
-                    openTrayWindows,
-                    edgeShelves,
-                    catalog.Version < CurrentVersion);
+                    RestoreOpenTrayWindows(catalog.OpenTrayWindows),
+                    RestoreEdgeShelves(catalog.EdgeShelves, stacks));
             }
             catch
             {
@@ -86,7 +68,6 @@ internal sealed class StackRepository
 
         var catalog = new StackCatalogDocument
         {
-            Version = CurrentVersion,
             Stacks = [.. state.Stacks.Select(CreateStackDocument)],
             OpenTrayWindows =
             [
@@ -150,13 +131,15 @@ internal sealed class StackRepository
             item.SourcePath,
             item.Text,
             item.IsOwned,
-            item.CreatedAt)));
+            item.CreatedAt)),
+        stack.InspectorViewMode);
 
     private static StackDocument CreateStackDocument(DropStack stack) => new()
     {
         Id = stack.Id,
         Name = stack.Name,
         Tint = stack.Tint,
+        InspectorViewMode = stack.InspectorViewMode,
         Items =
         [
             .. stack.Items.Select(static item => new ItemDocument
@@ -210,39 +193,6 @@ internal sealed class StackRepository
             .ToArray();
     }
 
-    private static IReadOnlyList<EdgeShelfState> RestoreLegacyEdgePanel(
-        EdgePanelDocument? document,
-        IReadOnlyList<DropStack> stacks)
-    {
-        if (document is null)
-        {
-            return EdgeShelfState.CreateEmptyShelves();
-        }
-
-        var knownStackIds = stacks.Select(static stack => stack.Id).ToHashSet();
-        var side = document.Side is EdgeShelfSide.Left or EdgeShelfSide.Right
-            ? document.Side
-            : EdgeShelfSide.Right;
-        var orderedStackIds = document.StackIds
-            .Where(knownStackIds.Contains)
-            .Distinct()
-            .ToArray();
-        return Enum.GetValues<EdgeShelfSide>()
-            .Select(candidate => new EdgeShelfState(
-                candidate,
-                candidate == side ? orderedStackIds : []))
-            .ToArray();
-    }
-
-    private static IReadOnlyList<EdgeShelfState> CreateLegacyDefaultShelves(
-        IReadOnlyList<DropStack> stacks) => Enum.GetValues<EdgeShelfSide>()
-        .Select(side => new EdgeShelfState(
-            side,
-            side == EdgeShelfSide.Right
-                ? stacks.Select(static stack => stack.Id).ToArray()
-                : []))
-        .ToArray();
-
     private static async Task PreserveCorruptCatalogAsync(StorageFile file)
     {
         try
@@ -256,27 +206,12 @@ internal sealed class StackRepository
             // Recovery still succeeds with an empty catalogue if quarantine fails.
         }
     }
-
-    private static async Task PreserveUnsupportedCatalogAsync(StorageFile file, int version)
-    {
-        try
-        {
-            await file.RenameAsync(
-                $"stack-catalog.unsupported-v{version}.json",
-                NameCollisionOption.GenerateUniqueName);
-        }
-        catch
-        {
-            // Leave the unsupported catalog in place if it cannot be preserved under a new name.
-        }
-    }
 }
 
 internal sealed record StackCatalogState(
     IReadOnlyList<DropStack> Stacks,
     IReadOnlyList<TrayWindowState> OpenTrayWindows,
-    IReadOnlyList<EdgeShelfState> EdgeShelves,
-    bool NeedsMigration = false)
+    IReadOnlyList<EdgeShelfState> EdgeShelves)
 {
     public static StackCatalogState Empty { get; } = new([], [], EdgeShelfState.CreateEmptyShelves());
 }
@@ -303,16 +238,11 @@ internal sealed record TrayWindowState(
 
 internal sealed class StackCatalogDocument
 {
-    public int Version { get; set; }
-
     public List<StackDocument> Stacks { get; set; } = [];
 
     public List<TrayWindowDocument> OpenTrayWindows { get; set; } = [];
 
     public List<EdgeShelfDocument> EdgeShelves { get; set; } = [];
-
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public EdgePanelDocument? EdgePanel { get; set; }
 }
 
 internal sealed class StackDocument
@@ -322,6 +252,8 @@ internal sealed class StackDocument
     public string Name { get; set; } = string.Empty;
 
     public string Tint { get; set; } = string.Empty;
+
+    public StackInspectorViewMode InspectorViewMode { get; set; } = StackInspectorViewMode.List;
 
     public List<ItemDocument> Items { get; set; } = [];
 }
@@ -360,13 +292,6 @@ internal sealed class TrayWindowDocument
     public int NormalWidth { get; set; }
 
     public int NormalHeight { get; set; }
-}
-
-internal sealed class EdgePanelDocument
-{
-    public EdgeShelfSide Side { get; set; } = EdgeShelfSide.Right;
-
-    public List<Guid> StackIds { get; set; } = [];
 }
 
 internal sealed class EdgeShelfDocument

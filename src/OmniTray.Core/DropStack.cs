@@ -15,17 +15,24 @@ public sealed record DropStack
         Guid id,
         string name,
         string tint,
-        IReadOnlyList<DropItem> items)
+        IReadOnlyList<DropItem> items,
+        StackInspectorViewMode inspectorViewMode)
     {
         if (items.Select(static item => item.Id).Distinct().Count() != items.Count)
         {
             throw new ArgumentException("Item IDs must be unique within a stack.", nameof(items));
         }
 
+        if (!Enum.IsDefined(inspectorViewMode))
+        {
+            throw new ArgumentOutOfRangeException(nameof(inspectorViewMode));
+        }
+
         this.Id = id;
         this.Name = name;
         this.Tint = tint;
         this.Items = items;
+        this.InspectorViewMode = inspectorViewMode;
     }
 
     public Guid Id { get; }
@@ -35,6 +42,8 @@ public sealed record DropStack
     public string Tint { get; }
 
     public IReadOnlyList<DropItem> Items { get; }
+
+    public StackInspectorViewMode InspectorViewMode { get; }
 
     public DropStack Append(IEnumerable<DropItem> items)
     {
@@ -46,19 +55,36 @@ public sealed record DropStack
             throw new ArgumentException("At least one item is required.", nameof(items));
         }
 
-        return new DropStack(this.Id, this.Name, this.Tint, this.Items.Concat(additions).ToArray());
+        return new DropStack(
+            this.Id,
+            this.Name,
+            this.Tint,
+            this.Items.Concat(additions).ToArray(),
+            this.InspectorViewMode);
     }
 
     public DropStack Rename(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        return new DropStack(this.Id, name.Trim(), this.Tint, this.Items);
+        return new DropStack(this.Id, name.Trim(), this.Tint, this.Items, this.InspectorViewMode);
     }
 
     public DropStack ChangeTint(string tint)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tint);
-        return new DropStack(this.Id, this.Name, tint.Trim(), this.Items);
+        return new DropStack(this.Id, this.Name, tint.Trim(), this.Items, this.InspectorViewMode);
+    }
+
+    public DropStack ChangeInspectorViewMode(StackInspectorViewMode inspectorViewMode)
+    {
+        if (!Enum.IsDefined(inspectorViewMode))
+        {
+            throw new ArgumentOutOfRangeException(nameof(inspectorViewMode));
+        }
+
+        return inspectorViewMode == this.InspectorViewMode
+            ? this
+            : new DropStack(this.Id, this.Name, this.Tint, this.Items, inspectorViewMode);
     }
 
     public DropStack RemoveItems(IEnumerable<Guid> itemIds)
@@ -71,8 +97,12 @@ public sealed record DropStack
             return this;
         }
 
-        return new DropStack(this.Id, this.Name, this.Tint,
-            this.Items.Where(item => !removals.Contains(item.Id)).ToArray());
+        return new DropStack(
+            this.Id,
+            this.Name,
+            this.Tint,
+            this.Items.Where(item => !removals.Contains(item.Id)).ToArray(),
+            this.InspectorViewMode);
     }
 
     public DropStack ReorderItems(IEnumerable<Guid> orderedItemIds)
@@ -90,20 +120,25 @@ public sealed record DropStack
         }
 
         var itemsById = this.Items.ToDictionary(static item => item.Id);
-        return new DropStack(this.Id, this.Name, this.Tint,
-            order.Select(id => itemsById[id]).ToArray());
+        return new DropStack(
+            this.Id,
+            this.Name,
+            this.Tint,
+            order.Select(id => itemsById[id]).ToArray(),
+            this.InspectorViewMode);
     }
 
     internal DropStack WithItems(IEnumerable<DropItem> items)
     {
         ArgumentNullException.ThrowIfNull(items);
-        return new DropStack(this.Id, this.Name, this.Tint, items.ToArray());
+        return new DropStack(this.Id, this.Name, this.Tint, items.ToArray(), this.InspectorViewMode);
     }
 
     public static DropStack Create(
         IEnumerable<DropItem> items,
         string? name = null,
-        string tint = DefaultTint)
+        string tint = DefaultTint,
+        StackInspectorViewMode inspectorViewMode = StackInspectorViewMode.List)
     {
         ArgumentNullException.ThrowIfNull(items);
         ArgumentException.ThrowIfNullOrWhiteSpace(tint);
@@ -118,23 +153,25 @@ public sealed record DropStack
             ? snapshot.Length == 1 ? snapshot[0].DisplayName : $"{snapshot.Length} items"
             : name.Trim();
 
-        return new DropStack(Guid.NewGuid(), resolvedName, tint.Trim(), snapshot);
+        return new DropStack(Guid.NewGuid(), resolvedName, tint.Trim(), snapshot, inspectorViewMode);
     }
 
     public static DropStack CreateEmpty(
         string name = "New stack",
-        string tint = DefaultTint)
+        string tint = DefaultTint,
+        StackInspectorViewMode inspectorViewMode = StackInspectorViewMode.List)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(tint);
-        return new DropStack(Guid.NewGuid(), name.Trim(), tint.Trim(), []);
+        return new DropStack(Guid.NewGuid(), name.Trim(), tint.Trim(), [], inspectorViewMode);
     }
 
     public static DropStack Restore(
         Guid id,
         string name,
         string tint,
-        IEnumerable<DropItem> items)
+        IEnumerable<DropItem> items,
+        StackInspectorViewMode inspectorViewMode = StackInspectorViewMode.List)
     {
         if (id == Guid.Empty)
         {
@@ -145,6 +182,6 @@ public sealed record DropStack
         ArgumentException.ThrowIfNullOrWhiteSpace(tint);
         ArgumentNullException.ThrowIfNull(items);
 
-        return new DropStack(id, name.Trim(), tint.Trim(), items.ToArray());
+        return new DropStack(id, name.Trim(), tint.Trim(), items.ToArray(), inspectorViewMode);
     }
 }

@@ -15,12 +15,17 @@ internal sealed class AppSettingsService
     private const string EdgeGameModeEnabledKey = "EdgeGameModeEnabled";
     private const string EdgeWindowsPausedKey = "EdgeWindowsPaused";
     private const string LeftEdgeWindowEnabledKey = "LeftEdgeWindowEnabled";
+    private const string OpenInspectorOnHoverKey = "OpenInspectorOnHover";
     private const string RightEdgeWindowEnabledKey = "RightEdgeWindowEnabled";
+    private const string ShakeToCreateTrayKey = "ShakeToCreateTray";
+    private const string HorizontalStackCardDisplayModeKey = "HorizontalStackCardDisplayMode";
     private const string SyncAllEdgeContentKey = "SyncAllEdgeContent";
     private const string SyncLeftAndRightEdgeContentKey = "SyncLeftAndRightEdgeContent";
     private const string SyncTopAndBottomEdgeContentKey = "SyncTopAndBottomEdgeContent";
     private const string TopEdgeWindowEnabledKey = "TopEdgeWindowEnabled";
     private const string ToastPositionKey = "ToastPosition";
+    private const string UseSystemAccentForNeutralKey = "UseSystemAccentForNeutral";
+    private const string VerticalStackCardDisplayModeKey = "VerticalStackCardDisplayMode";
     private readonly ApplicationDataContainer _localSettings = ApplicationData.Current.LocalSettings;
 
     public bool AllowMoveOnDragOut
@@ -30,6 +35,24 @@ internal sealed class AppSettingsService
             value is bool enabled &&
             enabled;
         set => this._localSettings.Values[AllowMoveOnDragOutKey] = value;
+    }
+
+    public bool OpenInspectorOnHover
+    {
+        get => this.GetBoolean(OpenInspectorOnHoverKey, false);
+        set => this._localSettings.Values[OpenInspectorOnHoverKey] = value;
+    }
+
+    public bool ShakeToCreateTray
+    {
+        get => this.GetBoolean(ShakeToCreateTrayKey, false);
+        set => this._localSettings.Values[ShakeToCreateTrayKey] = value;
+    }
+
+    public bool UseSystemAccentForNeutral
+    {
+        get => this.GetBoolean(UseSystemAccentForNeutralKey, false);
+        set => this._localSettings.Values[UseSystemAccentForNeutralKey] = value;
     }
 
     public bool EdgeGameModeEnabled
@@ -67,6 +90,30 @@ internal sealed class AppSettingsService
         get => this.GetBoolean(BottomEdgeWindowEnabledKey, true);
         set => this._localSettings.Values[BottomEdgeWindowEnabledKey] = value;
     }
+
+    public StackCardDisplayMode VerticalStackCardDisplayMode
+    {
+        get => this.GetEnum(VerticalStackCardDisplayModeKey, StackCardDisplayMode.LargeList);
+        set => this._localSettings.Values[VerticalStackCardDisplayModeKey] = (int)value;
+    }
+
+    public StackCardDisplayMode HorizontalStackCardDisplayMode
+    {
+        get => this.GetEnum(HorizontalStackCardDisplayModeKey, StackCardDisplayMode.LargeList);
+        set => this._localSettings.Values[HorizontalStackCardDisplayModeKey] = (int)value;
+    }
+
+    public EdgeWindowSizeMode GetEdgeWindowSizeMode(EdgeShelfSide side) =>
+        this.GetEnum($"{side}EdgeWindowSizeMode", EdgeWindowSizeMode.Reasonable);
+
+    public void SetEdgeWindowSizeMode(EdgeShelfSide side, EdgeWindowSizeMode value) =>
+        this._localSettings.Values[$"{side}EdgeWindowSizeMode"] = (int)value;
+
+    public EdgeWindowAlignment GetEdgeWindowAlignment(EdgeShelfSide side) =>
+        this.GetEnum($"{side}EdgeWindowAlignment", EdgeWindowAlignment.Center);
+
+    public void SetEdgeWindowAlignment(EdgeShelfSide side, EdgeWindowAlignment value) =>
+        this._localSettings.Values[$"{side}EdgeWindowAlignment"] = (int)value;
 
     public bool SyncLeftAndRightEdgeContent
     {
@@ -106,5 +153,13 @@ internal sealed class AppSettingsService
     private bool GetBoolean(string key, bool defaultValue) =>
         this._localSettings.Values.TryGetValue(key, out var value) && value is bool enabled
             ? enabled
+            : defaultValue;
+
+    private TEnum GetEnum<TEnum>(string key, TEnum defaultValue)
+        where TEnum : struct, Enum =>
+        this._localSettings.Values.TryGetValue(key, out var value) &&
+        value is int storedValue &&
+        Enum.IsDefined(typeof(TEnum), storedValue)
+            ? (TEnum)Enum.ToObject(typeof(TEnum), storedValue)
             : defaultValue;
 }

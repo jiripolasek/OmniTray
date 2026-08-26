@@ -21,6 +21,8 @@ internal static class StackTintPalette
 {
     private static readonly UISettings SystemSettings = new();
 
+    public static bool UseSystemAccentForNeutral { get; set; }
+
     public static IReadOnlyList<StackTintPreset> Presets { get; } =
     [
         new("Marigold", "#FFB900"),
@@ -86,7 +88,9 @@ internal static class StackTintPalette
         ArgumentException.ThrowIfNullOrWhiteSpace(tint);
         if (IsNeutral(tint))
         {
-            return ResolveNeutral();
+            return UseSystemAccentForNeutral
+                ? SystemSettings.GetColorValue(UIColorType.Accent)
+                : ResolveNeutral();
         }
 
         if (IsSystemAccent(tint))

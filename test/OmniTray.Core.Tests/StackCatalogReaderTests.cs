@@ -19,7 +19,6 @@ public sealed class StackCatalogReaderTests
         var createdAt = DateTimeOffset.Parse("2026-08-24T12:00:00Z");
         var json = $$"""
                      {
-                       "version": 5,
                        "stacks": [
                          {
                            "id": "{{stackId}}",
@@ -47,17 +46,34 @@ public sealed class StackCatalogReaderTests
         Assert.HasCount(1, stacks);
         Assert.AreEqual(stackId, stacks[0].Id);
         Assert.AreEqual("Research", stacks[0].Name);
+        Assert.AreEqual(StackInspectorViewMode.List, stacks[0].InspectorViewMode);
         Assert.HasCount(1, stacks[0].Items);
         Assert.AreEqual(itemId, stacks[0].Items[0].Id);
         Assert.IsTrue(StackFilter.Matches(stacks[0], "palette design"));
     }
 
     [TestMethod]
-    public void ReadStacks_RejectsFutureCatalogVersion()
+    public void ReadStacks_RestoresPerStackInspectorViewMode()
     {
-        var json = $$"""{"version":{{StackCatalogReader.CurrentVersion + 1}},"stacks":[]}""";
+        var stackId = Guid.NewGuid();
+        var json = $$"""
+                     {
+                       "stacks": [
+                         {
+                           "id": "{{stackId}}",
+                           "name": "Images",
+                           "tint": "Blue",
+                           "inspectorViewMode": 1,
+                           "items": []
+                         }
+                       ]
+                     }
+                     """;
 
-        Assert.Throws<JsonException>(() => StackCatalogReader.ReadStacks(json));
+        var stacks = StackCatalogReader.ReadStacks(json);
+
+        Assert.HasCount(1, stacks);
+        Assert.AreEqual(StackInspectorViewMode.Grid, stacks[0].InspectorViewMode);
     }
 
     [TestMethod]
@@ -66,7 +82,6 @@ public sealed class StackCatalogReaderTests
         var stackId = Guid.NewGuid();
         var json = $$"""
                      {
-                       "version": 5,
                        "stacks": [
                          { "id": "{{stackId}}", "name": "One", "tint": "Blue", "items": [] },
                          { "id": "{{stackId}}", "name": "Two", "tint": "Mint", "items": [] }

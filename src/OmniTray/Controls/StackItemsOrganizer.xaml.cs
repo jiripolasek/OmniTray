@@ -19,6 +19,7 @@ namespace OmniTray.Controls;
 public sealed partial class StackItemsOrganizer : UserControl
 {
     private static readonly TimeSpan CommandHoverDelay = TimeSpan.FromMilliseconds(400);
+    private const int ThumbnailColumnCount = 3;
 
     public static readonly DependencyProperty StackProperty = DependencyProperty.Register(
         nameof(Stack),
@@ -45,6 +46,7 @@ public sealed partial class StackItemsOrganizer : UserControl
     private FrameworkElement? _hoveredItemRow;
     private bool _isHoverFlyout;
     private bool _isRemovalDialogOpen;
+    private bool _isThumbnailView;
     private FrameworkElement? _pendingHoverRow;
 
     public StackItemsOrganizer()
@@ -82,6 +84,25 @@ public sealed partial class StackItemsOrganizer : UserControl
     }
 
     internal Window? DialogOwner { get; set; }
+
+    internal void SetThumbnailView(bool useThumbnails)
+    {
+        this.ResetCommandFlyout(true);
+        this._isThumbnailView = useThumbnails;
+        this.ItemList.ItemTemplate = (DataTemplate)this.Resources[
+            useThumbnails ? "ThumbnailItemTemplate" : "ListItemTemplate"];
+        this.ItemList.ItemsPanel = (ItemsPanelTemplate)this.Resources[
+            useThumbnails ? "ThumbnailItemsPanel" : "ListItemsPanel"];
+        this.ItemList.ItemContainerStyle = (Style)this.Resources[
+            useThumbnails ? "ThumbnailItemContainerStyle" : "ListItemContainerStyle"];
+        this._itemInsertionAdorner.SetLayout(
+            useThumbnails ? Orientation.Horizontal : Orientation.Vertical,
+            useThumbnails);
+        if (useThumbnails)
+        {
+            _ = this.DispatcherQueue.TryEnqueue(this.UpdateThumbnailItemWidth);
+        }
+    }
 
     private static void OnStackChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
     {
@@ -141,6 +162,28 @@ public sealed partial class StackItemsOrganizer : UserControl
     {
         this.UpdateEmptyState();
         this.UpdateSelectionCommands();
+        if (this._isThumbnailView)
+        {
+            _ = this.DispatcherQueue.TryEnqueue(this.UpdateThumbnailItemWidth);
+        }
+    }
+
+    private void OnItemListSizeChanged(object sender, SizeChangedEventArgs args) =>
+        this.UpdateThumbnailItemWidth();
+
+    private void UpdateThumbnailItemWidth()
+    {
+        if (!this._isThumbnailView ||
+            this.ItemList.ItemsPanelRoot is not ItemsWrapGrid itemsPanel ||
+            this.ItemList.ActualWidth <= 0)
+        {
+            return;
+        }
+
+        var availableWidth = this.ItemList.ActualWidth -
+                             this.ItemList.Padding.Left -
+                             this.ItemList.Padding.Right;
+        itemsPanel.ItemWidth = Math.Max(96, Math.Floor(availableWidth / ThumbnailColumnCount));
     }
 
     private void OnLoaded(object sender, RoutedEventArgs args)
@@ -153,6 +196,10 @@ public sealed partial class StackItemsOrganizer : UserControl
 
         this.UpdateEmptyState();
         this.UpdateSelectionCommands();
+        if (this._isThumbnailView)
+        {
+            _ = this.DispatcherQueue.TryEnqueue(this.UpdateThumbnailItemWidth);
+        }
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs args)
