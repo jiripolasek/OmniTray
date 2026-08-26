@@ -256,15 +256,13 @@ internal sealed class TrayInspectorPopup : IDisposable
         }
         else if (args.PropertyName == nameof(DropStackViewModel.TintColor))
         {
-            var usesUntintedBackdrop = StackTintPalette.IsNeutral(this._viewModel.Tint) &&
-                                       !StackTintPalette.UseSystemAccentForNeutral;
-            if (!usesUntintedBackdrop && this._content.SurfaceBackdrop is TintedAcrylicBackdrop tintedBackdrop)
+            if (TintedAcrylicBackdrop.IsSupported)
             {
-                tintedBackdrop.TintColor = this._viewModel.TintColor;
+                this.ApplyTintOverlay();
             }
             else
             {
-                this.ApplyBackdrop();
+                this.ApplyFallbackBackground();
             }
         }
     }
@@ -282,29 +280,31 @@ internal sealed class TrayInspectorPopup : IDisposable
         if (!TintedAcrylicBackdrop.IsSupported)
         {
             this._content.SurfaceBackdrop = null;
+            this._content.SurfaceTint = new SolidColorBrush(Colors.Transparent);
             this.ApplyFallbackBackground();
             return;
         }
 
         this._content.SurfaceBackground = new SolidColorBrush(Colors.Transparent);
-        if (StackTintPalette.IsNeutral(this._viewModel.Tint) &&
-            !StackTintPalette.UseSystemAccentForNeutral)
+        // SystemBackdropElement uses a ContentExternalBackdropLink. Passing that
+        // target through a managed custom SystemBackdrop leaves an apartment-bound
+        // WinRT wrapper to the CLR finalizer when a windowed popup is dismissed.
+        // Keep the element on WinUI's native backdrop path and tint it in-tree.
+        if (this._content.SurfaceBackdrop is not DesktopAcrylicBackdrop)
         {
-            if (this._content.SurfaceBackdrop is not DesktopAcrylicBackdrop)
-            {
-                this._content.SurfaceBackdrop = new DesktopAcrylicBackdrop();
-            }
-
-            return;
+            this._content.SurfaceBackdrop = new DesktopAcrylicBackdrop();
         }
 
-        if (this._content.SurfaceBackdrop is TintedAcrylicBackdrop tintedBackdrop)
-        {
-            tintedBackdrop.TintColor = this._viewModel.TintColor;
-            return;
-        }
+        this.ApplyTintOverlay();
+    }
 
-        this._content.SurfaceBackdrop = new TintedAcrylicBackdrop(this._viewModel.TintColor);
+    private void ApplyTintOverlay()
+    {
+        var usesUntintedBackdrop = StackTintPalette.IsNeutral(this._viewModel.Tint) &&
+                                   !StackTintPalette.UseSystemAccentForNeutral;
+        this._content.SurfaceTint = usesUntintedBackdrop
+            ? new SolidColorBrush(Colors.Transparent)
+            : new SolidColorBrush(this._viewModel.TintColor) { Opacity = 0.24 };
     }
 
     private void ApplyFallbackBackground() =>

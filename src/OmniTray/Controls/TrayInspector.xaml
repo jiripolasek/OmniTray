@@ -33,6 +33,13 @@
                     Grid.RowSpan="3"
                     Background="{ThemeResource LayerOnAcrylicFillColorDefaultBrush}" />
 
+                <Border
+                    x:Name="InspectorTintOverlay"
+                    Grid.RowSpan="3"
+                    Background="Transparent"
+                    CornerRadius="12"
+                    IsHitTestVisible="False" />
+
                 <Grid
                     x:Name="BrowseHeader"
                     Padding="18,14,10,10"

@@ -44,6 +44,11 @@ public sealed partial class TrayInspector : UserControl
         set => this.InspectorBackdrop.SystemBackdrop = value;
     }
 
+    internal Brush SurfaceTint
+    {
+        set => this.InspectorTintOverlay.Background = value;
+    }
+
     internal event EventHandler? DeleteRequested;
 
     internal void Open(TrayInspectorMode mode)
