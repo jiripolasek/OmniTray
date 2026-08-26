@@ -1514,9 +1514,9 @@ public sealed class StackCardLayoutMetrics
         HorizontalTextVerticalAlignment = VerticalAlignment.Center,
         HorizontalTextAlignment = Microsoft.UI.Xaml.TextAlignment.Left,
         HorizontalTextMargin = new Thickness(0),
-        HorizontalActionWidth = 152,
+        HorizontalActionWidth = 84,
         HorizontalActionHeight = 104,
-        HorizontalActionNameWidth = 144
+        HorizontalActionNameWidth = 76
     };
 
     private static readonly StackCardLayoutMetrics ThumbnailIcon = new()
@@ -1570,9 +1570,9 @@ public sealed class StackCardLayoutMetrics
         HorizontalTextVerticalAlignment = VerticalAlignment.Top,
         HorizontalTextAlignment = Microsoft.UI.Xaml.TextAlignment.Center,
         HorizontalTextMargin = new Thickness(0, 5, 0, 0),
-        HorizontalActionWidth = 152,
+        HorizontalActionWidth = 84,
         HorizontalActionHeight = 144,
-        HorizontalActionNameWidth = 144
+        HorizontalActionNameWidth = 76
     };
 
     private StackCardLayoutMetrics()

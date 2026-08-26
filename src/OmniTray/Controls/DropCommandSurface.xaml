@@ -173,7 +173,7 @@
                     Click="OnBackClick"
                     CornerRadius="8"
                     ToolTipService.ToolTip="Back to parent command folder">
-                    <StackPanel Spacing="5">
+                    <StackPanel Height="84" Spacing="5">
                         <Border
                             Width="52"
                             Height="46"
@@ -228,7 +228,7 @@
                                 CornerRadius="8"
                                 IsEnabled="{x:Bind IsEnabled, Mode=OneWay}"
                                 Tag="{x:Bind}">
-                                <StackPanel Spacing="5">
+                                <StackPanel Height="84" Spacing="5">
                                     <Grid Width="52" Height="46">
                                         <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="8">
                                             <FontIcon FontSize="21" Glyph="{x:Bind Glyph}" />

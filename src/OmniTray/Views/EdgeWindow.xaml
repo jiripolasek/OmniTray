@@ -831,7 +831,7 @@
                                         Drop="OnNewStackDrop"
                                         Style="{StaticResource LargeTargetButtonStyle}"
                                         ToolTipService.ToolTip="New stack">
-                                        <StackPanel Spacing="5">
+                                        <StackPanel Height="84" Spacing="5">
                                             <Border
                                                 Width="52"
                                                 Height="46"
@@ -860,7 +860,7 @@
                                         Click="OnAddStackFromClipboardClick"
                                         Style="{StaticResource LargeTargetButtonStyle}"
                                         ToolTipService.ToolTip="Add stack from clipboard">
-                                        <StackPanel Spacing="5">
+                                        <StackPanel Height="84" Spacing="5">
                                             <Border
                                                 Width="52"
                                                 Height="46"
@@ -884,7 +884,10 @@
                                         Margin="5,0,7,0"
                                         VerticalAlignment="Center"
                                         Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
-                                    <controls:DropCommandSurface x:Name="HorizontalCommandSurface" IsHorizontal="True" />
+                                    <controls:DropCommandSurface
+                                        x:Name="HorizontalCommandSurface"
+                                        VerticalAlignment="Center"
+                                        IsHorizontal="True" />
                                 </StackPanel>
                             </ScrollViewer>
 
