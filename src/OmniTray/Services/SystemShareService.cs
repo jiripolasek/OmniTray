@@ -118,16 +118,31 @@ internal sealed class SystemShareService
     private sealed class PreparedShareContent
     {
         private readonly IReadOnlyList<IStorageItem> _storageItems;
+        private readonly string? _applicationLink;
+        private readonly string? _html;
+        private readonly string? _rtf;
+        private readonly string? _sourceUrl;
         private readonly string? _text;
         private readonly string _title;
+        private readonly string? _url;
 
         private PreparedShareContent(
             string title,
             string? text,
+            string? html,
+            string? rtf,
+            string? url,
+            string? applicationLink,
+            string? sourceUrl,
             IReadOnlyList<IStorageItem> storageItems)
         {
             this._title = title;
             this._text = text;
+            this._html = html;
+            this._rtf = rtf;
+            this._url = url;
+            this._applicationLink = applicationLink;
+            this._sourceUrl = sourceUrl;
             this._storageItems = storageItems;
         }
 
@@ -138,12 +153,12 @@ internal sealed class SystemShareService
             var text = string.Join(
                 Environment.NewLine,
                 items
-                    .Where(static item => item.Kind == DropItemKind.Text)
+                    .Where(static item => item.Kind is DropItemKind.Text or DropItemKind.Uri)
                     .Select(static item => item.Text)
                     .Where(static value => !string.IsNullOrEmpty(value)));
             var storageItems = new List<IStorageItem>();
             foreach (var item in items.Where(static item =>
-                         item.Kind != DropItemKind.Text &&
+                         item.Kind is not DropItemKind.Text and not DropItemKind.Uri &&
                          !string.IsNullOrWhiteSpace(item.SourcePath)))
             {
                 storageItems.Add(item.Kind == DropItemKind.Folder
@@ -151,12 +166,26 @@ internal sealed class SystemShareService
                     : await StorageFile.GetFileFromPathAsync(item.SourcePath!));
             }
 
-            if (string.IsNullOrEmpty(text) && storageItems.Count == 0)
+            var singleItem = items.Count == 1 ? items[0] : null;
+            if (string.IsNullOrEmpty(text) &&
+                storageItems.Count == 0 &&
+                string.IsNullOrWhiteSpace(singleItem?.Html) &&
+                string.IsNullOrWhiteSpace(singleItem?.Rtf) &&
+                string.IsNullOrWhiteSpace(singleItem?.Url) &&
+                string.IsNullOrWhiteSpace(singleItem?.ApplicationLink))
             {
                 throw new InvalidOperationException("The drop did not contain shareable content.");
             }
 
-            return new PreparedShareContent(title, string.IsNullOrEmpty(text) ? null : text, storageItems);
+            return new PreparedShareContent(
+                title,
+                string.IsNullOrEmpty(text) ? null : text,
+                singleItem?.Html,
+                singleItem?.Rtf,
+                singleItem?.Url,
+                singleItem?.ApplicationLink,
+                singleItem?.SourceUrl,
+                storageItems);
         }
 
         public void WriteTo(DataPackage data)
@@ -166,6 +195,31 @@ internal sealed class SystemShareService
             if (this._text is not null)
             {
                 data.SetText(this._text);
+            }
+
+            if (this._html is not null)
+            {
+                data.SetHtmlFormat(this._html);
+            }
+
+            if (this._rtf is not null)
+            {
+                data.SetRtf(this._rtf);
+            }
+
+            if (ContentDetection.TryNormalizeWebUrl(this._url, out var url))
+            {
+                data.SetWebLink(new Uri(url));
+            }
+
+            if (Uri.TryCreate(this._applicationLink, UriKind.Absolute, out var applicationLink))
+            {
+                data.SetApplicationLink(applicationLink);
+            }
+
+            if (ContentDetection.TryNormalizeWebUrl(this._sourceUrl, out var sourceUrl))
+            {
+                data.Properties.ContentSourceWebLink = new Uri(sourceUrl);
             }
 
             if (this._storageItems.Count > 0)

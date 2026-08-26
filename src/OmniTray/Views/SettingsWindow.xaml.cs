@@ -390,6 +390,9 @@ public sealed partial class SettingsWindow : Window
     private void OnUseSystemAccentForNeutralToggled(object sender, RoutedEventArgs args) =>
         App.Current.UseSystemAccentForNeutralPreference = this.UseSystemAccentForNeutralToggle.IsOn;
 
+    private void OnOpenDataFormatInspectorClick(object sender, RoutedEventArgs args) =>
+        App.Current.ShowDataFormatInspector();
+
     private void OnToastPositionSelectionChanged(object sender, SelectionChangedEventArgs args)
     {
         if (this.ToastPositionBox.SelectedIndex is < 0 or > 3)

@@ -26,6 +26,47 @@ public static class StackFilter
                 searchableText.Add(item.SourcePath);
             }
 
+            if (!string.IsNullOrWhiteSpace(item.Url))
+            {
+                searchableText.Add(item.Url);
+            }
+
+            if (!string.IsNullOrWhiteSpace(item.SourceUrl))
+            {
+                searchableText.Add(item.SourceUrl);
+            }
+
+            if (!string.IsNullOrWhiteSpace(item.SourceApplicationName))
+            {
+                searchableText.Add(item.SourceApplicationName);
+            }
+
+            if (!string.IsNullOrWhiteSpace(item.ApplicationLink))
+            {
+                searchableText.Add(item.ApplicationLink);
+            }
+
+            var facets = ContentMetadataPolicy.GetMetadata(item).Facets;
+            if (facets.HasFlag(ContentFacets.Tabular))
+            {
+                searchableText.Add("table tabular");
+            }
+
+            if (facets.HasFlag(ContentFacets.Code))
+            {
+                searchableText.Add("code");
+            }
+
+            if (facets.HasFlag(ContentFacets.Email))
+            {
+                searchableText.Add("email");
+            }
+
+            if (facets.HasFlag(ContentFacets.Color))
+            {
+                searchableText.Add("color");
+            }
+
             if (!string.IsNullOrWhiteSpace(item.Text))
             {
                 searchableText.Add(item.Text);

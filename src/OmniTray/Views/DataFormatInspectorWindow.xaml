@@ -1,0 +1,230 @@
+<Window
+    x:Class="OmniTray.Views.DataFormatInspectorWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:views="using:OmniTray.Views"
+    Title="Data format inspector"
+    mc:Ignorable="d">
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <Grid
+        x:Name="Root"
+        AllowDrop="True"
+        DragEnter="OnDragEnter"
+        DragLeave="OnDragLeave"
+        DragOver="OnDragOver"
+        Drop="OnDrop">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TitleBar
+            x:Name="AppTitleBar"
+            Title="Data format inspector"
+            AutoRefreshDragRegions="True"
+            IsBackButtonVisible="False"
+            IsPaneToggleButtonVisible="False" />
+
+        <Grid
+            Grid.Row="1"
+            Padding="24,18,24,24"
+            RowSpacing="14">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Border
+                x:Name="DropTarget"
+                Padding="20,16"
+                AutomationProperties.Name="Drop data here to inspect its formats"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <FontIcon
+                        x:Name="DropTargetIcon"
+                        VerticalAlignment="Center"
+                        FontSize="28"
+                        Glyph="&#xE7C9;" />
+                    <StackPanel
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Spacing="2">
+                        <TextBlock
+                            x:Name="DropTargetTitle"
+                            Style="{ThemeResource BodyStrongTextBlockStyle}"
+                            Text="Drop anything here" />
+                        <TextBlock
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="The data is inspected only; it will not be added to a stack."
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Button
+                        x:Name="InspectClipboardButton"
+                        Grid.Column="2"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="Inspect clipboard formats"
+                        Click="OnInspectClipboardClick">
+                        <Button.KeyboardAccelerators>
+                            <KeyboardAccelerator Key="V" Modifiers="Control" />
+                        </Button.KeyboardAccelerators>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <SymbolIcon Symbol="Paste" />
+                            <TextBlock Text="Inspect clipboard" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <InfoBar
+                x:Name="StatusBar"
+                Grid.Row="1"
+                IsClosable="True"
+                IsOpen="False" />
+
+            <Grid
+                Grid.Row="2"
+                ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="3">
+                    <TextBlock
+                        x:Name="SourceSummaryText"
+                        Style="{ThemeResource SubtitleTextBlockStyle}"
+                        Text="Nothing inspected yet" />
+                    <TextBlock
+                        x:Name="PackagePropertiesText"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        IsTextSelectionEnabled="True"
+                        Text="Drop content above or inspect the clipboard."
+                        TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel
+                    Grid.Column="1"
+                    HorizontalAlignment="Right"
+                    Orientation="Horizontal"
+                    Spacing="8">
+                    <ProgressRing
+                        x:Name="InspectionProgress"
+                        Width="20"
+                        Height="20"
+                        VerticalAlignment="Center"
+                        IsActive="False" />
+                    <Button
+                        x:Name="ClearButton"
+                        AutomationProperties.Name="Clear inspected formats"
+                        Click="OnClearClick"
+                        Content="Clear"
+                        IsEnabled="False" />
+                </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="3">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Border
+                    Padding="12,8"
+                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                    CornerRadius="6,6,0,0">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="44" />
+                            <ColumnDefinition Width="2.2*" />
+                            <ColumnDefinition Width="90" />
+                            <ColumnDefinition Width="1.3*" />
+                            <ColumnDefinition Width="2.4*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{ThemeResource CaptionTextBlockStyle}" Text="#" />
+                        <TextBlock Grid.Column="1" Style="{ThemeResource CaptionTextBlockStyle}" Text="FORMAT ID" />
+                        <TextBlock Grid.Column="2" Style="{ThemeResource CaptionTextBlockStyle}" Text="KIND" />
+                        <TextBlock Grid.Column="3" Style="{ThemeResource CaptionTextBlockStyle}" Text="PAYLOAD" />
+                        <TextBlock Grid.Column="4" Style="{ThemeResource CaptionTextBlockStyle}" Text="DETAILS" />
+                    </Grid>
+                </Border>
+
+                <ListView
+                    x:Name="FormatList"
+                    Grid.Row="1"
+                    AutomationProperties.Name="Advertised data formats"
+                    IsItemClickEnabled="False"
+                    ItemsSource="{x:Bind Formats, Mode=OneWay}"
+                    SelectionMode="None">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="Padding" Value="12,9" />
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="views:DataFormatInspectionEntry">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="44" />
+                                    <ColumnDefinition Width="2.2*" />
+                                    <ColumnDefinition Width="90" />
+                                    <ColumnDefinition Width="1.3*" />
+                                    <ColumnDefinition Width="2.4*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{x:Bind Order}" />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    FontFamily="Consolas"
+                                    IsTextSelectionEnabled="True"
+                                    Text="{x:Bind FormatId}"
+                                    TextWrapping="Wrap" />
+                                <TextBlock Grid.Column="2" Text="{x:Bind Kind}" />
+                                <TextBlock
+                                    Grid.Column="3"
+                                    IsTextSelectionEnabled="True"
+                                    Text="{x:Bind PayloadType}"
+                                    TextWrapping="Wrap" />
+                                <TextBlock
+                                    Grid.Column="4"
+                                    IsTextSelectionEnabled="True"
+                                    Text="{x:Bind Details}"
+                                    TextWrapping="Wrap" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+                <StackPanel
+                    x:Name="EmptyState"
+                    Grid.Row="1"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    IsHitTestVisible="False"
+                    Spacing="6">
+                    <FontIcon
+                        HorizontalAlignment="Center"
+                        FontSize="40"
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Glyph="&#xE8A5;" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="No formats to show" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

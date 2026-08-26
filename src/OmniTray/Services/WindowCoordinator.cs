@@ -25,6 +25,7 @@ internal sealed partial class WindowCoordinator
     private readonly Dictionary<Guid, TrayWindowSession> _trayWindows = [];
     private bool _isClosing;
     private bool _isPopupVisible;
+    private DataFormatInspectorWindow? _dataFormatInspectorWindow;
     private OmniTrayPopupWindow? _popupWindow;
     private SettingsWindow? _settingsWindow;
     private ToastWindow? _toastWindow;
@@ -251,6 +252,13 @@ internal sealed partial class WindowCoordinator
         this._settingsWindow.Activate();
     }
 
+    public void ShowDataFormatInspector()
+    {
+        this._dataFormatInspectorWindow ??= this.CreateDataFormatInspectorWindow();
+        CenterWindow(this._dataFormatInspectorWindow, 1040, 720);
+        this._dataFormatInspectorWindow.Activate();
+    }
+
     public void ShowEdgeShelf(EdgeShelfSide side = EdgeShelfSide.Right)
     {
         this.HidePopup();
@@ -302,6 +310,7 @@ internal sealed partial class WindowCoordinator
     {
         this._isClosing = true;
         this._edgeWindowController.Dispose();
+        this._dataFormatInspectorWindow?.Close();
         this._settingsWindow?.Close();
         this._popupWindow?.Close();
         this._toastWindow?.Close();
@@ -315,6 +324,7 @@ internal sealed partial class WindowCoordinator
             session.Close();
         }
 
+        this._dataFormatInspectorWindow = null;
         this._settingsWindow = null;
         this._popupWindow = null;
         this._toastWindow = null;
@@ -414,6 +424,29 @@ internal sealed partial class WindowCoordinator
     private SettingsWindow CreateSettingsWindow()
     {
         var window = new SettingsWindow();
+        if (window.AppWindow.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.IsMaximizable = true;
+            presenter.IsMinimizable = true;
+            presenter.IsResizable = true;
+        }
+
+        window.AppWindow.Closing += (_, args) =>
+        {
+            if (this._isClosing)
+            {
+                return;
+            }
+
+            args.Cancel = true;
+            window.AppWindow.Hide();
+        };
+        return window;
+    }
+
+    private DataFormatInspectorWindow CreateDataFormatInspectorWindow()
+    {
+        var window = new DataFormatInspectorWindow();
         if (window.AppWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.IsMaximizable = true;

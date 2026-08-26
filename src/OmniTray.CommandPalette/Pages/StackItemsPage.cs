@@ -59,5 +59,8 @@ internal sealed partial class StackItemsPage : DynamicListPage
         item.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
         item.Kind.ToString().Contains(term, StringComparison.OrdinalIgnoreCase) ||
         (item.SourcePath?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
+        (item.Url?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
+        (item.SourceUrl?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
+        (item.SourceApplicationName?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
         (item.Text?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false);
 }

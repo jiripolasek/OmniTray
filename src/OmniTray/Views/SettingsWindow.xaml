@@ -170,6 +170,23 @@
                             <TextBlock
                                 Margin="0,12,0,6"
                                 Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                Text="Diagnostics" />
+
+                            <toolkit:SettingsCard Description="See every standard and custom format advertised by a drop or the clipboard." Header="Data format inspector">
+                                <toolkit:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE9D9;" />
+                                </toolkit:SettingsCard.HeaderIcon>
+                                <Button
+                                    AutomationProperties.Name="Open data format inspector"
+                                    Click="OnOpenDataFormatInspectorClick"
+                                    Content="Open inspector" />
+                            </toolkit:SettingsCard>
+                        </StackPanel>
+
+                        <StackPanel Spacing="6">
+                            <TextBlock
+                                Margin="0,12,0,6"
+                                Style="{ThemeResource BodyStrongTextBlockStyle}"
                                 Text="About" />
 
                             <toolkit:SettingsExpander Description="© Jiří Polášek 2024–2026" Header="OmniTray">

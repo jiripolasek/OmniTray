@@ -126,17 +126,19 @@ internal sealed class DropCommandExecutionService
 
         var isDestructive = command.TemplateId is DropCommandTemplateIds.MoveToFolder or
             DropCommandTemplateIds.Recycle;
-        var acceptedKinds = DropCommandTemplates.GetAcceptedKinds(command);
+        if (!ContentRequirements.AreSatisfiedBy(
+                DropCommandTemplates.GetRequirements(command),
+                input.Models,
+                out reason))
+        {
+            return false;
+        }
+
         foreach (var resolved in input.Items)
         {
-            if (!acceptedKinds.Contains(resolved.Item.Kind))
-            {
-                reason = $"{command.DisplayName} does not accept {resolved.Item.Kind.ToString().ToLowerInvariant()} content.";
-                return false;
-            }
-
             if (command.TemplateId == DropCommandTemplateIds.CopyToClipboard ||
-                (command.TemplateId == DropCommandTemplateIds.Share && resolved.Item.Kind == DropItemKind.Text))
+                (command.TemplateId == DropCommandTemplateIds.Share &&
+                 resolved.Item.Kind is DropItemKind.Text or DropItemKind.Uri))
             {
                 continue;
             }
@@ -219,19 +221,11 @@ internal sealed class DropCommandExecutionService
             return this.CanExecute(command, input, out _);
         }
 
-        if (command.TemplateId is DropCommandTemplateIds.CopyToClipboard or DropCommandTemplateIds.Share)
-        {
-            return DragDropDataService.HasSupportedFormat(dataView);
-        }
-
-        if (command.TemplateId is DropCommandTemplateIds.MoveToFolder or DropCommandTemplateIds.Recycle or
-            DropCommandTemplateIds.OpenInApp)
-        {
-            return dataView.Contains(StandardDataFormats.StorageItems);
-        }
-
-        return dataView.Contains(StandardDataFormats.StorageItems) ||
-               dataView.Contains(StandardDataFormats.Bitmap);
+        var metadata = ContentMetadataPolicy.CreatePotential(GetRepresentations(dataView));
+        return ContentRequirements.AreSatisfiedBy(
+            DropCommandTemplates.GetRequirements(command),
+            [metadata],
+            out _);
     }
 
     public async Task<DropCommandExecutionResult> ExecuteAsync(
@@ -254,6 +248,47 @@ internal sealed class DropCommandExecutionService
             DropCommandTemplateIds.Share => await this.ShareAsync(command, input, ownerHwnd),
             _ => new DropCommandExecutionResult([], input.Items.Count, "The command template is unavailable.", false)
         };
+    }
+
+    private static ContentRepresentations GetRepresentations(DataPackageView dataView)
+    {
+        var representations = ContentRepresentations.None;
+        if (dataView.Contains(StandardDataFormats.Text))
+        {
+            representations |= ContentRepresentations.Text;
+        }
+
+        if (dataView.Contains(StandardDataFormats.Html))
+        {
+            representations |= ContentRepresentations.Html;
+        }
+
+        if (dataView.Contains(StandardDataFormats.Rtf))
+        {
+            representations |= ContentRepresentations.Rtf;
+        }
+
+        if (dataView.Contains(StandardDataFormats.Bitmap))
+        {
+            representations |= ContentRepresentations.Bitmap;
+        }
+
+        if (dataView.Contains(StandardDataFormats.StorageItems))
+        {
+            representations |= ContentRepresentations.StorageItem;
+        }
+
+        if (dataView.Contains(StandardDataFormats.WebLink))
+        {
+            representations |= ContentRepresentations.WebLink;
+        }
+
+        if (dataView.Contains(StandardDataFormats.ApplicationLink))
+        {
+            representations |= ContentRepresentations.ApplicationLink;
+        }
+
+        return representations;
     }
 
     private static async Task<DropCommandExecutionResult> OpenInAppAsync(

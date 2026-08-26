@@ -38,9 +38,44 @@ public static class StackCatalogReader
             item.DisplayName,
             item.SourcePath,
             item.Text,
+            item.Html,
+            item.Rtf,
+            item.Url,
+            item.SourceUrl,
+            item.SourceApplicationName,
             item.IsOwned,
-            item.CreatedAt)),
+            item.CreatedAt,
+            RestoreCustomFormats(item.CustomFormats),
+            item.ApplicationLink)),
         stack.InspectorViewMode);
+
+    private static IReadOnlyList<DropItemDataFormat> RestoreCustomFormats(
+        IEnumerable<ItemDataFormatReadDocument> documents)
+    {
+        var formats = new List<DropItemDataFormat>();
+        foreach (var document in documents)
+        {
+            if (string.IsNullOrWhiteSpace(document.FormatId))
+            {
+                continue;
+            }
+
+            var format = document.Kind switch
+            {
+                DropItemDataFormatKind.Text when document.Text is not null =>
+                    DropItemDataFormat.CreateText(document.FormatId, document.Text),
+                DropItemDataFormatKind.Binary when document.Data is not null =>
+                    DropItemDataFormat.CreateBinary(document.FormatId, document.Data),
+                _ => null
+            };
+            if (format is not null)
+            {
+                formats.Add(format);
+            }
+        }
+
+        return formats;
+    }
 }
 
 internal sealed class StackCatalogReadDocument
@@ -73,9 +108,34 @@ internal sealed class ItemReadDocument
 
     public string? Text { get; set; }
 
+    public string? Html { get; set; }
+
+    public string? Rtf { get; set; }
+
+    public string? Url { get; set; }
+
+    public string? SourceUrl { get; set; }
+
+    public string? SourceApplicationName { get; set; }
+
+    public string? ApplicationLink { get; set; }
+
+    public List<ItemDataFormatReadDocument> CustomFormats { get; set; } = [];
+
     public bool IsOwned { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
+}
+
+internal sealed class ItemDataFormatReadDocument
+{
+    public string FormatId { get; set; } = string.Empty;
+
+    public DropItemDataFormatKind Kind { get; set; }
+
+    public string? Text { get; set; }
+
+    public byte[]? Data { get; set; }
 }
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]

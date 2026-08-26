@@ -30,6 +30,11 @@ internal sealed partial class StackItemListItem : ListItem
 
     private static ICommand CreatePrimaryCommand(Guid stackId, DropItem item)
     {
+        if (item.Kind == DropItemKind.Uri && !string.IsNullOrWhiteSpace(item.Url))
+        {
+            return new LaunchUrlCommand(item.Url);
+        }
+
         if (item.Kind == DropItemKind.Text && !string.IsNullOrWhiteSpace(item.Text))
         {
             return new CopyTextCommand(item.Text) { Name = "Copy text", Icon = Icons.Copy };
@@ -65,6 +70,12 @@ internal sealed partial class StackItemListItem : ListItem
             }));
         }
 
+        if (!string.IsNullOrWhiteSpace(item.SourceUrl) &&
+            !string.Equals(item.SourceUrl, item.Url, StringComparison.OrdinalIgnoreCase))
+        {
+            commands.Add(new CommandContextItem(new LaunchUrlCommand(item.SourceUrl, "Open source URL")));
+        }
+
         return [.. commands];
     }
 
@@ -75,6 +86,38 @@ internal sealed partial class StackItemListItem : ListItem
         if (!string.IsNullOrWhiteSpace(item.SourcePath))
         {
             body += $"  \n**Path:** `{MarkdownText.Escape(item.SourcePath)}`";
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.Url))
+        {
+            body += $"  \n**URL:** {MarkdownText.Escape(item.Url)}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.SourceUrl) &&
+            !string.Equals(item.SourceUrl, item.Url, StringComparison.OrdinalIgnoreCase))
+        {
+            body += $"  \n**Source:** {MarkdownText.Escape(item.SourceUrl)}";
+        }
+
+        var formats = new List<string>();
+        if (!string.IsNullOrWhiteSpace(item.Text))
+        {
+            formats.Add("Text");
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.Html))
+        {
+            formats.Add("HTML");
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.Rtf))
+        {
+            formats.Add("RTF");
+        }
+
+        if (formats.Count > 0)
+        {
+            body += $"  \n**Formats:** {string.Join(", ", formats)}";
         }
 
         if (!string.IsNullOrWhiteSpace(item.Text))
@@ -91,6 +134,7 @@ internal sealed partial class StackItemListItem : ListItem
         DropItemKind.Folder => "Folder",
         DropItemKind.Text => "Text",
         DropItemKind.Image => "Image",
+        DropItemKind.Uri => "URL",
         _ => "Item"
     };
 
@@ -100,6 +144,7 @@ internal sealed partial class StackItemListItem : ListItem
         DropItemKind.Folder => Icons.Folder,
         DropItemKind.Text => Icons.Text,
         DropItemKind.Image => Icons.Image,
+        DropItemKind.Uri => Icons.Link,
         _ => Icons.Stack
     };
 }

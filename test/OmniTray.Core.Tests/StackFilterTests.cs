@@ -36,4 +36,32 @@ public sealed class StackFilterTests
     {
         Assert.IsFalse(StackFilter.Matches(Stack, "travel invoice"));
     }
+
+    [TestMethod]
+    public void Matches_SearchesUrlAndSourceMetadata()
+    {
+        var stack = DropStack.Create(
+            [DropItem.CreateUri("https://contoso.example/report", sourceApplicationName: "Microsoft Edge")],
+            "Links");
+
+        Assert.IsTrue(StackFilter.Matches(stack, "contoso"));
+        Assert.IsTrue(StackFilter.Matches(stack, "edge"));
+    }
+
+    [TestMethod]
+    public void Matches_SearchesDerivedFacetsAndApplicationLinks()
+    {
+        var stack = DropStack.Create(
+            [
+                DropItem.CreateText(
+                    "Region\tSales",
+                    html: "<table><tr><td>Region</td></tr></table>",
+                    applicationLink: "mailto:analyst@example.com")
+            ],
+            "Data");
+
+        Assert.IsTrue(StackFilter.Matches(stack, "table"));
+        Assert.IsTrue(StackFilter.Matches(stack, "email"));
+        Assert.IsTrue(StackFilter.Matches(stack, "mailto"));
+    }
 }

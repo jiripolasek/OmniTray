@@ -14,29 +14,72 @@ internal static class ContentStore
 {
     private const string ContentFolderName = "Content";
 
-    public static async Task<DropItem> MaterializeTextAsync(string text)
+    public static Task<DropItem> MaterializeTextAsync(string text) =>
+        MaterializeTextAsync(text, null, null, null, null);
+
+    public static async Task<DropItem> MaterializeTextAsync(
+        string? text,
+        string? html,
+        string? rtf,
+        string? sourceUrl,
+        string? sourceApplicationName)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(text);
+        if (string.IsNullOrWhiteSpace(text) &&
+            string.IsNullOrWhiteSpace(html) &&
+            string.IsNullOrWhiteSpace(rtf))
+        {
+            throw new ArgumentException("At least one text representation is required.", nameof(text));
+        }
 
         var contentFolder = await GetContentFolderAsync();
         var file = await contentFolder.CreateFileAsync(
             $"text-{Guid.NewGuid():N}.txt",
             CreationCollisionOption.FailIfExists);
-        await FileIO.WriteTextAsync(file, text);
-        return DropItem.CreateText(text, file.Path, true);
+        var materializedText = !string.IsNullOrWhiteSpace(text)
+            ? text
+            : !string.IsNullOrWhiteSpace(html)
+                ? ContentDetection.ExtractPlainTextFromHtml(html)
+                : "Rich text content";
+        await FileIO.WriteTextAsync(file, materializedText);
+        return DropItem.CreateRichText(
+            text,
+            html,
+            rtf,
+            file.Path,
+            true,
+            sourceUrl,
+            sourceApplicationName);
     }
 
     public static async Task<DropItem> MaterializeBitmapAsync(
         RandomAccessStreamReference bitmapReference,
-        string displayName = "Dropped image")
+        string displayName = "Dropped image",
+        string? text = null,
+        string? html = null,
+        string? rtf = null,
+        string? sourceUrl = null,
+        string? sourceApplicationName = null)
     {
         ArgumentNullException.ThrowIfNull(bitmapReference);
 
         using var input = await bitmapReference.OpenReadAsync();
-        return await MaterializeImageStreamAsync(input, displayName);
+        return await MaterializeImageStreamAsync(
+            input,
+            displayName,
+            text,
+            html,
+            rtf,
+            sourceUrl,
+            sourceApplicationName);
     }
 
-    public static async Task<DropItem> MaterializeImageFileAsync(StorageFile source)
+    public static async Task<DropItem> MaterializeImageFileAsync(
+        StorageFile source,
+        string? text = null,
+        string? html = null,
+        string? rtf = null,
+        string? sourceUrl = null,
+        string? sourceApplicationName = null)
     {
         ArgumentNullException.ThrowIfNull(source);
 
@@ -44,10 +87,23 @@ internal static class ContentStore
         var displayName = string.IsNullOrWhiteSpace(source.DisplayName)
             ? "Dropped image"
             : source.DisplayName;
-        return await MaterializeImageStreamAsync(input, displayName);
+        return await MaterializeImageStreamAsync(
+            input,
+            displayName,
+            text,
+            html,
+            rtf,
+            sourceUrl,
+            sourceApplicationName);
     }
 
-    public static async Task<DropItem> MaterializeVirtualFileAsync(StorageFile source)
+    public static async Task<DropItem> MaterializeVirtualFileAsync(
+        StorageFile source,
+        string? text = null,
+        string? html = null,
+        string? rtf = null,
+        string? sourceUrl = null,
+        string? sourceApplicationName = null)
     {
         ArgumentNullException.ThrowIfNull(source);
 
@@ -60,7 +116,12 @@ internal static class ContentStore
             fileName,
             NameCollisionOption.GenerateUniqueName);
 
-        return DropItem.CreateStorageItem(copy.Name, copy.Path, false, true);
+        return DropItem.CreateStorageItem(copy.Name, copy.Path, false, true).WithRepresentations(
+            text,
+            html,
+            rtf,
+            sourceUrl,
+            sourceApplicationName);
     }
 
     public static async Task<IReadOnlyList<DropItem>> CopyItemsAsync(IEnumerable<DropItem> items)
@@ -104,7 +165,12 @@ internal static class ContentStore
 
     private static async Task<DropItem> MaterializeImageStreamAsync(
         IRandomAccessStream input,
-        string displayName)
+        string displayName,
+        string? text,
+        string? html,
+        string? rtf,
+        string? sourceUrl,
+        string? sourceApplicationName)
     {
         var decoder = await BitmapDecoder.CreateAsync(input);
         var pixels = await decoder.GetPixelDataAsync(
@@ -131,32 +197,75 @@ internal static class ContentStore
             pixels.DetachPixelData());
         await encoder.FlushAsync();
 
-        return DropItem.CreateImage(displayName, file.Path, true);
+        return DropItem.CreateImage(
+            displayName,
+            file.Path,
+            true,
+            text,
+            html,
+            rtf,
+            sourceUrl,
+            sourceApplicationName);
     }
 
     private static async Task<DropItem> CopyItemAsync(DropItem item)
     {
         if (item.Kind == DropItemKind.Text)
         {
-            return await MaterializeTextAsync(item.Text!);
+            return (await MaterializeTextAsync(
+                    item.Text,
+                    item.Html,
+                    item.Rtf,
+                    item.SourceUrl,
+                    item.SourceApplicationName))
+                .WithCustomFormats(item.CustomFormats);
+        }
+
+        if (item.Kind == DropItemKind.Uri)
+        {
+            return DropItem.CreateUri(
+                    item.Url!,
+                    item.DisplayName,
+                    item.Text,
+                    item.Html,
+                    item.Rtf,
+                    item.SourceUrl,
+                    item.SourceApplicationName)
+                .WithCustomFormats(item.CustomFormats);
         }
 
         if (!item.IsOwned)
         {
-            return item.Kind switch
+            return (item.Kind switch
             {
                 DropItemKind.Image => DropItem.CreateImage(
                     item.DisplayName,
-                    item.SourcePath!),
+                    item.SourcePath!,
+                    false,
+                    item.Text,
+                    item.Html,
+                    item.Rtf,
+                    item.SourceUrl,
+                    item.SourceApplicationName),
                 DropItemKind.Folder => DropItem.CreateStorageItem(
                     item.DisplayName,
                     item.SourcePath,
-                    true),
+                    true).WithRepresentations(
+                    item.Text,
+                    item.Html,
+                    item.Rtf,
+                    item.SourceUrl,
+                    item.SourceApplicationName),
                 _ => DropItem.CreateStorageItem(
                     item.DisplayName,
                     item.SourcePath,
-                    false)
-            };
+                    false).WithRepresentations(
+                    item.Text,
+                    item.Html,
+                    item.Rtf,
+                    item.SourceUrl,
+                    item.SourceApplicationName)
+            }).WithCustomFormats(item.CustomFormats);
         }
 
         var source = await StorageFile.GetFileFromPathAsync(item.SourcePath!);
@@ -165,13 +274,27 @@ internal static class ContentStore
             contentFolder,
             source.Name,
             NameCollisionOption.GenerateUniqueName);
-        return item.Kind == DropItemKind.Image
-            ? DropItem.CreateImage(item.DisplayName, copy.Path, true)
+        return (item.Kind == DropItemKind.Image
+            ? DropItem.CreateImage(
+                item.DisplayName,
+                copy.Path,
+                true,
+                item.Text,
+                item.Html,
+                item.Rtf,
+                item.SourceUrl,
+                item.SourceApplicationName)
             : DropItem.CreateStorageItem(
                 item.DisplayName,
                 copy.Path,
                 false,
-                true);
+                true).WithRepresentations(
+                item.Text,
+                item.Html,
+                item.Rtf,
+                item.SourceUrl,
+                item.SourceApplicationName))
+            .WithCustomFormats(item.CustomFormats);
     }
 
     private static Task<StorageFolder> GetContentFolderAsync() =>

@@ -14,6 +14,7 @@ internal static class Icons
     internal static IconInfo Folder { get; } = new("\uE838");
     internal static IconInfo Text { get; } = new("\uE8D2");
     internal static IconInfo Image { get; } = new("\uEB9F");
+    internal static IconInfo Link { get; } = new("\uE71B");
     internal static IconInfo Open { get; } = new("\uE8E5");
     internal static IconInfo Add { get; } = new("\uE710");
     internal static IconInfo Settings { get; } = new("\uE713");

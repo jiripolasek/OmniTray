@@ -166,6 +166,17 @@
                     Closed="OnSelectionCommandsFlyoutClosed">
                     <CommandBarFlyout.PrimaryCommands>
                         <AppBarButton
+                            x:Name="OpenSelectionButton"
+                            AutomationProperties.Name="Open selected item"
+                            Click="OnOpenSelectionClick"
+                            Label="Open"
+                            ToolTipService.ToolTip="Open"
+                            Visibility="Collapsed">
+                            <AppBarButton.Icon>
+                                <FontIcon Glyph="&#xE8E5;" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+                        <AppBarButton
                             x:Name="MoveSelectionUpButton"
                             AutomationProperties.Name="Move selected items up"
                             Click="OnMoveSelectionUpClick"
@@ -204,6 +215,53 @@
                             ToolTipService.ToolTip="Remove from stack" />
                     </CommandBarFlyout.PrimaryCommands>
                     <CommandBarFlyout.SecondaryCommands>
+                        <AppBarButton
+                            x:Name="OpenContainingFolderButton"
+                            AutomationProperties.Name="Open containing folder"
+                            Click="OnOpenContainingFolderClick"
+                            Label="Open containing folder"
+                            Visibility="Collapsed">
+                            <AppBarButton.Icon>
+                                <FontIcon Glyph="&#xE838;" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+                        <AppBarButton
+                            x:Name="OpenSourceUrlButton"
+                            AutomationProperties.Name="Open source URL"
+                            Click="OnOpenSourceUrlClick"
+                            Label="Open source URL"
+                            Visibility="Collapsed">
+                            <AppBarButton.Icon>
+                                <FontIcon Glyph="&#xE71B;" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+                        <AppBarButton
+                            x:Name="CopySelectionButton"
+                            AutomationProperties.Name="Copy selected items to the clipboard"
+                            Click="OnCopySelectionClick"
+                            Icon="Copy"
+                            Label="Copy" />
+                        <AppBarButton
+                            x:Name="CutSelectionButton"
+                            AutomationProperties.Name="Cut selected filesystem items to the clipboard"
+                            Click="OnCutSelectionClick"
+                            Icon="Cut"
+                            Label="Cut"
+                            Visibility="Collapsed" />
+                        <AppBarButton
+                            x:Name="ShowPropertiesButton"
+                            AutomationProperties.Name="Show selected item properties"
+                            Click="OnShowPropertiesClick"
+                            Icon="Setting"
+                            Label="Properties"
+                            Visibility="Collapsed" />
+                        <AppBarButton
+                            x:Name="DeleteFromDiskButton"
+                            AutomationProperties.Name="Delete selected filesystem items from disk"
+                            Click="OnDeleteFromDiskClick"
+                            Icon="Delete"
+                            Label="Delete from disk"
+                            Visibility="Collapsed" />
                         <AppBarButton
                             x:Name="DuplicateSelectionButton"
                             AutomationProperties.Name="Duplicate selected items"

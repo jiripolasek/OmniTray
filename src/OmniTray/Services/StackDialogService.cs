@@ -127,6 +127,40 @@ internal static class StackDialogService
             "Remove");
     }
 
+    public static async Task<bool> ConfirmRecycleItemsAsync(XamlRoot xamlRoot, int itemCount)
+    {
+        ArgumentNullException.ThrowIfNull(xamlRoot);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(itemCount);
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = xamlRoot,
+            Title = itemCount == 1 ? "Delete this item from disk?" : $"Delete {itemCount} items from disk?",
+            Content = itemCount == 1
+                ? "The original file or folder will be sent to the Windows Recycle Bin and removed from this stack."
+                : "The original files and folders will be sent to the Windows Recycle Bin and removed from this stack.",
+            PrimaryButtonText = "Delete",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close
+        };
+
+        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+    }
+
+    public static Task<bool> ConfirmRecycleItemsAsync(Window owner, int itemCount)
+    {
+        ArgumentNullException.ThrowIfNull(owner);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(itemCount);
+
+        return StackDialogWindow.ShowAsync(
+            owner,
+            itemCount == 1 ? "Delete this item from disk?" : $"Delete {itemCount} items from disk?",
+            itemCount == 1
+                ? "The original file or folder will be sent to the Windows Recycle Bin and removed from this stack."
+                : "The original files and folders will be sent to the Windows Recycle Bin and removed from this stack.",
+            "Delete");
+    }
+
     public static async Task<bool> ConfirmClearAsync(XamlRoot xamlRoot, int stackCount)
     {
         ArgumentNullException.ThrowIfNull(xamlRoot);

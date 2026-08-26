@@ -11,8 +11,8 @@ internal sealed record DropCommandTemplateDescriptor(
     string DisplayName,
     string Description,
     string Glyph,
-    IReadOnlyList<DropItemKind> SupportedKinds,
-    Func<DropCommandInstance, IReadOnlyList<DropItemKind>>? ResolveAcceptedKinds,
+    IReadOnlyList<ContentRequirement> Requirements,
+    Func<DropCommandInstance, IReadOnlyList<ContentRequirement>>? ResolveRequirements,
     bool ConfiguresApplication,
     bool RequiresDestinationFolder,
     Func<DropCommandInstance, DropCommandConfirmationContext, DropCommandConfirmationRequest>?
@@ -27,10 +27,16 @@ internal sealed record DropCommandConfirmationRequest(
 
 internal static class DropCommandTemplates
 {
-    private static readonly IReadOnlyList<DropItemKind> DesktopAppKinds =
-        [DropItemKind.File, DropItemKind.Folder, DropItemKind.Image];
-    private static readonly IReadOnlyList<DropItemKind> PackagedAppKinds =
-        [DropItemKind.File, DropItemKind.Image];
+    private static readonly IReadOnlyList<ContentRequirement> DesktopAppRequirements =
+    [
+        ContentRequirement.All(ContentProperty.HasLocalPath),
+        ContentRequirement.All(ContentProperty.HasStorageItem)
+    ];
+    private static readonly IReadOnlyList<ContentRequirement> PackagedAppRequirements =
+    [
+        ContentRequirement.All(ContentProperty.HasLocalPath),
+        ContentRequirement.All(ContentProperty.HasFile, ContentProperty.HasImageFile)
+    ];
 
     private static readonly IReadOnlyDictionary<string, DropCommandTemplateDescriptor> TemplatesById =
         new[]
@@ -40,8 +46,8 @@ internal static class DropCommandTemplates
                 "Open in app",
                 "Open dropped content in a desktop executable or an installed packaged app.",
                 "\uE8A7",
-                DesktopAppKinds,
-                ResolveOpenAppAcceptedKinds,
+                DesktopAppRequirements,
+                ResolveOpenAppRequirements,
                 true,
                 false,
                 null),
@@ -50,7 +56,7 @@ internal static class DropCommandTemplates
                 "Copy to folder",
                 "Copy dropped files, folders, and images to a chosen folder.",
                 "\uE8B0",
-                [DropItemKind.File, DropItemKind.Folder, DropItemKind.Image],
+                [ContentRequirement.All(ContentProperty.HasStorageItem, ContentProperty.HasBitmap)],
                 null,
                 false,
                 true,
@@ -60,7 +66,10 @@ internal static class DropCommandTemplates
                 "Move to folder",
                 "Move original files, folders, and images to a chosen folder.",
                 "\uE8DE",
-                [DropItemKind.File, DropItemKind.Folder, DropItemKind.Image],
+                [
+                    ContentRequirement.All(ContentProperty.HasOriginalPath),
+                    ContentRequirement.All(ContentProperty.HasStorageItem)
+                ],
                 null,
                 false,
                 true,
@@ -75,7 +84,10 @@ internal static class DropCommandTemplates
                 "Recycle",
                 "Send original files and folders to the Windows Recycle Bin.",
                 "\uE74D",
-                [DropItemKind.File, DropItemKind.Folder, DropItemKind.Image],
+                [
+                    ContentRequirement.All(ContentProperty.HasOriginalPath),
+                    ContentRequirement.All(ContentProperty.HasStorageItem)
+                ],
                 null,
                 false,
                 false,
@@ -88,7 +100,7 @@ internal static class DropCommandTemplates
                 "Copy to clipboard",
                 "Put the dropped content on the Windows clipboard.",
                 "\uE8C8",
-                [DropItemKind.File, DropItemKind.Folder, DropItemKind.Text, DropItemKind.Image],
+                [ContentRequirement.All(ContentProperty.CanCopy)],
                 null,
                 false,
                 false,
@@ -98,7 +110,7 @@ internal static class DropCommandTemplates
                 "Share",
                 "Share dropped content using the Windows share sheet.",
                 "\uE72D",
-                [DropItemKind.File, DropItemKind.Folder, DropItemKind.Text, DropItemKind.Image],
+                [ContentRequirement.All(ContentProperty.CanShare)],
                 null,
                 false,
                 false,
@@ -174,10 +186,10 @@ internal static class DropCommandTemplates
                 : "Choose a destination folder";
         }
 
-        return FormatKinds(GetAcceptedKinds(instance));
+        return template.Description;
     }
 
-    public static IReadOnlyList<DropItemKind> GetAcceptedKinds(DropCommandInstance instance)
+    public static IReadOnlyList<ContentRequirement> GetRequirements(DropCommandInstance instance)
     {
         ArgumentNullException.ThrowIfNull(instance);
         if (!TryGet(instance.TemplateId, out var template))
@@ -185,14 +197,17 @@ internal static class DropCommandTemplates
             return [];
         }
 
-        // Target parameters can narrow a template's policy, but command instances do not own format choices.
-        return template.ResolveAcceptedKinds?.Invoke(instance) ?? template.SupportedKinds;
+        // Target parameters can narrow provider policy, but command instances do not own
+        // representation choices.
+        return template.ResolveRequirements?.Invoke(instance) ?? template.Requirements;
     }
 
     public static string GetAcceptanceText(DropCommandInstance instance)
     {
-        var kinds = GetAcceptedKinds(instance);
-        return kinds.Count == 0 ? "No supported content" : $"Accepts {FormatKinds(kinds)}";
+        var requirements = GetRequirements(instance);
+        return requirements.Count == 0
+            ? "No supported content"
+            : string.Join(' ', requirements.Select(static requirement => requirement.Describe()));
     }
 
     public static bool IsConfigured(DropCommandInstance instance)
@@ -255,25 +270,14 @@ internal static class DropCommandTemplates
             _ => false
         };
 
-    private static IReadOnlyList<DropItemKind> ResolveOpenAppAcceptedKinds(
+    private static IReadOnlyList<ContentRequirement> ResolveOpenAppRequirements(
         DropCommandInstance instance) =>
         GetApplicationTargetId(instance) switch
         {
-            DropCommandApplicationTargetIds.DesktopExecutable => DesktopAppKinds,
-            DropCommandApplicationTargetIds.PackagedApp => PackagedAppKinds,
+            DropCommandApplicationTargetIds.DesktopExecutable => DesktopAppRequirements,
+            DropCommandApplicationTargetIds.PackagedApp => PackagedAppRequirements,
             _ => []
         };
-
-    private static string FormatKinds(IEnumerable<DropItemKind> kinds) => string.Join(
-        ", ",
-        kinds.Select(static kind => kind switch
-        {
-            DropItemKind.File => "files",
-            DropItemKind.Folder => "folders",
-            DropItemKind.Text => "text",
-            DropItemKind.Image => "images",
-            _ => kind.ToString().ToLowerInvariant()
-        }));
 
     private static string GetItemNoun(int itemCount) => itemCount == 1 ? "item" : "items";
 }

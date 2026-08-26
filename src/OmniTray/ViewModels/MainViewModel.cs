@@ -1705,7 +1705,68 @@ public sealed class DropItemViewModel : ObservableObject
 
     public string DisplayName => this.Model.DisplayName;
 
-    public string KindLabel => this.Model.Kind.ToString();
+    public string KindLabel
+    {
+        get
+        {
+            var metadata = ContentMetadataPolicy.GetMetadata(this.Model);
+            var representations = new List<string>
+            {
+                this.Model.Kind == DropItemKind.Uri ? "URL" : this.Model.Kind.ToString()
+            };
+            if (metadata.Facets.HasFlag(ContentFacets.Tabular))
+            {
+                representations.Add("Table");
+            }
+
+            if (metadata.Facets.HasFlag(ContentFacets.Code))
+            {
+                representations.Add("Code");
+            }
+
+            if (metadata.Facets.HasFlag(ContentFacets.Email))
+            {
+                representations.Add("Email");
+            }
+
+            if (metadata.Facets.HasFlag(ContentFacets.Color))
+            {
+                representations.Add("Color");
+            }
+
+            if (metadata.Representations.HasFlag(ContentRepresentations.Html))
+            {
+                representations.Add("HTML");
+            }
+
+            if (metadata.Representations.HasFlag(ContentRepresentations.Rtf))
+            {
+                representations.Add("RTF");
+            }
+
+            if (metadata.Representations.HasFlag(ContentRepresentations.ApplicationLink))
+            {
+                representations.Add("App link");
+            }
+
+            if (metadata.Representations.HasFlag(ContentRepresentations.Custom))
+            {
+                representations.Add($"Native ×{this.Model.CustomFormats.Count}");
+            }
+
+            if (ContentDetection.TryNormalizeWebUrl(this.Model.SourceUrl, out var sourceUrl) &&
+                Uri.TryCreate(sourceUrl, UriKind.Absolute, out var sourceUri))
+            {
+                representations.Add(sourceUri.Host);
+            }
+            else if (!string.IsNullOrWhiteSpace(this.Model.SourceApplicationName))
+            {
+                representations.Add(this.Model.SourceApplicationName);
+            }
+
+            return string.Join(" · ", representations);
+        }
+    }
 
     public string AccessibleName => $"{this.DisplayName}, {this.KindLabel}";
 
@@ -1716,6 +1777,7 @@ public sealed class DropItemViewModel : ObservableObject
             DropItemKind.Folder => "\uE8B7",
             DropItemKind.Text => "\uE8D2",
             DropItemKind.Image => "\uEB9F",
+            DropItemKind.Uri => "\uE71B",
             _ => "\uE7B8"
         };
 

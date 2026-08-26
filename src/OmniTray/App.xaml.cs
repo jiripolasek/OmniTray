@@ -160,6 +160,9 @@ public partial class App : Application
 
     public void ShowSettings() => this.RunOnUiThread(() => this._windows?.ShowSettings());
 
+    internal void ShowDataFormatInspector() =>
+        this.RunOnUiThread(() => this._windows?.ShowDataFormatInspector());
+
     public void ShowPopup() => this.RunOnUiThread(() => this._windows?.ShowPopup());
 
     public void HidePopup() => this.RunOnUiThread(() => this._windows?.HidePopup());
@@ -350,7 +353,7 @@ public partial class App : Application
             if (items.Count == 0)
             {
                 this.ShowToast(
-                    "The clipboard does not contain files, folders, text, or an image.",
+                    "The clipboard does not contain files, folders, text, rich content, an image, or a URL.",
                     InfoBarSeverity.Warning);
                 return;
             }

@@ -536,6 +536,181 @@ public sealed partial class StackItemsOrganizer : UserControl
         }
     }
 
+    private async void OnOpenSelectionClick(object sender, RoutedEventArgs args)
+    {
+        var item = this.GetCommandItems().SingleOrDefault();
+        if (item is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await ItemManipulationService.OpenAsync(item);
+        }
+        catch (Exception exception)
+        {
+            ShowStatus(exception.Message, InfoBarSeverity.Error);
+        }
+    }
+
+    private async void OnOpenContainingFolderClick(object sender, RoutedEventArgs args)
+    {
+        var item = this.GetCommandItems().SingleOrDefault();
+        if (item is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await ItemManipulationService.OpenContainingFolderAsync(item);
+        }
+        catch (Exception exception)
+        {
+            ShowStatus(exception.Message, InfoBarSeverity.Error);
+        }
+    }
+
+    private async void OnOpenSourceUrlClick(object sender, RoutedEventArgs args)
+    {
+        var item = this.GetCommandItems().SingleOrDefault();
+        if (item is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await ItemManipulationService.OpenSourceUrlAsync(item);
+        }
+        catch (Exception exception)
+        {
+            ShowStatus(exception.Message, InfoBarSeverity.Error);
+        }
+    }
+
+    private void OnCopySelectionClick(object sender, RoutedEventArgs args)
+    {
+        var items = this.GetCommandItems();
+        if (items.Length == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            ItemManipulationService.PutOnClipboard(items, DataPackageOperation.Copy);
+            ShowStatus(
+                items.Length == 1 ? "Copied 1 item." : $"Copied {items.Length} items.",
+                InfoBarSeverity.Success);
+        }
+        catch (Exception exception)
+        {
+            ShowStatus($"The items could not be copied: {exception.Message}", InfoBarSeverity.Error);
+        }
+    }
+
+    private void OnCutSelectionClick(object sender, RoutedEventArgs args)
+    {
+        var items = this.GetCommandItems();
+        if (items.Length == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            ItemManipulationService.PutOnClipboard(items, DataPackageOperation.Move);
+            ShowStatus(
+                items.Length == 1 ? "Cut 1 item." : $"Cut {items.Length} items.",
+                InfoBarSeverity.Success);
+        }
+        catch (Exception exception)
+        {
+            ShowStatus($"The items could not be cut: {exception.Message}", InfoBarSeverity.Error);
+        }
+    }
+
+    private void OnShowPropertiesClick(object sender, RoutedEventArgs args)
+    {
+        var item = this.GetCommandItems().SingleOrDefault();
+        if (item is null)
+        {
+            return;
+        }
+
+        try
+        {
+            ItemManipulationService.ShowProperties(item);
+        }
+        catch (Exception exception)
+        {
+            ShowStatus(exception.Message, InfoBarSeverity.Error);
+        }
+    }
+
+    private async void OnDeleteFromDiskClick(object sender, RoutedEventArgs args)
+    {
+        var source = this.Stack;
+        var requestedItems = this.GetCommandItems();
+        var dialogOwner = this.DialogOwner;
+        var xamlRoot = this.XamlRoot;
+        if (source is null ||
+            requestedItems.Length == 0 ||
+            (dialogOwner is null && xamlRoot is null) ||
+            this._isRemovalDialogOpen)
+        {
+            return;
+        }
+
+        this._isRemovalDialogOpen = true;
+        this.UpdateSelectionCommands();
+        try
+        {
+            await this.CloseSelectionCommandsFlyoutAsync();
+            var confirmed = dialogOwner is not null
+                ? await StackDialogService.ConfirmRecycleItemsAsync(dialogOwner, requestedItems.Length)
+                : await StackDialogService.ConfirmRecycleItemsAsync(xamlRoot!, requestedItems.Length);
+            if (!confirmed || !App.Current.StackCatalogViewModel.Stacks.Contains(source))
+            {
+                return;
+            }
+
+            var requestedIds = requestedItems.Select(static item => item.Id).ToHashSet();
+            var existingItems = source.Model.Items
+                .Where(item => requestedIds.Contains(item.Id))
+                .ToArray();
+            var result = await ItemManipulationService.RecycleAsync(existingItems);
+            if (result.DeletedItemIds.Count > 0)
+            {
+                await App.Current.RemoveItemsAsync(source, result.DeletedItemIds);
+            }
+
+            if (result.FailedCount == 0)
+            {
+                ShowStatus(
+                    result.DeletedItemIds.Count == 1
+                        ? "Moved 1 item to the Recycle Bin."
+                        : $"Moved {result.DeletedItemIds.Count} items to the Recycle Bin.",
+                    InfoBarSeverity.Success);
+            }
+            else
+            {
+                ShowStatus(
+                    result.DeletedItemIds.Count == 0
+                        ? result.ErrorMessage ?? "The items could not be deleted."
+                        : $"Deleted {result.DeletedItemIds.Count} items; {result.FailedCount} failed.",
+                    result.DeletedItemIds.Count == 0 ? InfoBarSeverity.Error : InfoBarSeverity.Warning);
+            }
+        }
+        finally
+        {
+            this._isRemovalDialogOpen = false;
+            this.UpdateSelectionCommands();
+        }
+    }
+
     private async void OnRemoveSelectionClick(object sender, RoutedEventArgs args)
     {
         var selectedIds = this.GetCommandItemIds();
@@ -661,6 +836,14 @@ public sealed partial class StackItemsOrganizer : UserControl
         return this.GetSelectedItemIds();
     }
 
+    private DropItem[] GetCommandItems()
+    {
+        var selectedIds = this.GetCommandItemIds().ToHashSet();
+        return this.Stack?.Model.Items
+                   .Where(item => selectedIds.Contains(item.Id))
+                   .ToArray() ?? [];
+    }
+
     private void ResetCommandFlyout(bool hideFlyout)
     {
         this._commandHoverTimer.Stop();
@@ -678,13 +861,51 @@ public sealed partial class StackItemsOrganizer : UserControl
     private void UpdateSelectionCommands()
     {
         var selectedIds = this.GetCommandItemIds();
+        var selectedItems = this.GetCommandItems();
         var hasSelection = this.Stack is not null && selectedIds.Length > 0;
+        var singleItem = selectedItems.Length == 1 ? selectedItems[0] : null;
+        var singleActions = singleItem is null
+            ? ContentActions.None
+            : ContentMetadataPolicy.GetMetadata(singleItem).Actions;
         this.MoveSelectionUpButton.IsEnabled = hasSelection && this.Stack!.CanMoveItems(selectedIds, -1);
         this.MoveSelectionDownButton.IsEnabled = hasSelection && this.Stack!.CanMoveItems(selectedIds, 1);
         this.SplitSelectionButton.IsEnabled = hasSelection && selectedIds.Length < this.Stack!.Items.Count;
         this.RemoveSelectionButton.IsEnabled = hasSelection && !this._isRemovalDialogOpen;
         this.DuplicateSelectionButton.IsEnabled = hasSelection;
+        this.OpenSelectionButton.Visibility = Has(singleActions, ContentActions.Open)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        this.OpenContainingFolderButton.Visibility = Has(
+            singleActions,
+            ContentActions.Reveal)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        this.OpenSourceUrlButton.Visibility = Has(singleActions, ContentActions.OpenSource) &&
+                                              (singleItem?.Kind != DropItemKind.Uri ||
+                                               !string.Equals(
+                                                   singleItem.Url,
+                                                   singleItem.SourceUrl,
+                                                   StringComparison.OrdinalIgnoreCase))
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        this.CopySelectionButton.IsEnabled = hasSelection && selectedItems.All(static item =>
+            ContentMetadataPolicy.HasAction(item, ContentActions.Copy));
+        this.CutSelectionButton.Visibility = hasSelection && selectedItems.All(static item =>
+            ContentMetadataPolicy.HasAction(item, ContentActions.Cut))
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        this.ShowPropertiesButton.Visibility = Has(singleActions, ContentActions.ShowProperties)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        this.DeleteFromDiskButton.Visibility = hasSelection && selectedItems.All(static item =>
+            ContentMetadataPolicy.HasAction(item, ContentActions.Delete))
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        this.DeleteFromDiskButton.IsEnabled = !this._isRemovalDialogOpen;
     }
+
+    private static bool Has(ContentActions actions, ContentActions requested) =>
+        (actions & requested) == requested;
 
     private static void ShowStatus(string message, InfoBarSeverity severity) =>
         App.Current.ShowToast(message, severity);

@@ -130,8 +130,15 @@ internal sealed class StackRepository
             item.DisplayName,
             item.SourcePath,
             item.Text,
+            item.Html,
+            item.Rtf,
+            item.Url,
+            item.SourceUrl,
+            item.SourceApplicationName,
             item.IsOwned,
-            item.CreatedAt)),
+            item.CreatedAt,
+            RestoreCustomFormats(item.CustomFormats),
+            item.ApplicationLink)),
         stack.InspectorViewMode);
 
     private static StackDocument CreateStackDocument(DropStack stack) => new()
@@ -149,11 +156,57 @@ internal sealed class StackRepository
                 DisplayName = item.DisplayName,
                 SourcePath = item.SourcePath,
                 Text = item.Text,
+                Html = item.Html,
+                Rtf = item.Rtf,
+                Url = item.Url,
+                SourceUrl = item.SourceUrl,
+                SourceApplicationName = item.SourceApplicationName,
+                ApplicationLink = item.ApplicationLink,
+                CustomFormats =
+                [
+                    .. item.CustomFormats.Select(static format => new ItemDataFormatDocument
+                    {
+                        FormatId = format.FormatId,
+                        Kind = format.Kind,
+                        Text = format.Text,
+                        Data = format.Kind == DropItemDataFormatKind.Binary
+                            ? format.GetBinaryData()
+                            : null
+                    })
+                ],
                 IsOwned = item.IsOwned,
                 CreatedAt = item.CreatedAt
             })
         ]
     };
+
+    private static IReadOnlyList<DropItemDataFormat> RestoreCustomFormats(
+        IEnumerable<ItemDataFormatDocument> documents)
+    {
+        var formats = new List<DropItemDataFormat>();
+        foreach (var document in documents)
+        {
+            if (string.IsNullOrWhiteSpace(document.FormatId))
+            {
+                continue;
+            }
+
+            var format = document.Kind switch
+            {
+                DropItemDataFormatKind.Text when document.Text is not null =>
+                    DropItemDataFormat.CreateText(document.FormatId, document.Text),
+                DropItemDataFormatKind.Binary when document.Data is not null =>
+                    DropItemDataFormat.CreateBinary(document.FormatId, document.Data),
+                _ => null
+            };
+            if (format is not null)
+            {
+                formats.Add(format);
+            }
+        }
+
+        return formats;
+    }
 
     private static IReadOnlyList<TrayWindowState> RestoreOpenTrayWindows(
         IEnumerable<TrayWindowDocument> documents) => documents
@@ -270,9 +323,34 @@ internal sealed class ItemDocument
 
     public string? Text { get; set; }
 
+    public string? Html { get; set; }
+
+    public string? Rtf { get; set; }
+
+    public string? Url { get; set; }
+
+    public string? SourceUrl { get; set; }
+
+    public string? SourceApplicationName { get; set; }
+
+    public string? ApplicationLink { get; set; }
+
+    public List<ItemDataFormatDocument> CustomFormats { get; set; } = [];
+
     public bool IsOwned { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
+}
+
+internal sealed class ItemDataFormatDocument
+{
+    public string FormatId { get; set; } = string.Empty;
+
+    public DropItemDataFormatKind Kind { get; set; }
+
+    public string? Text { get; set; }
+
+    public byte[]? Data { get; set; }
 }
 
 internal sealed class TrayWindowDocument
