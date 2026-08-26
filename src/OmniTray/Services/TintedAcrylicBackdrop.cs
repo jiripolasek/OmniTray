@@ -13,6 +13,8 @@ namespace OmniTray.Services;
 
 internal sealed partial class TintedAcrylicBackdrop : SystemBackdrop
 {
+    internal const float FallbackTintOpacity = 0.22f;
+
     private DesktopAcrylicController? _controller;
     private Color _tintColor;
     private XamlRoot? _xamlRoot;
@@ -111,13 +113,11 @@ internal sealed partial class TintedAcrylicBackdrop : SystemBackdrop
         var baseColor = theme == ElementTheme.Light
             ? Color.FromArgb(255, 243, 243, 243)
             : Color.FromArgb(255, 32, 32, 32);
-        const float tintAmount = 0.22f;
-
         return Color.FromArgb(
             255,
-            Blend(baseColor.R, tintColor.R, tintAmount),
-            Blend(baseColor.G, tintColor.G, tintAmount),
-            Blend(baseColor.B, tintColor.B, tintAmount));
+            Blend(baseColor.R, tintColor.R, FallbackTintOpacity),
+            Blend(baseColor.G, tintColor.G, FallbackTintOpacity),
+            Blend(baseColor.B, tintColor.B, FallbackTintOpacity));
     }
 
     private void ApplyAppearance()

@@ -61,9 +61,12 @@ internal sealed class TrayWindowAppearanceController : IDisposable
         {
             var usesUntintedBackdrop = StackTintPalette.IsNeutral(this._viewModel.Tint) &&
                                        !StackTintPalette.UseSystemAccentForNeutral;
-            if (!usesUntintedBackdrop && this._window.SystemBackdrop is TintedAcrylicBackdrop backdrop)
+            if (TintedAcrylicBackdrop.IsSupported &&
+                !usesUntintedBackdrop &&
+                this._root.Background is SolidColorBrush tintOverlay &&
+                tintOverlay.Opacity == TintedAcrylicBackdrop.FallbackTintOpacity)
             {
-                backdrop.TintColor = this._viewModel.TintColor;
+                tintOverlay.Color = this._viewModel.TintColor;
             }
             else
             {
@@ -88,11 +91,15 @@ internal sealed class TrayWindowAppearanceController : IDisposable
             return;
         }
 
-        this._root.Background = new SolidColorBrush(Colors.Transparent);
-        this._window.SystemBackdrop = StackTintPalette.IsNeutral(this._viewModel.Tint) &&
-                                      !StackTintPalette.UseSystemAccentForNeutral
-            ? new DesktopAcrylicBackdrop()
-            : new TintedAcrylicBackdrop(this._viewModel.TintColor);
+        var usesUntintedBackdrop = StackTintPalette.IsNeutral(this._viewModel.Tint) &&
+                                   !StackTintPalette.UseSystemAccentForNeutral;
+        this._root.Background = usesUntintedBackdrop
+            ? new SolidColorBrush(Colors.Transparent)
+            : new SolidColorBrush(this._viewModel.TintColor)
+            {
+                Opacity = TintedAcrylicBackdrop.FallbackTintOpacity
+            };
+        this._window.SystemBackdrop = new DesktopAcrylicBackdrop();
     }
 
     private void ApplyFallbackBackground() =>
