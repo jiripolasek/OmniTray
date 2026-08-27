@@ -14,6 +14,7 @@ internal sealed class AppSettingsService
     private const string BottomEdgeWindowEnabledKey = "BottomEdgeWindowEnabled";
     private const string EdgeGameModeEnabledKey = "EdgeGameModeEnabled";
     private const string EdgeWindowDockedKeyPrefix = "EdgeWindowDocked";
+    private const string EdgeWindowDockThicknessKeyPrefix = "EdgeWindowDockThickness";
     private const string EdgeWindowsPausedKey = "EdgeWindowsPaused";
     private const string LeftEdgeWindowEnabledKey = "LeftEdgeWindowEnabled";
     private const string OpenInspectorOnHoverKey = "OpenInspectorOnHover";
@@ -132,6 +133,24 @@ internal sealed class AppSettingsService
         }
     }
 
+    public double? GetEdgeWindowDockThickness(ulong displayId, EdgeShelfSide side) =>
+        this._localSettings.Values.TryGetValue(GetEdgeWindowDockThicknessKey(displayId, side), out var value) &&
+        value is double thickness &&
+        double.IsFinite(thickness) &&
+        thickness > 0
+            ? thickness
+            : null;
+
+    public void SetEdgeWindowDockThickness(ulong displayId, EdgeShelfSide side, double thickness)
+    {
+        if (!double.IsFinite(thickness) || thickness <= 0)
+        {
+            return;
+        }
+
+        this._localSettings.Values[GetEdgeWindowDockThicknessKey(displayId, side)] = thickness;
+    }
+
     public bool SyncLeftAndRightEdgeContent
     {
         get => this.GetBoolean(SyncLeftAndRightEdgeContentKey, false);
@@ -174,6 +193,9 @@ internal sealed class AppSettingsService
 
     private static string GetEdgeWindowDockedKey(ulong displayId, EdgeShelfSide side) =>
         $"{EdgeWindowDockedKeyPrefix}.{displayId:X16}.{side}";
+
+    private static string GetEdgeWindowDockThicknessKey(ulong displayId, EdgeShelfSide side) =>
+        $"{EdgeWindowDockThicknessKeyPrefix}.{displayId:X16}.{side}";
 
     private TEnum GetEnum<TEnum>(string key, TEnum defaultValue)
         where TEnum : struct, Enum =>

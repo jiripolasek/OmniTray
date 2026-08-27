@@ -9,6 +9,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Numerics;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.System;
 using Windows.UI.ViewManagement;
 using Microsoft.UI.Composition;
 using Microsoft.UI.Input;
@@ -21,6 +22,33 @@ using OmniTray.Controls;
 using DispatcherQueuePriority = Microsoft.UI.Dispatching.DispatcherQueuePriority;
 
 namespace OmniTray.Views;
+
+internal enum DockSizePreset
+{
+    Small,
+    Medium,
+    Large
+}
+
+internal sealed class DockResizeDeltaEventArgs : EventArgs
+{
+    public DockResizeDeltaEventArgs(double change)
+    {
+        this.Change = change;
+    }
+
+    public double Change { get; }
+}
+
+internal sealed class DockResizePresetEventArgs : EventArgs
+{
+    public DockResizePresetEventArgs(DockSizePreset preset)
+    {
+        this.Preset = preset;
+    }
+
+    public DockSizePreset Preset { get; }
+}
 
 public sealed partial class EdgeWindow : TransparentWindow
 {
@@ -136,11 +164,23 @@ public sealed partial class EdgeWindow : TransparentWindow
 
     internal event EventHandler? DockToggled;
 
+    internal event EventHandler? DockResizeStarted;
+
+    internal event EventHandler<DockResizeDeltaEventArgs>? DockResizeDelta;
+
+    internal event EventHandler? DockResizeCompleted;
+
+    internal event EventHandler<DockResizePresetEventArgs>? DockResizePresetRequested;
+
     internal event EventHandler? HorizontalDetailExpansionChanged;
 
     internal void SetDockedState(bool docked)
     {
         this._isDocked = docked;
+        var cornerRadius = new CornerRadius(docked ? 0 : 12);
+        this.ShelfBackdrop.CornerRadius = cornerRadius;
+        this.ShelfBorder.CornerRadius = cornerRadius;
+        this.DockResizeHandle.Visibility = docked ? Visibility.Visible : Visibility.Collapsed;
         var collapseVisibility = docked ? Visibility.Collapsed : Visibility.Visible;
         this.VerticalCollapseButton.Visibility = collapseVisibility;
         this.HorizontalCollapseButton.Visibility = collapseVisibility;
@@ -381,6 +421,22 @@ public sealed partial class EdgeWindow : TransparentWindow
             EdgeShelfSide.Bottom => "\uE70E",
             _ => string.Empty
         };
+        this.DockResizeHandle.Width = vertical ? 8 : double.NaN;
+        this.DockResizeHandle.Height = vertical ? double.NaN : 8;
+        this.DockResizeHandle.HorizontalAlignment = this.Side switch
+        {
+            EdgeShelfSide.Left => HorizontalAlignment.Right,
+            EdgeShelfSide.Right => HorizontalAlignment.Left,
+            _ => HorizontalAlignment.Stretch
+        };
+        this.DockResizeHandle.VerticalAlignment = this.Side switch
+        {
+            EdgeShelfSide.Top => VerticalAlignment.Bottom,
+            EdgeShelfSide.Bottom => VerticalAlignment.Top,
+            _ => VerticalAlignment.Stretch
+        };
+        this.DockResizeIndicator.Width = vertical ? 2 : 36;
+        this.DockResizeIndicator.Height = vertical ? 36 : 2;
         if (vertical)
         {
             ConfigureScrollZone(this.LeadingScrollZone, HorizontalAlignment.Stretch, VerticalAlignment.Top, double.NaN,
@@ -400,6 +456,73 @@ public sealed partial class EdgeWindow : TransparentWindow
             this.LeadingScrollIcon.Glyph = "\uE76B";
             this.TrailingScrollIcon.Glyph = "\uE76C";
         }
+    }
+
+    private void OnDockResizeThumbDragStarted(object sender, DragStartedEventArgs args)
+    {
+        this.DockResizeStarted?.Invoke(this, EventArgs.Empty);
+        this.PointerInteractionStarted?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnDockResizeThumbDragDelta(object sender, DragDeltaEventArgs args)
+    {
+        if (!this._isDocked)
+        {
+            return;
+        }
+
+        var change = this.Side.IsVertical() ? args.HorizontalChange : args.VerticalChange;
+        this.DockResizeDelta?.Invoke(this, new DockResizeDeltaEventArgs(change));
+    }
+
+    private void OnDockResizeThumbDragCompleted(object sender, DragCompletedEventArgs args)
+    {
+        if (this._isDocked)
+        {
+            this.DockResizeCompleted?.Invoke(this, EventArgs.Empty);
+        }
+
+        this.PointerInteractionEnded?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnDockResizeThumbKeyDown(object sender, KeyRoutedEventArgs args)
+    {
+        if (!this._isDocked)
+        {
+            return;
+        }
+
+        var change = args.Key switch
+        {
+            VirtualKey.Left when this.Side.IsVertical() => -8,
+            VirtualKey.Right when this.Side.IsVertical() => 8,
+            VirtualKey.Up when !this.Side.IsVertical() => -8,
+            VirtualKey.Down when !this.Side.IsVertical() => 8,
+            _ => 0
+        };
+        if (change == 0)
+        {
+            return;
+        }
+
+        this.PointerInteractionStarted?.Invoke(this, EventArgs.Empty);
+        this.DockResizeDelta?.Invoke(this, new DockResizeDeltaEventArgs(change));
+        this.DockResizeCompleted?.Invoke(this, EventArgs.Empty);
+        this.PointerInteractionEnded?.Invoke(this, EventArgs.Empty);
+        args.Handled = true;
+    }
+
+    private void OnDockResizePresetClick(object sender, RoutedEventArgs args)
+    {
+        if (!this._isDocked ||
+            sender is not MenuFlyoutItem item ||
+            item.Tag is not string presetName ||
+            !Enum.TryParse<DockSizePreset>(presetName, out var preset))
+        {
+            return;
+        }
+
+        this.DockResizePresetRequested?.Invoke(this, new DockResizePresetEventArgs(preset));
     }
 
     private void CacheActiveStackScrollViewer(ListView list)

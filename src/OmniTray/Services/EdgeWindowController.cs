@@ -565,6 +565,10 @@ internal sealed partial class EdgeWindowController : IDisposable
         private const int DesignHorizontalWidth = 760;
         private const int DesignShadowMargin = 48;
         private const int DesignExpandedInset = 11;
+        private const int MinimumVerticalDockThickness = 240;
+        private const int MinimumRemainingWorkspace = 160;
+        private const int SmallVerticalDockThickness = 320;
+        private const int LargeVerticalDockThickness = 560;
         private static readonly TimeSpan ManualOpenGracePeriod = TimeSpan.FromSeconds(2);
         private readonly EdgeAppBarRegistration _appBar;
         private readonly Func<bool> _isRevealSuppressed;
@@ -575,6 +579,9 @@ internal sealed partial class EdgeWindowController : IDisposable
         private readonly nint _windowHandle;
         private RectInt32 _outerBounds;
         private RectInt32 _workArea;
+        private NativePoint? _dockResizeStartCursor;
+        private double _dockResizeStartThicknessInDips;
+        private double? _dockedThicknessInDips;
         private int _expandedInset;
         private int _hintThickness;
         private int _hostHeight;
@@ -585,6 +592,7 @@ internal sealed partial class EdgeWindowController : IDisposable
         private bool _isDockTemporarilyHidden;
         private bool _isClickThrough;
         private bool _isClosing;
+        private bool _isDockResizeActive;
         private bool _isFullScreenAppOpen;
         private bool _isUpdatingAppBarPosition;
         private bool _isTargetExpanded;
@@ -619,6 +627,9 @@ internal sealed partial class EdgeWindowController : IDisposable
                 this.OnShellRestarted,
                 this.OnFullScreenAppChanged);
             this._isDocked = this._settingsService.GetEdgeWindowDocked(key.Display.Value, key.Side);
+            this._dockedThicknessInDips = this._settingsService.GetEdgeWindowDockThickness(
+                key.Display.Value,
+                key.Side);
             this._window.SetDockedState(this._isDocked);
             this.ConfigureWindow();
             if (!this.TryApplyDockedState())
@@ -628,6 +639,10 @@ internal sealed partial class EdgeWindowController : IDisposable
 
             this._window.CollapseRequested += this.OnCollapseRequested;
             this._window.DockToggled += this.OnDockToggled;
+            this._window.DockResizeStarted += this.OnDockResizeStarted;
+            this._window.DockResizeDelta += this.OnDockResizeDelta;
+            this._window.DockResizeCompleted += this.OnDockResizeCompleted;
+            this._window.DockResizePresetRequested += this.OnDockResizePresetRequested;
             this._window.PointerInteractionStarted += this.OnPointerInteractionStarted;
             this._window.PointerInteractionEnded += this.OnPointerInteractionEnded;
             this._window.ExternalDragEntered += this.OnExternalDragEntered;
@@ -672,6 +687,10 @@ internal sealed partial class EdgeWindowController : IDisposable
             this._isClosing = true;
             this._window.CollapseRequested -= this.OnCollapseRequested;
             this._window.DockToggled -= this.OnDockToggled;
+            this._window.DockResizeStarted -= this.OnDockResizeStarted;
+            this._window.DockResizeDelta -= this.OnDockResizeDelta;
+            this._window.DockResizeCompleted -= this.OnDockResizeCompleted;
+            this._window.DockResizePresetRequested -= this.OnDockResizePresetRequested;
             this._window.PointerInteractionStarted -= this.OnPointerInteractionStarted;
             this._window.PointerInteractionEnded -= this.OnPointerInteractionEnded;
             this._window.ExternalDragEntered -= this.OnExternalDragEntered;
@@ -964,11 +983,8 @@ internal sealed partial class EdgeWindowController : IDisposable
                 var dpi = GetDpiForWindow(this._windowHandle);
                 this._scale = dpi == 0 ? 1 : dpi / 96d;
                 this._hintThickness = Math.Max(1, (int)Math.Round(EdgeWindow.HintThickness * this._scale));
-                var designThickness = this.Key.Side.IsVertical()
-                    ? DesignVerticalWidth
-                    : this._window.IsHorizontalDetailExpanded
-                        ? this._viewModel.HorizontalStackCardLayout.HorizontalPanelExpandedHeight
-                        : this._viewModel.HorizontalStackCardLayout.HorizontalPanelCollapsedHeight;
+                var designThickness = this.ClampDockedThickness(
+                    this._dockedThicknessInDips ?? this.GetDefaultDockedThickness());
                 var maximumThickness = this.Key.Side.IsVertical()
                     ? this._outerBounds.Width
                     : this._outerBounds.Height;
@@ -1026,6 +1042,8 @@ internal sealed partial class EdgeWindowController : IDisposable
             }
 
             this._isDocked = docked;
+            this._dockResizeStartCursor = null;
+            this._isDockResizeActive = false;
             this._isDockTemporarilyHidden = false;
             this._window.SetDockedState(docked);
             if (docked)
@@ -1076,9 +1094,144 @@ internal sealed partial class EdgeWindowController : IDisposable
 
         private void OnDockToggled(object? sender, EventArgs args) => this.SetDocked(!this.IsDocked);
 
+        private void OnDockResizeStarted(object? sender, EventArgs args)
+        {
+            this._dockResizeStartCursor = null;
+            this._isDockResizeActive = this.IsDocked && !this._isDockTemporarilyHidden;
+            if (!this._isDockResizeActive || !GetCursorPos(out var cursor))
+            {
+                return;
+            }
+
+            var scale = this._scale > 0 ? this._scale : 1;
+            this._dockResizeStartCursor = cursor;
+            this._dockResizeStartThicknessInDips = this.Key.Side.IsVertical()
+                ? this._hostWidth / scale
+                : this._hostHeight / scale;
+        }
+
+        private void OnDockResizeDelta(object? sender, DockResizeDeltaEventArgs args)
+        {
+            if (!this.IsDocked || this._isDockTemporarilyHidden || !double.IsFinite(args.Change))
+            {
+                return;
+            }
+
+            var scale = this._scale > 0 ? this._scale : 1;
+            double requestedThickness;
+            if (this._dockResizeStartCursor is { } startCursor && GetCursorPos(out var currentCursor))
+            {
+                var screenChange = this.Key.Side.IsVertical()
+                    ? currentCursor.X - startCursor.X
+                    : currentCursor.Y - startCursor.Y;
+                var inwardChange = this.Key.Side is EdgeShelfSide.Left or EdgeShelfSide.Top
+                    ? screenChange / scale
+                    : -screenChange / scale;
+                requestedThickness = this._dockResizeStartThicknessInDips + inwardChange;
+            }
+            else
+            {
+                var currentThickness = this.Key.Side.IsVertical()
+                    ? this._hostWidth / scale
+                    : this._hostHeight / scale;
+                var inwardChange = this.Key.Side is EdgeShelfSide.Left or EdgeShelfSide.Top
+                    ? args.Change
+                    : -args.Change;
+                requestedThickness = currentThickness + inwardChange;
+            }
+
+            this._dockedThicknessInDips = this.ClampDockedThickness(requestedThickness);
+            this.ConfigureDockedPlacement();
+            this.NoteInteraction();
+        }
+
+        private void OnDockResizeCompleted(object? sender, EventArgs args)
+        {
+            this._dockResizeStartCursor = null;
+            this._isDockResizeActive = false;
+            this.ConfigureDockedPlacement();
+            this.PersistDockedThickness();
+            this.NoteInteraction();
+        }
+
+        private void OnDockResizePresetRequested(object? sender, DockResizePresetEventArgs args)
+        {
+            if (!this.IsDocked || this._isDockTemporarilyHidden)
+            {
+                return;
+            }
+
+            this._dockResizeStartCursor = null;
+            this._isDockResizeActive = false;
+            this._dockedThicknessInDips = this.ClampDockedThickness(this.GetDockedThicknessPreset(args.Preset));
+            this.ConfigureDockedPlacement();
+            this.PersistDockedThickness();
+            this.NoteInteraction();
+        }
+
+        private void PersistDockedThickness()
+        {
+            if (this._dockedThicknessInDips is not { } thickness)
+            {
+                return;
+            }
+
+            this._settingsService.SetEdgeWindowDockThickness(
+                this.Key.Display.Value,
+                this.Key.Side,
+                thickness);
+        }
+
+        private double GetDefaultDockedThickness() =>
+            this.Key.Side.IsVertical()
+                ? DesignVerticalWidth
+                : this._window.IsHorizontalDetailExpanded
+                    ? this._viewModel.HorizontalStackCardLayout.HorizontalPanelExpandedHeight
+                    : this._viewModel.HorizontalStackCardLayout.HorizontalPanelCollapsedHeight;
+
+        private double GetDockedThicknessPreset(DockSizePreset preset)
+        {
+            if (this.Key.Side.IsVertical())
+            {
+                return preset switch
+                {
+                    DockSizePreset.Small => SmallVerticalDockThickness,
+                    DockSizePreset.Medium => DesignVerticalWidth,
+                    DockSizePreset.Large => LargeVerticalDockThickness,
+                    _ => throw new ArgumentOutOfRangeException(nameof(preset))
+                };
+            }
+
+            var collapsedHeight = this._viewModel.HorizontalStackCardLayout.HorizontalPanelCollapsedHeight;
+            var expandedHeight = this._viewModel.HorizontalStackCardLayout.HorizontalPanelExpandedHeight;
+            return preset switch
+            {
+                DockSizePreset.Small => collapsedHeight,
+                DockSizePreset.Medium => Math.Round((collapsedHeight + expandedHeight) / 2),
+                DockSizePreset.Large => expandedHeight,
+                _ => throw new ArgumentOutOfRangeException(nameof(preset))
+            };
+        }
+
+        private double ClampDockedThickness(double thickness)
+        {
+            var minimumThickness = this.Key.Side.IsVertical()
+                ? MinimumVerticalDockThickness
+                : this._viewModel.HorizontalStackCardLayout.HorizontalPanelCollapsedHeight;
+            var scale = this._scale > 0 ? this._scale : 1;
+            var displayThickness = (this.Key.Side.IsVertical()
+                ? this._outerBounds.Width
+                : this._outerBounds.Height) / scale;
+            var maximumThickness = Math.Max(minimumThickness, displayThickness - MinimumRemainingWorkspace);
+            return Math.Clamp(thickness, minimumThickness, maximumThickness);
+        }
+
         private void OnAppBarPositionChanged()
         {
-            if (this.IsDocked && !this._isDockTemporarilyHidden && !this._isRevealSuppressed())
+            if (this.IsDocked &&
+                !this._isDockTemporarilyHidden &&
+                !this._isDockResizeActive &&
+                !this._isRevealSuppressed())
             {
                 this.ConfigureDockedPlacement();
             }

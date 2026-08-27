@@ -62,6 +62,7 @@
                 </SystemBackdropElement.Shadow>
             </SystemBackdropElement>
             <Border
+                x:Name="ShelfBorder"
                 BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
                 BorderThickness="1"
                 CornerRadius="12"
@@ -1074,6 +1075,52 @@
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Glyph="&#xE700;" />
                 </Border>
+            </Grid>
+
+            <Grid
+                x:Name="DockResizeHandle"
+                Background="Transparent"
+                Canvas.ZIndex="100"
+                Visibility="Collapsed">
+                <primitives:Thumb
+                    x:Name="DockResizeThumb"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch"
+                    AutomationProperties.HelpText="Drag this edge, use the arrow keys, or open the context menu for preset dock sizes."
+                    AutomationProperties.Name="Resize docked shelf"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    DragCompleted="OnDockResizeThumbDragCompleted"
+                    DragDelta="OnDockResizeThumbDragDelta"
+                    DragStarted="OnDockResizeThumbDragStarted"
+                    IsTabStop="True"
+                    KeyDown="OnDockResizeThumbKeyDown"
+                    ToolTipService.ToolTip="Drag to resize; right-click for sizes">
+                    <primitives:Thumb.ContextFlyout>
+                        <MenuFlyout>
+                            <MenuFlyoutItem
+                                Click="OnDockResizePresetClick"
+                                Tag="Small"
+                                Text="Small" />
+                            <MenuFlyoutItem
+                                Click="OnDockResizePresetClick"
+                                Tag="Medium"
+                                Text="Medium" />
+                            <MenuFlyoutItem
+                                Click="OnDockResizePresetClick"
+                                Tag="Large"
+                                Text="Large" />
+                        </MenuFlyout>
+                    </primitives:Thumb.ContextFlyout>
+                </primitives:Thumb>
+                <Border
+                    x:Name="DockResizeIndicator"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Background="{ThemeResource TextFillColorSecondaryBrush}"
+                    CornerRadius="1"
+                    IsHitTestVisible="False"
+                    Opacity="0.65" />
             </Grid>
         </Grid>
 
