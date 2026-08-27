@@ -47,6 +47,7 @@ public sealed partial class EdgeWindow : TransparentWindow
     private DropStackViewModel? _horizontalExpandedStack;
     private bool _isExpandedTarget;
     private bool _isFilterApplied;
+    private bool _isDocked;
     private bool _isStackDragOperationActive;
     private double _panelHeight;
     private double _panelWidth;
@@ -119,6 +120,8 @@ public sealed partial class EdgeWindow : TransparentWindow
 
     internal bool IsHorizontalDetailExpanded => this._horizontalExpandedStack is not null;
 
+    internal bool IsDocked => this._isDocked;
+
     public event EventHandler? CollapseRequested;
 
     public event EventHandler? PointerInteractionStarted;
@@ -131,7 +134,20 @@ public sealed partial class EdgeWindow : TransparentWindow
 
     public event EventHandler? DropCompleted;
 
+    internal event EventHandler? DockToggled;
+
     internal event EventHandler? HorizontalDetailExpansionChanged;
+
+    internal void SetDockedState(bool docked)
+    {
+        this._isDocked = docked;
+        var collapseVisibility = docked ? Visibility.Collapsed : Visibility.Visible;
+        this.VerticalCollapseButton.Visibility = collapseVisibility;
+        this.HorizontalCollapseButton.Visibility = collapseVisibility;
+    }
+
+    internal void ShowDockingError() =>
+        ShowStatus("Windows could not reserve this screen edge. The shelf was left undocked.", InfoBarSeverity.Error);
 
     internal void ResetCommandNavigation()
     {
@@ -1153,7 +1169,11 @@ public sealed partial class EdgeWindow : TransparentWindow
     {
         var flyout = new MenuFlyout();
         var sizeMode = this.ViewModel.GetEdgeWindowSizeMode(this.Side);
-        var sizeMenu = new MenuFlyoutSubItem { Text = "Size" };
+        var sizeMenu = new MenuFlyoutSubItem
+        {
+            Text = "Size",
+            IsEnabled = !this.IsDocked
+        };
         sizeMenu.Items.Add(CreateRadioMenuItem(
             "Reasonable",
             "EdgeShelfSize",
@@ -1170,7 +1190,7 @@ public sealed partial class EdgeWindow : TransparentWindow
         var positionMenu = new MenuFlyoutSubItem
         {
             Text = "Position",
-            IsEnabled = sizeMode == EdgeWindowSizeMode.Reasonable
+            IsEnabled = !this.IsDocked && sizeMode == EdgeWindowSizeMode.Reasonable
         };
         var startText = this.Side.IsVertical() ? "Top" : "Left";
         var endText = this.Side.IsVertical() ? "Bottom" : "Right";
@@ -1213,12 +1233,15 @@ public sealed partial class EdgeWindow : TransparentWindow
         flyout.Items.Add(layoutMenu);
 
         flyout.Items.Add(new MenuFlyoutSeparator());
-        var dockItem = new MenuFlyoutItem
+        var dockItem = new ToggleMenuFlyoutItem
         {
             Text = "Dock",
-            IsEnabled = false
+            IsChecked = this.IsDocked
         };
-        AutomationProperties.SetHelpText(dockItem, "Reserved for a future Windows AppBar implementation.");
+        AutomationProperties.SetHelpText(
+            dockItem,
+            "Keep this shelf visible and reserve its screen edge on this display.");
+        dockItem.Click += (_, _) => this.DockToggled?.Invoke(this, EventArgs.Empty);
         flyout.Items.Add(dockItem);
 
         var disableItem = new MenuFlyoutItem { Text = "Disable edge window" };

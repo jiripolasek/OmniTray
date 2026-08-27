@@ -145,6 +145,7 @@ public partial class App : Application
             this.StackCatalogViewModel,
             this.DropCommandCatalogViewModel,
             this._dispatcherQueue,
+            this._appSettingsService,
             () => this._appSettingsService.ShakeToCreateTray);
         this._windows.TrayWindowStatesChanged += (_, _) => this.QueueCatalogSave();
         this._windows.DropCommandWindowStatesChanged += (_, _) => this.QueueDropCommandSave();

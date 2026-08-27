@@ -121,6 +121,7 @@
                                     <FontIcon FontSize="14" Glyph="&#xE712;" />
                                 </Button>
                                 <Button
+                                    x:Name="VerticalCollapseButton"
                                     Width="32"
                                     Height="32"
                                     Padding="0"
@@ -928,6 +929,7 @@
                                     <FontIcon FontSize="14" Glyph="&#xE712;" />
                                 </Button>
                                 <Button
+                                    x:Name="HorizontalCollapseButton"
                                     Width="32"
                                     Height="32"
                                     Padding="0"

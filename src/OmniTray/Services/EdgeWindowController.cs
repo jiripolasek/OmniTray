@@ -25,6 +25,7 @@ internal sealed partial class EdgeWindowController : IDisposable
     private readonly DispatcherQueueTimer _displayTimer;
     private readonly DispatcherQueueTimer _gameModeTimer;
     private readonly Dictionary<EdgeHostKey, EdgeWindowHost> _hosts = [];
+    private readonly AppSettingsService _settingsService;
     private readonly Func<bool> _isShakeToCreateTrayEnabled;
     private readonly DispatcherQueueTimer _pointerTimer;
     private readonly Action<PointInt32> _shakeToCreateTray;
@@ -45,11 +46,13 @@ internal sealed partial class EdgeWindowController : IDisposable
     public EdgeWindowController(
         MainViewModel viewModel,
         DispatcherQueue dispatcherQueue,
+        AppSettingsService settingsService,
         Func<bool> isShakeToCreateTrayEnabled,
         Action<PointInt32> shakeToCreateTray)
     {
         this._viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         this._dispatcherQueue = dispatcherQueue ?? throw new ArgumentNullException(nameof(dispatcherQueue));
+        this._settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         this._isShakeToCreateTrayEnabled = isShakeToCreateTrayEnabled ??
                                            throw new ArgumentNullException(nameof(isShakeToCreateTrayEnabled));
         this._shakeToCreateTray = shakeToCreateTray ?? throw new ArgumentNullException(nameof(shakeToCreateTray));
@@ -115,7 +118,7 @@ internal sealed partial class EdgeWindowController : IDisposable
         var displayArea = TryGetCursorDisplay(out var cursorDisplay, out _)
             ? cursorDisplay
             : DisplayArea.Primary;
-        var key = DisplayKey.From(displayArea.WorkArea);
+        var key = DisplayKey.From(displayArea);
         if (this._hosts.TryGetValue(new EdgeHostKey(key, side), out var host))
         {
             foreach (var candidate in this._hosts.Values.Where(candidate =>
@@ -135,7 +138,7 @@ internal sealed partial class EdgeWindowController : IDisposable
         this._likelyDrag = false;
         foreach (var host in this._hosts.Values)
         {
-            host.Hide(animate);
+            host.HideForUser(animate);
         }
     }
 
@@ -158,7 +161,7 @@ internal sealed partial class EdgeWindowController : IDisposable
             return;
         }
 
-        var displayKey = DisplayKey.From(displayArea.WorkArea);
+        var displayKey = DisplayKey.From(displayArea);
         if (!this._hosts.Keys.Any(key => key.Display == displayKey))
         {
             this.ReconcileDisplays();
@@ -243,7 +246,7 @@ internal sealed partial class EdgeWindowController : IDisposable
                 break;
 
             case nameof(MainViewModel.EdgeWindowsPaused):
-                this.HideAllIfRevealSuppressed();
+                this.ApplyRevealSuppression();
                 break;
 
             case nameof(MainViewModel.LeftEdgeWindowEnabled):
@@ -331,22 +334,17 @@ internal sealed partial class EdgeWindowController : IDisposable
         }
 
         this._isGameModeSuppressing = shouldSuppress;
-        this.HideAllIfRevealSuppressed();
+        this.ApplyRevealSuppression();
     }
 
-    private void HideAllIfRevealSuppressed()
+    private void ApplyRevealSuppression()
     {
-        if (!this.IsRevealSuppressed)
-        {
-            return;
-        }
-
         this._hoverHostKey = null;
         this._edgeHoverStarted = null;
         this._likelyDrag = false;
         foreach (var host in this._hosts.Values)
         {
-            host.Hide(false);
+            host.SetRevealSuppressed(this.IsRevealSuppressed);
         }
     }
 
@@ -384,14 +382,14 @@ internal sealed partial class EdgeWindowController : IDisposable
         for (var index = 0; index < displayAreas.Count; index++)
         {
             var display = displayAreas[index];
-            displaysByKey.TryAdd(DisplayKey.From(display.WorkArea), display);
+            displaysByKey.TryAdd(DisplayKey.From(display), display);
         }
 
         var displays = displaysByKey.Values.ToArray();
         var desiredKeys = displays
             .SelectMany(display => AllSides
                 .Where(this._viewModel.IsEdgeWindowEnabled)
-                .Select(side => new EdgeHostKey(DisplayKey.From(display.WorkArea), side)))
+                .Select(side => new EdgeHostKey(DisplayKey.From(display), side)))
             .ToHashSet();
 
         foreach (var staleKey in this._hosts.Keys.Where(key => !desiredKeys.Contains(key)).ToArray())
@@ -406,18 +404,22 @@ internal sealed partial class EdgeWindowController : IDisposable
 
         foreach (var display in displays)
         {
-            var displayKey = DisplayKey.From(display.WorkArea);
+            var displayKey = DisplayKey.From(display);
             foreach (var side in AllSides.Where(this._viewModel.IsEdgeWindowEnabled))
             {
                 var hostKey = new EdgeHostKey(displayKey, side);
-                if (this._hosts.ContainsKey(hostKey))
+                if (this._hosts.TryGetValue(hostKey, out var existingHost))
                 {
+                    existingHost.UpdateDisplayArea(display.OuterBounds, display.WorkArea);
                     continue;
                 }
 
                 var host = new EdgeWindowHost(
                     hostKey,
-                    display.WorkArea, this._viewModel,
+                    display.OuterBounds,
+                    display.WorkArea,
+                    this._viewModel,
+                    this._settingsService,
                     () => this.IsRevealSuppressed);
                 host.CollapseRequested += this.OnHostCollapseRequested;
                 this._hosts.Add(hostKey, host);
@@ -546,13 +548,9 @@ internal sealed partial class EdgeWindowController : IDisposable
         public int Y;
     }
 
-    private readonly record struct DisplayKey(int X, int Y, int Width, int Height)
+    private readonly record struct DisplayKey(ulong Value)
     {
-        public static DisplayKey From(RectInt32 bounds) => new(
-            bounds.X,
-            bounds.Y,
-            bounds.Width,
-            bounds.Height);
+        public static DisplayKey From(DisplayArea display) => new(display.DisplayId.Value);
     }
 
     private readonly record struct EdgeHostKey(DisplayKey Display, EdgeShelfSide Side);
@@ -568,20 +566,27 @@ internal sealed partial class EdgeWindowController : IDisposable
         private const int DesignShadowMargin = 48;
         private const int DesignExpandedInset = 11;
         private static readonly TimeSpan ManualOpenGracePeriod = TimeSpan.FromSeconds(2);
+        private readonly EdgeAppBarRegistration _appBar;
         private readonly Func<bool> _isRevealSuppressed;
+        private readonly AppSettingsService _settingsService;
         private readonly MainViewModel _viewModel;
 
         private readonly EdgeWindow _window;
         private readonly nint _windowHandle;
-        private readonly RectInt32 _workArea;
+        private RectInt32 _outerBounds;
+        private RectInt32 _workArea;
         private int _expandedInset;
         private int _hintThickness;
         private int _hostHeight;
         private int _hostWidth;
         private int _hostX;
         private int _hostY;
+        private bool _isDocked;
+        private bool _isDockTemporarilyHidden;
         private bool _isClickThrough;
         private bool _isClosing;
+        private bool _isFullScreenAppOpen;
+        private bool _isUpdatingAppBarPosition;
         private bool _isTargetExpanded;
         private int _panelHeight;
         private int _panelWidth;
@@ -593,21 +598,36 @@ internal sealed partial class EdgeWindowController : IDisposable
 
         public EdgeWindowHost(
             EdgeHostKey key,
+            RectInt32 outerBounds,
             RectInt32 workArea,
             MainViewModel viewModel,
+            AppSettingsService settingsService,
             Func<bool> isRevealSuppressed)
         {
             this.Key = key;
+            this._outerBounds = outerBounds;
             this._workArea = workArea;
             this._viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
+            this._settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
             this._isRevealSuppressed
                 = isRevealSuppressed ?? throw new ArgumentNullException(nameof(isRevealSuppressed));
             this._window = new EdgeWindow(this._viewModel, key.Side);
             this._windowHandle = WindowNative.GetWindowHandle(this._window);
+            this._appBar = new EdgeAppBarRegistration(
+                this._windowHandle,
+                this.OnAppBarPositionChanged,
+                this.OnShellRestarted,
+                this.OnFullScreenAppChanged);
+            this._isDocked = this._settingsService.GetEdgeWindowDocked(key.Display.Value, key.Side);
+            this._window.SetDockedState(this._isDocked);
             this.ConfigureWindow();
-            this.ConfigurePlacement(true);
+            if (!this.TryApplyDockedState())
+            {
+                this.ConfigurePlacement(true);
+            }
 
             this._window.CollapseRequested += this.OnCollapseRequested;
+            this._window.DockToggled += this.OnDockToggled;
             this._window.PointerInteractionStarted += this.OnPointerInteractionStarted;
             this._window.PointerInteractionEnded += this.OnPointerInteractionEnded;
             this._window.ExternalDragEntered += this.OnExternalDragEntered;
@@ -618,7 +638,10 @@ internal sealed partial class EdgeWindowController : IDisposable
             this._window.AppWindow.Closing += this.OnWindowClosing;
 
             this.LastInteraction = DateTimeOffset.UtcNow;
-            this._visiblePanelRect = this.GetPanelRect(false);
+            if (!this.IsDocked)
+            {
+                this._visiblePanelRect = this.GetPanelRect(false);
+            }
         }
 
         public EdgeHostKey Key { get; }
@@ -626,6 +649,8 @@ internal sealed partial class EdgeWindowController : IDisposable
         public DisplayKey DisplayKey => this.Key.Display;
 
         public bool IsExpanded { get; private set; }
+
+        public bool IsDocked => this._isDocked;
 
         public bool IsHintOnly => this._window.AppWindow.IsVisible && !this.IsExpanded && !this._isTargetExpanded;
 
@@ -646,6 +671,7 @@ internal sealed partial class EdgeWindowController : IDisposable
 
             this._isClosing = true;
             this._window.CollapseRequested -= this.OnCollapseRequested;
+            this._window.DockToggled -= this.OnDockToggled;
             this._window.PointerInteractionStarted -= this.OnPointerInteractionStarted;
             this._window.PointerInteractionEnded -= this.OnPointerInteractionEnded;
             this._window.ExternalDragEntered -= this.OnExternalDragEntered;
@@ -654,6 +680,7 @@ internal sealed partial class EdgeWindowController : IDisposable
             this._window.HorizontalDetailExpansionChanged -= this.OnHorizontalDetailExpansionChanged;
             this._window.Activated -= this.OnWindowActivated;
             this._window.AppWindow.Closing -= this.OnWindowClosing;
+            this._appBar.Dispose();
             this._window.Detach();
             this._window.Close();
         }
@@ -662,6 +689,13 @@ internal sealed partial class EdgeWindowController : IDisposable
 
         public void ShowHint(bool animate)
         {
+            if (this.IsDocked)
+            {
+                this._isDockTemporarilyHidden = false;
+                this.TryApplyDockedState();
+                return;
+            }
+
             if (this._isRevealSuppressed())
             {
                 this.Hide(false);
@@ -688,6 +722,13 @@ internal sealed partial class EdgeWindowController : IDisposable
 
         public void Reveal(bool activateWindow, bool manualOpen)
         {
+            if (this.IsDocked)
+            {
+                this._isDockTemporarilyHidden = false;
+                this.TryApplyDockedState();
+                return;
+            }
+
             if (this._isRevealSuppressed())
             {
                 this.Hide(false);
@@ -724,6 +765,11 @@ internal sealed partial class EdgeWindowController : IDisposable
 
         public void Hide(bool animate)
         {
+            if (this.IsDocked && !this._isRevealSuppressed())
+            {
+                return;
+            }
+
             if (!this._window.AppWindow.IsVisible)
             {
                 return;
@@ -756,6 +802,27 @@ internal sealed partial class EdgeWindowController : IDisposable
             }
         }
 
+        public void HideForUser(bool animate)
+        {
+            if (!this.IsDocked)
+            {
+                this.Hide(animate);
+                return;
+            }
+
+            this._isDockTemporarilyHidden = true;
+            this._appBar.Unregister();
+            this.RefreshDisplayArea();
+            this.ConfigurePlacement(true);
+            this.IsExpanded = false;
+            this._isTargetExpanded = false;
+            this.IsActualDragOver = false;
+            this.ManualOpenUntil = DateTimeOffset.MinValue;
+            this.SetClickThrough(true);
+            this._visiblePanelRect = this.GetPanelRect(false);
+            this._window.AppWindow.Hide();
+        }
+
         private void HideWindow()
         {
             this._window.ResetCommandNavigation();
@@ -764,6 +831,11 @@ internal sealed partial class EdgeWindowController : IDisposable
 
         public bool IsPointInActivationZone(NativePoint point, bool useHintBand)
         {
+            if (this.IsDocked && !this._isDockTemporarilyHidden)
+            {
+                return false;
+            }
+
             var band = useHintBand ? this._hintThickness : Math.Max(3, (int)Math.Round(4 * this._scale));
             var withinHorizontalSpan = point.X >= this._hostX && point.X < this._hostX + this._hostWidth;
             var withinVerticalSpan = point.Y >= this._hostY && point.Y < this._hostY + this._hostHeight;
@@ -794,8 +866,249 @@ internal sealed partial class EdgeWindowController : IDisposable
 
         public void UpdatePlacement()
         {
+            if (this.TryApplyDockedState())
+            {
+                return;
+            }
+
             this.ConfigurePlacement();
             this._visiblePanelRect = this.GetPanelRect(this._isTargetExpanded);
+        }
+
+        public void UpdateDisplayArea(RectInt32 outerBounds, RectInt32 workArea)
+        {
+            if (this._outerBounds.Equals(outerBounds) && this._workArea.Equals(workArea))
+            {
+                return;
+            }
+
+            this._outerBounds = outerBounds;
+            this._workArea = workArea;
+            this.UpdatePlacement();
+        }
+
+        public void SetRevealSuppressed(bool suppressed)
+        {
+            if (!this.IsDocked)
+            {
+                if (suppressed)
+                {
+                    this.Hide(false);
+                }
+
+                return;
+            }
+
+            if (suppressed)
+            {
+                this._appBar.Unregister();
+                this._window.AppWindow.Hide();
+                return;
+            }
+
+            this.TryApplyDockedState();
+        }
+
+        private bool TryApplyDockedState()
+        {
+            if (!this.IsDocked)
+            {
+                return false;
+            }
+
+            if (this._isRevealSuppressed())
+            {
+                this._appBar.Unregister();
+                this._window.AppWindow.Hide();
+                return true;
+            }
+
+            if (this._isDockTemporarilyHidden)
+            {
+                return true;
+            }
+
+            if (!this._appBar.Register())
+            {
+                this._isDocked = false;
+                this._window.SetDockedState(false);
+                this._settingsService.SetEdgeWindowDocked(this.Key.Display.Value, this.Key.Side, false);
+                this._window.ShowDockingError();
+                return false;
+            }
+
+            this.ConfigureDockedPlacement();
+            return true;
+        }
+
+        private void ConfigureDockedPlacement()
+        {
+            if (this._isClosing || !this._appBar.IsRegistered || this._isUpdatingAppBarPosition)
+            {
+                return;
+            }
+
+            this._isUpdatingAppBarPosition = true;
+            try
+            {
+                // Moving first makes GetDpiForWindow observe the target display before
+                // the shell negotiates the final AppBar rectangle.
+                var currentPosition = this._window.AppWindow.Position;
+                if (currentPosition.X < this._outerBounds.X ||
+                    currentPosition.X >= this._outerBounds.X + this._outerBounds.Width ||
+                    currentPosition.Y < this._outerBounds.Y ||
+                    currentPosition.Y >= this._outerBounds.Y + this._outerBounds.Height)
+                {
+                    this._window.AppWindow.Move(new PointInt32(this._outerBounds.X, this._outerBounds.Y));
+                }
+                var dpi = GetDpiForWindow(this._windowHandle);
+                this._scale = dpi == 0 ? 1 : dpi / 96d;
+                this._hintThickness = Math.Max(1, (int)Math.Round(EdgeWindow.HintThickness * this._scale));
+                var designThickness = this.Key.Side.IsVertical()
+                    ? DesignVerticalWidth
+                    : this._window.IsHorizontalDetailExpanded
+                        ? this._viewModel.HorizontalStackCardLayout.HorizontalPanelExpandedHeight
+                        : this._viewModel.HorizontalStackCardLayout.HorizontalPanelCollapsedHeight;
+                var maximumThickness = this.Key.Side.IsVertical()
+                    ? this._outerBounds.Width
+                    : this._outerBounds.Height;
+                var thickness = Math.Clamp(
+                    (int)Math.Round(designThickness * this._scale),
+                    this._hintThickness,
+                    Math.Max(this._hintThickness, maximumThickness));
+                var rectangle = this._appBar.UpdatePosition(this.Key.Side, this._outerBounds, thickness);
+                if (rectangle.Width <= 0 || rectangle.Height <= 0)
+                {
+                    return;
+                }
+
+                this._expandedInset = 0;
+                this._shadowMargin = 0;
+                this._hostX = rectangle.X;
+                this._hostY = rectangle.Y;
+                this._hostWidth = rectangle.Width;
+                this._hostHeight = rectangle.Height;
+                this._panelX = 0;
+                this._panelY = 0;
+                this._panelWidth = rectangle.Width;
+                this._panelHeight = rectangle.Height;
+                this._visiblePanelRect = new RectInt32(0, 0, rectangle.Width, rectangle.Height);
+                this.IsExpanded = true;
+                this._isTargetExpanded = true;
+                this.IsActualDragOver = false;
+                this.ManualOpenUntil = DateTimeOffset.MaxValue;
+                this.SetClickThrough(false);
+                this._window.ConfigurePanelSize(
+                    rectangle.Width / this._scale,
+                    rectangle.Height / this._scale,
+                    0,
+                    0,
+                    0);
+                this._window.SetRevealState(true, false);
+                if (!this._window.AppWindow.IsVisible)
+                {
+                    this._window.AppWindow.Show(false);
+                }
+
+                this.UpdateDockTopmostState();
+            }
+            finally
+            {
+                this._isUpdatingAppBarPosition = false;
+            }
+        }
+
+        private void SetDocked(bool docked)
+        {
+            if (this._isDocked == docked)
+            {
+                return;
+            }
+
+            this._isDocked = docked;
+            this._isDockTemporarilyHidden = false;
+            this._window.SetDockedState(docked);
+            if (docked)
+            {
+                if (!this.TryApplyDockedState())
+                {
+                    this.ConfigurePlacement(true);
+                }
+            }
+            else
+            {
+                this._appBar.Unregister();
+                this.RefreshDisplayArea();
+                this._isFullScreenAppOpen = false;
+                this.UpdateDockTopmostState();
+                this.ConfigurePlacement(true);
+                this.Hide(false);
+            }
+
+            this._settingsService.SetEdgeWindowDocked(
+                this.Key.Display.Value,
+                this.Key.Side,
+                this._isDocked);
+        }
+
+        private void RefreshDisplayArea()
+        {
+            var displayAreas = DisplayArea.FindAll();
+            DisplayArea? display = null;
+            for (var index = 0; index < displayAreas.Count; index++)
+            {
+                var candidate = displayAreas[index];
+                if (candidate.DisplayId.Value == this.Key.Display.Value)
+                {
+                    display = candidate;
+                    break;
+                }
+            }
+
+            if (display is null)
+            {
+                return;
+            }
+
+            this._outerBounds = display.OuterBounds;
+            this._workArea = display.WorkArea;
+        }
+
+        private void OnDockToggled(object? sender, EventArgs args) => this.SetDocked(!this.IsDocked);
+
+        private void OnAppBarPositionChanged()
+        {
+            if (this.IsDocked && !this._isDockTemporarilyHidden && !this._isRevealSuppressed())
+            {
+                this.ConfigureDockedPlacement();
+            }
+        }
+
+        private void OnShellRestarted()
+        {
+            if (this.IsDocked && !this._isDockTemporarilyHidden && !this._isRevealSuppressed())
+            {
+                this.TryApplyDockedState();
+            }
+        }
+
+        private void OnFullScreenAppChanged(bool fullScreenAppOpen)
+        {
+            this._isFullScreenAppOpen = fullScreenAppOpen;
+            this.UpdateDockTopmostState();
+        }
+
+        private void UpdateDockTopmostState()
+        {
+            if (this._window.AppWindow.Presenter is OverlappedPresenter presenter)
+            {
+                presenter.IsAlwaysOnTop = !this.IsDocked || !this._isFullScreenAppOpen;
+            }
+
+            if (this.IsDocked)
+            {
+                this._appBar.SetFullScreenState(this._isFullScreenAppOpen);
+            }
         }
 
         private void ConfigureWindow()
@@ -929,8 +1242,7 @@ internal sealed partial class EdgeWindowController : IDisposable
                 return;
             }
 
-            this.ConfigurePlacement();
-            this._visiblePanelRect = this.GetPanelRect(this._isTargetExpanded);
+            this.UpdatePlacement();
             this.NoteInteraction();
         }
 

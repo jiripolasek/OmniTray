@@ -34,6 +34,7 @@ internal sealed partial class WindowCoordinator
         MainViewModel viewModel,
         DropCommandCatalogViewModel dropCommandCatalog,
         DispatcherQueue dispatcherQueue,
+        AppSettingsService appSettingsService,
         Func<bool> isShakeToCreateTrayEnabled)
     {
         this._viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
@@ -42,6 +43,7 @@ internal sealed partial class WindowCoordinator
         this._edgeWindowController = new EdgeWindowController(
             this._viewModel,
             dispatcherQueue,
+            appSettingsService,
             isShakeToCreateTrayEnabled,
             this.OnShakeToCreateTray);
     }

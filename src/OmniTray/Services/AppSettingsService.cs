@@ -13,6 +13,7 @@ internal sealed class AppSettingsService
     private const string AllowMoveOnDragOutKey = "AllowMoveOnDragOut";
     private const string BottomEdgeWindowEnabledKey = "BottomEdgeWindowEnabled";
     private const string EdgeGameModeEnabledKey = "EdgeGameModeEnabled";
+    private const string EdgeWindowDockedKeyPrefix = "EdgeWindowDocked";
     private const string EdgeWindowsPausedKey = "EdgeWindowsPaused";
     private const string LeftEdgeWindowEnabledKey = "LeftEdgeWindowEnabled";
     private const string OpenInspectorOnHoverKey = "OpenInspectorOnHover";
@@ -115,6 +116,22 @@ internal sealed class AppSettingsService
     public void SetEdgeWindowAlignment(EdgeShelfSide side, EdgeWindowAlignment value) =>
         this._localSettings.Values[$"{side}EdgeWindowAlignment"] = (int)value;
 
+    public bool GetEdgeWindowDocked(ulong displayId, EdgeShelfSide side) =>
+        this.GetBoolean(GetEdgeWindowDockedKey(displayId, side), false);
+
+    public void SetEdgeWindowDocked(ulong displayId, EdgeShelfSide side, bool docked)
+    {
+        var key = GetEdgeWindowDockedKey(displayId, side);
+        if (docked)
+        {
+            this._localSettings.Values[key] = true;
+        }
+        else
+        {
+            this._localSettings.Values.Remove(key);
+        }
+    }
+
     public bool SyncLeftAndRightEdgeContent
     {
         get => this.GetBoolean(SyncLeftAndRightEdgeContentKey, false);
@@ -154,6 +171,9 @@ internal sealed class AppSettingsService
         this._localSettings.Values.TryGetValue(key, out var value) && value is bool enabled
             ? enabled
             : defaultValue;
+
+    private static string GetEdgeWindowDockedKey(ulong displayId, EdgeShelfSide side) =>
+        $"{EdgeWindowDockedKeyPrefix}.{displayId:X16}.{side}";
 
     private TEnum GetEnum<TEnum>(string key, TEnum defaultValue)
         where TEnum : struct, Enum =>
