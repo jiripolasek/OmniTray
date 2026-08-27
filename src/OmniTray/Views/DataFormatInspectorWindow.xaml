@@ -97,9 +97,7 @@
                 IsClosable="True"
                 IsOpen="False" />
 
-            <Grid
-                Grid.Row="2"
-                ColumnSpacing="12">
+            <Grid Grid.Row="2" ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
@@ -155,10 +153,22 @@
                             <ColumnDefinition Width="2.4*" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Style="{ThemeResource CaptionTextBlockStyle}" Text="#" />
-                        <TextBlock Grid.Column="1" Style="{ThemeResource CaptionTextBlockStyle}" Text="FORMAT ID" />
-                        <TextBlock Grid.Column="2" Style="{ThemeResource CaptionTextBlockStyle}" Text="KIND" />
-                        <TextBlock Grid.Column="3" Style="{ThemeResource CaptionTextBlockStyle}" Text="PAYLOAD" />
-                        <TextBlock Grid.Column="4" Style="{ThemeResource CaptionTextBlockStyle}" Text="DETAILS" />
+                        <TextBlock
+                            Grid.Column="1"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Text="FORMAT ID" />
+                        <TextBlock
+                            Grid.Column="2"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Text="KIND" />
+                        <TextBlock
+                            Grid.Column="3"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Text="PAYLOAD" />
+                        <TextBlock
+                            Grid.Column="4"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Text="DETAILS" />
                     </Grid>
                 </Border>
 
@@ -220,9 +230,7 @@
                         FontSize="40"
                         Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                         Glyph="&#xE8A5;" />
-                    <TextBlock
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="No formats to show" />
+                    <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="No formats to show" />
                 </StackPanel>
             </Grid>
         </Grid>

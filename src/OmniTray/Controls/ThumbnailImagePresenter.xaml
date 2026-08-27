@@ -1,0 +1,25 @@
+<UserControl
+    x:Class="OmniTray.Controls.ThumbnailImagePresenter"
+    x:Name="Root"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:OmniTray.Controls">
+    <Grid>
+        <Image
+            x:Name="StandardImage"
+            IsHitTestVisible="False"
+            Source="{x:Bind Source, Mode=OneWay}"
+            Stretch="{x:Bind Stretch, Mode=OneWay}" />
+        <Viewbox
+            x:Name="VideoThumbnail"
+            IsHitTestVisible="False"
+            Stretch="Uniform">
+            <Grid Width="190" Height="130">
+                <Image
+                    Source="{x:Bind Source, Mode=OneWay}"
+                    Stretch="UniformToFill" />
+                <local:VideoFilmstripOverlay />
+            </Grid>
+        </Viewbox>
+    </Grid>
+</UserControl>

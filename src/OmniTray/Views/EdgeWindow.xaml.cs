@@ -593,7 +593,9 @@ public sealed partial class EdgeWindow : TransparentWindow
     {
         try
         {
-            var items = await DragDropDataService.ReadAsync(Clipboard.GetContent());
+            var items = await DragDropDataService.ReadAsync(
+                Clipboard.GetContent(),
+                CaptureChannel.Clipboard);
             if (items.Count == 0)
             {
                 ShowStatus(

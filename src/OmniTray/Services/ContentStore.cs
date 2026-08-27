@@ -13,6 +13,9 @@ namespace OmniTray.Services;
 internal static class ContentStore
 {
     private const string ContentFolderName = "Content";
+    private const int MaxHtmlResourceCount = 16;
+    private const ulong MaxHtmlResourceBytes = 4UL * 1024 * 1024;
+    private const ulong MaxHtmlResourceTotalBytes = 16UL * 1024 * 1024;
 
     public static Task<DropItem> MaterializeTextAsync(string text) =>
         MaterializeTextAsync(text, null, null, null, null);
@@ -161,6 +164,95 @@ internal static class ContentStore
                 // Missing or externally cleaned materializations are already deleted.
             }
         }
+
+        await DeleteHtmlResourcesAsync(items.SelectMany(static item => item.HtmlResources));
+    }
+
+    public static async Task DeleteHtmlResourcesAsync(IEnumerable<DropItemHtmlResource> resources)
+    {
+        ArgumentNullException.ThrowIfNull(resources);
+
+        foreach (var resource in resources)
+        {
+            try
+            {
+                var file = await ApplicationData.Current.LocalFolder.GetFileAsync(resource.ManagedRelativePath);
+                await file.DeleteAsync(StorageDeleteOption.PermanentDelete);
+            }
+            catch
+            {
+                // Missing or externally cleaned HTML resources are already deleted.
+            }
+        }
+    }
+
+    public static async Task<IReadOnlyList<DropItemHtmlResource>> MaterializeHtmlResourcesAsync(
+        IReadOnlyDictionary<string, RandomAccessStreamReference> resourceMap)
+    {
+        ArgumentNullException.ThrowIfNull(resourceMap);
+
+        var resources = new List<DropItemHtmlResource>();
+        ulong totalBytes = 0;
+        foreach (var pair in resourceMap)
+        {
+            if (resources.Count >= MaxHtmlResourceCount)
+            {
+                break;
+            }
+
+            try
+            {
+                using var input = await pair.Value.OpenReadAsync();
+                if (input.Size > MaxHtmlResourceBytes ||
+                    input.Size > MaxHtmlResourceTotalBytes - totalBytes)
+                {
+                    continue;
+                }
+
+                var contentFolder = await GetContentFolderAsync();
+                var extension = GetSafeResourceExtension(pair.Key);
+                var file = await contentFolder.CreateFileAsync(
+                    $"html-resource-{Guid.NewGuid():N}{extension}",
+                    CreationCollisionOption.FailIfExists);
+                try
+                {
+                    using var output = await file.OpenAsync(FileAccessMode.ReadWrite);
+                    await RandomAccessStream.CopyAsync(
+                        input.GetInputStreamAt(0),
+                        output.GetOutputStreamAt(0));
+                    await output.FlushAsync();
+                }
+                catch
+                {
+                    await file.DeleteAsync(StorageDeleteOption.PermanentDelete);
+                    throw;
+                }
+
+                resources.Add(new DropItemHtmlResource
+                {
+                    ResourceKey = pair.Key,
+                    ManagedRelativePath = $"{ContentFolderName}\\{file.Name}",
+                    Size = input.Size
+                });
+                totalBytes += input.Size;
+            }
+            catch
+            {
+                // A missing or unsupported resource must not prevent capture of the HTML itself.
+            }
+        }
+
+        return resources;
+    }
+
+    public static Uri CreateHtmlResourceUri(DropItemHtmlResource resource)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        var segments = resource.ManagedRelativePath
+            .Replace('\\', '/')
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .Select(Uri.EscapeDataString);
+        return new Uri($"ms-appdata:///local/{string.Join("/", segments)}");
     }
 
     private static async Task<DropItem> MaterializeImageStreamAsync(
@@ -210,33 +302,35 @@ internal static class ContentStore
 
     private static async Task<DropItem> CopyItemAsync(DropItem item)
     {
+        DropItem copy;
         if (item.Kind == DropItemKind.Text)
         {
-            return (await MaterializeTextAsync(
-                    item.Text,
-                    item.Html,
-                    item.Rtf,
-                    item.SourceUrl,
-                    item.SourceApplicationName))
-                .WithCustomFormats(item.CustomFormats);
+            copy = await MaterializeTextAsync(
+                item.Text,
+                item.Html,
+                item.Rtf,
+                item.SourceUrl,
+                item.SourceApplicationName);
+            return await CompleteCopyAsync(item, copy);
         }
 
         if (item.Kind == DropItemKind.Uri)
         {
-            return DropItem.CreateUri(
-                    item.Url!,
-                    item.DisplayName,
-                    item.Text,
-                    item.Html,
-                    item.Rtf,
-                    item.SourceUrl,
-                    item.SourceApplicationName)
-                .WithCustomFormats(item.CustomFormats);
+            copy = DropItem.CreateUri(
+                item.Url!,
+                item.DisplayName,
+                item.Text,
+                item.Html,
+                item.Rtf,
+                item.SourceUrl,
+                item.SourceApplicationName,
+                item.ApplicationLink);
+            return await CompleteCopyAsync(item, copy);
         }
 
         if (!item.IsOwned)
         {
-            return (item.Kind switch
+            copy = item.Kind switch
             {
                 DropItemKind.Image => DropItem.CreateImage(
                     item.DisplayName,
@@ -246,7 +340,8 @@ internal static class ContentStore
                     item.Html,
                     item.Rtf,
                     item.SourceUrl,
-                    item.SourceApplicationName),
+                    item.SourceApplicationName,
+                    item.ApplicationLink),
                 DropItemKind.Folder => DropItem.CreateStorageItem(
                     item.DisplayName,
                     item.SourcePath,
@@ -255,7 +350,8 @@ internal static class ContentStore
                     item.Html,
                     item.Rtf,
                     item.SourceUrl,
-                    item.SourceApplicationName),
+                    item.SourceApplicationName,
+                    item.ApplicationLink),
                 _ => DropItem.CreateStorageItem(
                     item.DisplayName,
                     item.SourcePath,
@@ -264,37 +360,90 @@ internal static class ContentStore
                     item.Html,
                     item.Rtf,
                     item.SourceUrl,
-                    item.SourceApplicationName)
-            }).WithCustomFormats(item.CustomFormats);
+                    item.SourceApplicationName,
+                    item.ApplicationLink)
+            };
+            return await CompleteCopyAsync(item, copy);
         }
 
         var source = await StorageFile.GetFileFromPathAsync(item.SourcePath!);
         var contentFolder = await GetContentFolderAsync();
-        var copy = await source.CopyAsync(
+        var storageCopy = await source.CopyAsync(
             contentFolder,
             source.Name,
             NameCollisionOption.GenerateUniqueName);
-        return (item.Kind == DropItemKind.Image
+        copy = item.Kind == DropItemKind.Image
             ? DropItem.CreateImage(
                 item.DisplayName,
-                copy.Path,
+                storageCopy.Path,
                 true,
                 item.Text,
                 item.Html,
                 item.Rtf,
                 item.SourceUrl,
-                item.SourceApplicationName)
+                item.SourceApplicationName,
+                item.ApplicationLink)
             : DropItem.CreateStorageItem(
                 item.DisplayName,
-                copy.Path,
+                storageCopy.Path,
                 false,
                 true).WithRepresentations(
                 item.Text,
                 item.Html,
                 item.Rtf,
                 item.SourceUrl,
-                item.SourceApplicationName))
-            .WithCustomFormats(item.CustomFormats);
+                item.SourceApplicationName,
+                item.ApplicationLink);
+        return await CompleteCopyAsync(item, copy.WithMetadata(
+            backing: new ContentBacking
+            {
+                Kind = ContentBackingKind.ManagedSnapshot,
+                Path = copy.SourcePath
+            }));
+    }
+
+    private static async Task<DropItem> CompleteCopyAsync(DropItem source, DropItem copy)
+    {
+        var copiedResources = new List<DropItemHtmlResource>(source.HtmlResources.Count);
+        try
+        {
+            var contentFolder = await GetContentFolderAsync();
+            foreach (var resource in source.HtmlResources)
+            {
+                var original = await ApplicationData.Current.LocalFolder.GetFileAsync(resource.ManagedRelativePath);
+                var cloned = await original.CopyAsync(
+                    contentFolder,
+                    original.Name,
+                    NameCollisionOption.GenerateUniqueName);
+                copiedResources.Add(resource with
+                {
+                    ManagedRelativePath = $"{ContentFolderName}\\{cloned.Name}"
+                });
+            }
+
+            return copy
+                .WithCustomFormats(source.CustomFormats)
+                .WithMetadata(
+                    source.Provenance,
+                    source.Capture,
+                    copy.Backing,
+                    source.FileFacts,
+                    copiedResources);
+        }
+        catch
+        {
+            await DeleteOwnedAsync([copy.WithMetadata(htmlResources: copiedResources)]);
+            throw;
+        }
+    }
+
+    private static string GetSafeResourceExtension(string resourceKey)
+    {
+        var extension = Path.GetExtension(resourceKey);
+        return extension.Length is > 1 and <= 12 &&
+               extension.Skip(1).All(static character => char.IsAsciiLetterOrDigit(character))
+            ? extension.ToLowerInvariant()
+            : ".bin";
     }
 
     private static Task<StorageFolder> GetContentFolderAsync() =>

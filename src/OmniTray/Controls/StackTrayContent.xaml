@@ -2,6 +2,7 @@
     x:Class="OmniTray.Controls.StackTrayContent"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:OmniTray.Controls"
     xmlns:primitives="using:Microsoft.UI.Xaml.Controls.Primitives">
     <Grid
         x:Name="RootGrid"
@@ -26,76 +27,71 @@
                 PointerEntered="OnInspectorHoverPointerEntered"
                 PointerExited="OnInspectorHoverPointerExited"
                 PointerPressed="OnInspectorHoverPointerPressed">
-                <Border
+                <controls:StackThumbnailPresenter
                     Width="96"
                     Height="72"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
-                    BorderThickness="1"
-                    CornerRadius="7"
-                    Opacity="0.58"
-                    Visibility="{x:Bind ViewModel.ThirdLayerVisibility, Mode=OneWay}">
-                    <Border.RenderTransform>
-                        <CompositeTransform
-                            CenterX="48"
-                            CenterY="36"
-                            Rotation="12"
-                            TranslateY="7" />
-                    </Border.RenderTransform>
-                    <Image
-                        Source="{x:Bind ViewModel.ThirdPreviewThumbnailSource, Mode=OneWay}"
-                        Stretch="UniformToFill"
-                        Visibility="{x:Bind ViewModel.ThirdPreviewThumbnailVisibility, Mode=OneWay}" />
-                </Border>
+                    FrameBackground="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    FrameBorderBrush="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
+                    FrameBorderThickness="{x:Bind ViewModel.ThirdPreviewThumbnailBorderThickness, Mode=OneWay}"
+                    FrameCenterX="48"
+                    FrameCenterY="36"
+                    FrameCornerRadius="7"
+                    FrameOpacity="0.58"
+                    FrameRotation="12"
+                    FrameTranslateY="7"
+                    HasVideoFilmstrip="{x:Bind ViewModel.ThirdPreviewThumbnailHasVideoFilmstrip, Mode=OneWay}"
+                    IconOffsetX="0"
+                    IconOffsetY="-18"
+                    IconSize="64"
+                    IsShellIcon="{x:Bind ViewModel.ThirdPreviewThumbnailIsShellIcon, Mode=OneWay}"
+                    Source="{x:Bind ViewModel.ThirdPreviewThumbnailSource, Mode=OneWay}"
+                    Visibility="{x:Bind ViewModel.ThirdLayerVisibility, Mode=OneWay}" />
 
-                <Border
+                <controls:StackThumbnailPresenter
                     Width="104"
                     Height="78"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
-                    Background="{ThemeResource LayerFillColorDefaultBrush}"
-                    BorderBrush="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
-                    BorderThickness="1"
-                    CornerRadius="7"
-                    Opacity="0.78"
-                    Visibility="{x:Bind ViewModel.SecondLayerVisibility, Mode=OneWay}">
-                    <Border.RenderTransform>
-                        <CompositeTransform
-                            CenterX="52"
-                            CenterY="39"
-                            Rotation="-9"
-                            TranslateY="3" />
-                    </Border.RenderTransform>
-                    <Image
-                        Source="{x:Bind ViewModel.SecondPreviewThumbnailSource, Mode=OneWay}"
-                        Stretch="UniformToFill"
-                        Visibility="{x:Bind ViewModel.SecondPreviewThumbnailVisibility, Mode=OneWay}" />
-                </Border>
+                    FrameBackground="{ThemeResource LayerFillColorDefaultBrush}"
+                    FrameBorderBrush="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
+                    FrameBorderThickness="{x:Bind ViewModel.SecondPreviewThumbnailBorderThickness, Mode=OneWay}"
+                    FrameCenterX="52"
+                    FrameCenterY="39"
+                    FrameCornerRadius="7"
+                    FrameOpacity="0.78"
+                    FrameRotation="-9"
+                    FrameTranslateY="3"
+                    HasVideoFilmstrip="{x:Bind ViewModel.SecondPreviewThumbnailHasVideoFilmstrip, Mode=OneWay}"
+                    IconOffsetX="-24"
+                    IconOffsetY="-10"
+                    IconSize="64"
+                    IsShellIcon="{x:Bind ViewModel.SecondPreviewThumbnailIsShellIcon, Mode=OneWay}"
+                    Source="{x:Bind ViewModel.SecondPreviewThumbnailSource, Mode=OneWay}"
+                    Visibility="{x:Bind ViewModel.SecondLayerVisibility, Mode=OneWay}" />
 
-                <Border
+                <controls:StackThumbnailPresenter
                     Width="112"
                     Height="84"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
-                    BorderThickness="1"
-                    CornerRadius="8">
-                    <Grid>
-                        <Image
-                            AutomationProperties.Name="Stack image preview"
-                            Source="{x:Bind ViewModel.PreviewThumbnailSource, Mode=OneWay}"
-                            Stretch="UniformToFill"
-                            Visibility="{x:Bind ViewModel.PreviewThumbnailVisibility, Mode=OneWay}" />
-                        <FontIcon
-                            FontSize="34"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Glyph="{x:Bind ViewModel.LeadingGlyph, Mode=OneWay}"
-                            Visibility="{x:Bind ViewModel.PreviewGlyphVisibility, Mode=OneWay}" />
-                    </Grid>
-                </Border>
+                    FrameBackground="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    FrameBorderBrush="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
+                    FrameBorderThickness="{x:Bind ViewModel.PreviewThumbnailBorderThickness, Mode=OneWay}"
+                    FrameCornerRadius="8"
+                    HasVideoFilmstrip="{x:Bind ViewModel.PreviewThumbnailHasVideoFilmstrip, Mode=OneWay}"
+                    IconOffsetX="22"
+                    IconOffsetY="10"
+                    IconSize="64"
+                    IsShellIcon="{x:Bind ViewModel.PreviewThumbnailIsShellIcon, Mode=OneWay}"
+                    Source="{x:Bind ViewModel.PreviewThumbnailSource, Mode=OneWay}"
+                    Visibility="{x:Bind ViewModel.PreviewThumbnailVisibility, Mode=OneWay}" />
+                <FontIcon
+                    FontSize="34"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Glyph="{x:Bind ViewModel.LeadingGlyph, Mode=OneWay}"
+                    Visibility="{x:Bind ViewModel.PreviewGlyphVisibility, Mode=OneWay}" />
 
                 <Border
                     Height="24"
@@ -140,11 +136,11 @@
             PointerPressed="OnInspectorHoverPointerPressed"
             ToolTipService.ToolTip="{x:Bind ViewModel.Name, Mode=OneWay}"
             Visibility="Collapsed">
-            <Image
+            <controls:ThumbnailImagePresenter
                 AutomationProperties.Name="Stack image preview"
-                IsHitTestVisible="False"
+                HasVideoFilmstrip="{x:Bind ViewModel.PreviewThumbnailHasVideoFilmstrip, Mode=OneWay}"
                 Source="{x:Bind ViewModel.PreviewThumbnailSource, Mode=OneWay}"
-                Stretch="UniformToFill"
+                Stretch="{x:Bind ViewModel.PreviewThumbnailStretch, Mode=OneWay}"
                 Visibility="{x:Bind ViewModel.PreviewThumbnailVisibility, Mode=OneWay}" />
             <FontIcon
                 FontSize="26"

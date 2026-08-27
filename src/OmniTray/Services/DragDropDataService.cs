@@ -51,6 +51,7 @@ internal static class DragDropDataService
           dataView.Contains(StandardDataFormats.Text) ||
           dataView.Contains(StandardDataFormats.Html) ||
           dataView.Contains(StandardDataFormats.Rtf) ||
+          dataView.Contains(StandardDataFormats.Uri) ||
           dataView.Contains(StandardDataFormats.WebLink) ||
           dataView.Contains(StandardDataFormats.ApplicationLink)));
 
@@ -116,7 +117,9 @@ internal static class DragDropDataService
             : new ItemDragReference(sourceStackId, itemIds);
     }
 
-    public static async Task<IReadOnlyList<DropItem>> ReadAsync(DataPackageView dataView)
+    public static async Task<IReadOnlyList<DropItem>> ReadAsync(
+        DataPackageView dataView,
+        CaptureChannel channel = CaptureChannel.Drag)
     {
         if (HasStackReference(dataView) || HasItemReference(dataView))
         {
@@ -126,17 +129,32 @@ internal static class DragDropDataService
             return [];
         }
 
-        var representations = await ReadRepresentationsAsync(dataView);
+        var representations = await ReadRepresentationsAsync(dataView, channel);
 
         if (dataView.Contains(StandardDataFormats.StorageItems))
         {
-            var storageItems = await dataView.GetStorageItemsAsync();
-            var capturedItems = await ReadStorageItemsAsync(storageItems, representations);
-            if (capturedItems.Count > 0)
+            try
             {
-                return AttachCustomFormats(
-                    DropImportDeduplication.FilterNewItems([], capturedItems),
-                    representations);
+                var storageItems = await dataView.GetStorageItemsAsync();
+                representations.Inventory.MarkSucceeded(
+                    StandardDataFormats.StorageItems,
+                    $"{storageItems.Count:N0} storage item{(storageItems.Count == 1 ? string.Empty : "s")}");
+                var capturedItems = await ReadStorageItemsAsync(storageItems, representations);
+                if (capturedItems.Count > 0)
+                {
+                    var filteredItems = DropImportDeduplication.FilterNewItems([], capturedItems);
+                    if (filteredItems.Count != 1 && representations.HtmlResources.Count > 0)
+                    {
+                        await ContentStore.DeleteHtmlResourcesAsync(representations.HtmlResources);
+                        representations = representations with { HtmlResources = [] };
+                    }
+
+                    return AttachCustomFormats(filteredItems, representations);
+                }
+            }
+            catch (Exception exception)
+            {
+                representations.Inventory.MarkFailed(StandardDataFormats.StorageItems, exception);
             }
         }
 
@@ -155,18 +173,26 @@ internal static class DragDropDataService
 
         if (dataView.Contains(StandardDataFormats.Bitmap))
         {
-            var bitmapReference = await dataView.GetBitmapAsync();
-            return AttachCustomFormats(
-            [
-                await ContentStore.MaterializeBitmapAsync(
-                    bitmapReference,
-                    "Dropped image",
-                    representations.Text,
-                    representations.Html,
-                    representations.Rtf,
-                    representations.SourceUrl,
-                    representations.SourceApplicationName)
-            ], representations);
+            try
+            {
+                var bitmapReference = await dataView.GetBitmapAsync();
+                representations.Inventory.MarkSucceeded(StandardDataFormats.Bitmap, "Bitmap stream reference");
+                return AttachCustomFormats(
+                [
+                    await ContentStore.MaterializeBitmapAsync(
+                        bitmapReference,
+                        "Dropped image",
+                        representations.Text,
+                        representations.Html,
+                        representations.Rtf,
+                        representations.SourceUrl,
+                        representations.SourceApplicationName)
+                ], representations);
+            }
+            catch (Exception exception)
+            {
+                representations.Inventory.MarkFailed(StandardDataFormats.Bitmap, exception);
+            }
         }
 
         if (representations.WebLink is { } webLink)
@@ -232,6 +258,11 @@ internal static class DragDropDataService
                     representations.SourceUrl,
                     representations.SourceApplicationName)
             ], representations);
+        }
+
+        if (representations.HtmlResources.Count > 0)
+        {
+            await ContentStore.DeleteHtmlResourcesAsync(representations.HtmlResources);
         }
 
         return [];
@@ -304,6 +335,55 @@ internal static class DragDropDataService
         if (ContentDetection.TryNormalizeWebUrl(exportPlan.SourceUrl, out var sourceUrl))
         {
             data.Properties.ContentSourceWebLink = new Uri(sourceUrl);
+        }
+
+        if (!string.IsNullOrWhiteSpace(exportPlan.SourceApplicationName))
+        {
+            try
+            {
+                data.Properties.ApplicationName = exportPlan.SourceApplicationName;
+            }
+            catch
+            {
+                // Invalid attribution metadata must not break the reusable payload.
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(exportPlan.SourcePackageFamilyName))
+        {
+            try
+            {
+                data.Properties.PackageFamilyName = exportPlan.SourcePackageFamilyName;
+            }
+            catch
+            {
+                // Invalid attribution metadata must not break the reusable payload.
+            }
+        }
+
+        if (Uri.TryCreate(exportPlan.SourceApplicationLink, UriKind.Absolute, out var sourceApplicationLink))
+        {
+            try
+            {
+                data.Properties.ContentSourceApplicationLink = sourceApplicationLink;
+            }
+            catch
+            {
+                // Invalid attribution metadata must not break the reusable payload.
+            }
+        }
+
+        foreach (var resource in exportPlan.HtmlResources)
+        {
+            try
+            {
+                data.ResourceMap[resource.ResourceKey] = RandomAccessStreamReference.CreateFromUri(
+                    ContentStore.CreateHtmlResourceUri(resource));
+            }
+            catch
+            {
+                // A missing managed resource must not break the remaining representations.
+            }
         }
 
         foreach (var format in exportPlan.CustomFormats)
@@ -440,17 +520,39 @@ internal static class DragDropDataService
         IReadOnlyList<DropItem> items,
         CapturedRepresentations representations)
     {
-        var enrichedItems = representations.ApplicationLink is null
-            ? items
-            : items.Select(item => item.WithRepresentations(
-                    applicationLink: representations.ApplicationLink.AbsoluteUri))
-                .ToArray();
-        if (enrichedItems.Count != 1 || representations.CustomFormats.Count == 0)
+        var provenance = new ContentProvenance
         {
-            return enrichedItems;
-        }
+            ApplicationName = representations.SourceApplicationName,
+            PackageFamilyName = representations.SourcePackageFamilyName,
+            SourceWebLink = representations.SourceUrl,
+            SourceApplicationLink = representations.SourceApplicationLink
+        };
+        var inventory = representations.Inventory.CreateSnapshot();
+        var enrichedItems = items.Select((item, ordinal) =>
+        {
+            var enriched = representations.ApplicationLink is null
+                ? item
+                : item.WithRepresentations(
+                    applicationLink: representations.ApplicationLink.AbsoluteUri);
+            if (items.Count == 1 && representations.CustomFormats.Count > 0)
+            {
+                enriched = enriched.WithCustomFormats(representations.CustomFormats);
+            }
 
-        return [enrichedItems[0].WithCustomFormats(representations.CustomFormats)];
+            return enriched.WithMetadata(
+                provenance,
+                new DropCaptureMetadata
+                {
+                    CaptureId = representations.CaptureId,
+                    Channel = representations.Channel,
+                    CapturedAt = representations.CapturedAt,
+                    Ordinal = ordinal,
+                    RequestedOperation = representations.RequestedOperation,
+                    Formats = inventory
+                },
+                htmlResources: items.Count == 1 ? representations.HtmlResources : []);
+        }).ToArray();
+        return enrichedItems;
     }
 
     private static async Task<IReadOnlyList<DropItem>> ReadStorageItemsAsync(
@@ -500,10 +602,11 @@ internal static class DragDropDataService
             return null;
         }
 
-        var isImage = file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
+        var fileFacts = await ReadFileFactsAsync(file);
+        var isImage = fileFacts.ContentType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == true;
         if (!string.IsNullOrWhiteSpace(file.Path))
         {
-            return isImage
+            var captured = isImage
                 ? DropItem.CreateImage(
                     file.Name,
                     file.Path,
@@ -519,9 +622,10 @@ internal static class DragDropDataService
                     representations.Rtf,
                     representations.SourceUrl,
                     representations.SourceApplicationName);
+            return captured.WithMetadata(fileFacts: fileFacts);
         }
 
-        return isImage
+        var materialized = isImage
             ? await ContentStore.MaterializeImageFileAsync(
                 file,
                 representations.Text,
@@ -536,24 +640,62 @@ internal static class DragDropDataService
                 representations.Rtf,
                 representations.SourceUrl,
                 representations.SourceApplicationName);
+        return materialized.WithMetadata(
+            backing: new ContentBacking
+            {
+                Kind = ContentBackingKind.VirtualFileMaterialization,
+                Path = materialized.SourcePath
+            },
+            fileFacts: fileFacts);
     }
 
-    private static async Task<CapturedRepresentations> ReadRepresentationsAsync(DataPackageView dataView)
+    private static async Task<DropFileFacts> ReadFileFactsAsync(StorageFile file)
     {
+        var fileFacts = new DropFileFacts
+        {
+            OriginalFileName = file.Name
+        };
+        try
+        {
+            fileFacts = fileFacts with { ContentType = NormalizeOptional(file.ContentType) };
+            var properties = await file.GetBasicPropertiesAsync();
+            return fileFacts with
+            {
+                Size = properties.Size,
+                ModifiedAt = properties.DateModified
+            };
+        }
+        catch
+        {
+            // File facts are optional metadata. An unavailable provider must not reject the file.
+            return fileFacts;
+        }
+    }
+
+    private static async Task<CapturedRepresentations> ReadRepresentationsAsync(
+        DataPackageView dataView,
+        CaptureChannel channel)
+    {
+        var inventory = new FormatInventoryBuilder(dataView.AvailableFormats);
+        var captureId = Guid.NewGuid();
+        var capturedAt = DateTimeOffset.UtcNow;
         string? text = null;
         string? html = null;
         string? rtf = null;
         Uri? webLink = null;
         Uri? applicationLink = null;
+        IReadOnlyList<DropItemHtmlResource> htmlResources = [];
 
         if (dataView.Contains(StandardDataFormats.Text))
         {
             try
             {
                 text = await dataView.GetTextAsync();
+                inventory.MarkSucceeded(StandardDataFormats.Text, $"{text.Length:N0} characters");
             }
-            catch
+            catch (Exception exception)
             {
+                inventory.MarkFailed(StandardDataFormats.Text, exception);
                 // Another advertised representation can still be captured.
             }
         }
@@ -563,10 +705,31 @@ internal static class DragDropDataService
             try
             {
                 html = await dataView.GetHtmlFormatAsync();
+                inventory.MarkSucceeded(StandardDataFormats.Html, $"{html.Length:N0} characters");
             }
-            catch
+            catch (Exception exception)
             {
+                inventory.MarkFailed(StandardDataFormats.Html, exception);
                 // Another advertised representation can still be captured.
+            }
+
+            if (html is not null)
+            {
+                try
+                {
+                    var resourceMap = await dataView.GetResourceMapAsync();
+                    htmlResources = await ContentStore.MaterializeHtmlResourcesAsync(resourceMap);
+                    if (resourceMap.Count > 0)
+                    {
+                        inventory.MarkSucceeded(
+                            StandardDataFormats.Html,
+                            $"{html.Length:N0} characters · {htmlResources.Count:N0}/{resourceMap.Count:N0} resources saved");
+                    }
+                }
+                catch
+                {
+                    // The HTML representation remains useful without its optional resource map.
+                }
             }
         }
 
@@ -575,9 +738,11 @@ internal static class DragDropDataService
             try
             {
                 rtf = await dataView.GetRtfAsync();
+                inventory.MarkSucceeded(StandardDataFormats.Rtf, $"{rtf.Length:N0} characters");
             }
-            catch
+            catch (Exception exception)
             {
+                inventory.MarkFailed(StandardDataFormats.Rtf, exception);
                 // Another advertised representation can still be captured.
             }
         }
@@ -587,9 +752,11 @@ internal static class DragDropDataService
             try
             {
                 webLink = await dataView.GetWebLinkAsync();
+                inventory.MarkSucceeded(StandardDataFormats.WebLink, webLink.AbsoluteUri);
             }
-            catch
+            catch (Exception exception)
             {
+                inventory.MarkFailed(StandardDataFormats.WebLink, exception);
                 // Text detection remains available when a link provider fails.
             }
         }
@@ -599,17 +766,63 @@ internal static class DragDropDataService
             try
             {
                 applicationLink = await dataView.GetApplicationLinkAsync();
+                inventory.MarkSucceeded(StandardDataFormats.ApplicationLink, applicationLink.AbsoluteUri);
             }
-            catch
+            catch (Exception exception)
             {
+                inventory.MarkFailed(StandardDataFormats.ApplicationLink, exception);
                 // Another advertised representation can still be captured.
+            }
+        }
+
+        if (dataView.Contains(StandardDataFormats.Uri))
+        {
+            try
+            {
+                var value = await dataView.GetDataAsync(StandardDataFormats.Uri);
+                var legacyUri = value switch
+                {
+                    Uri uri => uri,
+                    string uriText when Uri.TryCreate(uriText, UriKind.Absolute, out var uri) => uri,
+                    _ => throw new InvalidOperationException("The URI format did not contain a URI value.")
+                };
+                inventory.MarkSucceeded(StandardDataFormats.Uri, legacyUri.AbsoluteUri);
+                if (webLink is null &&
+                    ContentDetection.TryNormalizeWebUrl(legacyUri.AbsoluteUri, out var normalizedWebLink))
+                {
+                    webLink = new Uri(normalizedWebLink);
+                }
+                else if (applicationLink is null &&
+                         ContentDetection.TryNormalizeApplicationLink(
+                             legacyUri.AbsoluteUri,
+                             out var normalizedApplicationLink))
+                {
+                    applicationLink = new Uri(normalizedApplicationLink);
+                }
+            }
+            catch (Exception exception)
+            {
+                inventory.MarkFailed(StandardDataFormats.Uri, exception);
+                // Modern link formats and text/HTML detection remain available.
+            }
+        }
+
+        if (applicationLink is null)
+        {
+            var detectedApplicationLink =
+                ContentDetection.TryNormalizeApplicationLink(text, out var textApplicationLink)
+                    ? textApplicationLink
+                    : ContentDetection.ExtractApplicationLinkFromHtml(html);
+            if (detectedApplicationLink is not null)
+            {
+                applicationLink = new Uri(detectedApplicationLink);
             }
         }
 
         var sourceUrl = dataView.Properties.ContentSourceWebLink?.AbsoluteUri ??
                         ContentDetection.ExtractSourceUrlFromHtml(html) ??
                         webLink?.AbsoluteUri;
-        var customFormats = await ReadCustomFormatsAsync(dataView);
+        var customFormats = await ReadCustomFormatsAsync(dataView, inventory);
         return new CapturedRepresentations(
             NormalizeOptional(text),
             NormalizeOptional(html),
@@ -618,11 +831,20 @@ internal static class DragDropDataService
             applicationLink,
             sourceUrl,
             NormalizeOptional(dataView.Properties.ApplicationName),
-            customFormats);
+            NormalizeOptional(dataView.Properties.PackageFamilyName),
+            dataView.Properties.ContentSourceApplicationLink?.AbsoluteUri,
+            customFormats,
+            htmlResources,
+            captureId,
+            channel,
+            capturedAt,
+            ConvertRequestedOperation(dataView.RequestedOperation),
+            inventory);
     }
 
     private static async Task<IReadOnlyList<DropItemDataFormat>> ReadCustomFormatsAsync(
-        DataPackageView dataView)
+        DataPackageView dataView,
+        FormatInventoryBuilder inventory)
     {
         var formats = new List<DropItemDataFormat>();
         var capturedFormatIds = new HashSet<string>(StringComparer.Ordinal);
@@ -634,6 +856,12 @@ internal static class DragDropDataService
                 IsPrivateFormat(formatId) ||
                 !capturedFormatIds.Add(formatId))
             {
+                if (formats.Count >= MaxCustomFormatCount &&
+                    !IsStandardFormat(formatId) &&
+                    !IsPrivateFormat(formatId))
+                {
+                    inventory.MarkSkipped(formatId, "Custom-format count limit reached");
+                }
                 continue;
             }
 
@@ -648,11 +876,13 @@ internal static class DragDropDataService
                         if (byteCount > MaxCustomFormatBytes ||
                             byteCount > MaxCustomFormatTotalBytes - totalBytes)
                         {
+                            inventory.MarkSkipped(formatId, "Custom-format size limit exceeded");
                             continue;
                         }
 
                         formats.Add(DropItemDataFormat.CreateText(formatId, text));
                         totalBytes += byteCount;
+                        inventory.MarkSucceeded(formatId, $"{byteCount:N0} UTF-8 bytes");
                         break;
                     }
                     case IRandomAccessStreamReference streamReference:
@@ -661,11 +891,13 @@ internal static class DragDropDataService
                         if (await ReadCustomFormatBytesAsync(stream, MaxCustomFormatTotalBytes - totalBytes)
                             is not { } bytes)
                         {
+                            inventory.MarkSkipped(formatId, "Custom-format size limit exceeded");
                             continue;
                         }
 
                         formats.Add(DropItemDataFormat.CreateBinary(formatId, bytes));
                         totalBytes += (ulong)bytes.Length;
+                        inventory.MarkSucceeded(formatId, $"{bytes.Length:N0} bytes");
                         break;
                     }
                     case IRandomAccessStream stream:
@@ -673,11 +905,13 @@ internal static class DragDropDataService
                         if (await ReadCustomFormatBytesAsync(stream, MaxCustomFormatTotalBytes - totalBytes)
                             is not { } bytes)
                         {
+                            inventory.MarkSkipped(formatId, "Custom-format size limit exceeded");
                             continue;
                         }
 
                         formats.Add(DropItemDataFormat.CreateBinary(formatId, bytes));
                         totalBytes += (ulong)bytes.Length;
+                        inventory.MarkSucceeded(formatId, $"{bytes.Length:N0} bytes");
                         break;
                     }
                     case IBuffer buffer:
@@ -685,6 +919,7 @@ internal static class DragDropDataService
                         if (buffer.Length > MaxCustomFormatBytes ||
                             buffer.Length > MaxCustomFormatTotalBytes - totalBytes)
                         {
+                            inventory.MarkSkipped(formatId, "Custom-format size limit exceeded");
                             continue;
                         }
 
@@ -693,12 +928,19 @@ internal static class DragDropDataService
                         reader.ReadBytes(bytes);
                         formats.Add(DropItemDataFormat.CreateBinary(formatId, bytes));
                         totalBytes += buffer.Length;
+                        inventory.MarkSucceeded(formatId, $"{buffer.Length:N0} bytes");
                         break;
                     }
+                    default:
+                        inventory.MarkSkipped(
+                            formatId,
+                            value is null ? "Provider returned null" : value.GetType().Name);
+                        break;
                 }
             }
-            catch
+            catch (Exception exception)
             {
+                inventory.MarkFailed(formatId, exception);
                 // OLE formats that require a different TYMED remain visible in the inspector,
                 // but cannot be safely projected into a reusable WinRT value here.
             }
@@ -734,6 +976,9 @@ internal static class DragDropDataService
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value;
+
+    private static CaptureRequestedOperation ConvertRequestedOperation(DataPackageOperation operation) =>
+        (CaptureRequestedOperation)(int)operation;
 
     private static async void ProvideStorageItems(DataProviderRequest request, IReadOnlyList<DropItem> items)
     {
@@ -820,7 +1065,15 @@ internal sealed record CapturedRepresentations(
     Uri? ApplicationLink,
     string? SourceUrl,
     string? SourceApplicationName,
-    IReadOnlyList<DropItemDataFormat> CustomFormats)
+    string? SourcePackageFamilyName,
+    string? SourceApplicationLink,
+    IReadOnlyList<DropItemDataFormat> CustomFormats,
+    IReadOnlyList<DropItemHtmlResource> HtmlResources,
+    Guid CaptureId,
+    CaptureChannel Channel,
+    DateTimeOffset CapturedAt,
+    CaptureRequestedOperation RequestedOperation,
+    FormatInventoryBuilder Inventory)
 {
     public bool HasTextContent =>
         !string.IsNullOrWhiteSpace(this.Text) ||
@@ -835,5 +1088,66 @@ internal sealed record CapturedRepresentations(
         this.ApplicationLink,
         this.SourceUrl,
         this.SourceApplicationName,
-        []);
+        this.SourcePackageFamilyName,
+        this.SourceApplicationLink,
+        [],
+        [],
+        this.CaptureId,
+        this.Channel,
+        this.CapturedAt,
+        this.RequestedOperation,
+        this.Inventory);
+}
+
+internal sealed class FormatInventoryBuilder
+{
+    private readonly List<DataFormatInventoryEntry> _entries;
+
+    public FormatInventoryBuilder(IEnumerable<string> formatIds)
+    {
+        this._entries = formatIds
+            .Where(static formatId => !string.IsNullOrWhiteSpace(formatId))
+            .Distinct(StringComparer.Ordinal)
+            .Select(static formatId => new DataFormatInventoryEntry
+            {
+                FormatId = formatId,
+                Status = DataFormatReadStatus.Advertised
+            })
+            .ToList();
+    }
+
+    public void MarkSucceeded(string formatId, string? detail = null) =>
+        this.Set(formatId, DataFormatReadStatus.Succeeded, detail);
+
+    public void MarkFailed(string formatId, Exception exception) =>
+        this.Set(
+            formatId,
+            DataFormatReadStatus.Failed,
+            $"{exception.GetType().Name} (0x{exception.HResult:X8}): {exception.Message}");
+
+    public void MarkSkipped(string formatId, string detail) =>
+        this.Set(formatId, DataFormatReadStatus.Skipped, detail);
+
+    public IReadOnlyList<DataFormatInventoryEntry> CreateSnapshot() =>
+        this._entries.ToArray();
+
+    private void Set(string formatId, DataFormatReadStatus status, string? detail)
+    {
+        var index = this._entries.FindIndex(entry =>
+            string.Equals(entry.FormatId, formatId, StringComparison.Ordinal));
+        var entry = new DataFormatInventoryEntry
+        {
+            FormatId = formatId,
+            Status = status,
+            Detail = string.IsNullOrWhiteSpace(detail) ? null : detail.Trim()
+        };
+        if (index < 0)
+        {
+            this._entries.Add(entry);
+        }
+        else
+        {
+            this._entries[index] = entry;
+        }
+    }
 }

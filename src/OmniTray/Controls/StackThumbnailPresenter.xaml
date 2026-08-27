@@ -1,0 +1,42 @@
+<UserControl
+    x:Class="OmniTray.Controls.StackThumbnailPresenter"
+    x:Name="Root"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:OmniTray.Controls">
+    <Grid>
+        <Border
+            x:Name="ThumbnailFrame"
+            Background="{x:Bind FrameBackground, Mode=OneWay}"
+            BorderBrush="{x:Bind FrameBorderBrush, Mode=OneWay}"
+            BorderThickness="{x:Bind FrameBorderThickness, Mode=OneWay}"
+            CornerRadius="{x:Bind FrameCornerRadius, Mode=OneWay}"
+            Opacity="{x:Bind FrameOpacity, Mode=OneWay}">
+            <Border.RenderTransform>
+                <CompositeTransform
+                    CenterX="{x:Bind FrameCenterX, Mode=OneWay}"
+                    CenterY="{x:Bind FrameCenterY, Mode=OneWay}"
+                    Rotation="{x:Bind FrameRotation, Mode=OneWay}"
+                    TranslateY="{x:Bind FrameTranslateY, Mode=OneWay}" />
+            </Border.RenderTransform>
+            <local:ThumbnailImagePresenter
+                HasVideoFilmstrip="{x:Bind HasVideoFilmstrip, Mode=OneWay}"
+                Source="{x:Bind Source, Mode=OneWay}"
+                Stretch="UniformToFill" />
+        </Border>
+        <Image
+            x:Name="ShellIcon"
+            Width="{x:Bind IconSize, Mode=OneWay}"
+            Height="{x:Bind IconSize, Mode=OneWay}"
+            IsHitTestVisible="False"
+            RenderTransformOrigin="0.5,0.5"
+            Source="{x:Bind Source, Mode=OneWay}"
+            Stretch="Uniform">
+            <Image.RenderTransform>
+                <CompositeTransform
+                    TranslateX="{x:Bind IconOffsetX, Mode=OneWay}"
+                    TranslateY="{x:Bind IconOffsetY, Mode=OneWay}" />
+            </Image.RenderTransform>
+        </Image>
+    </Grid>
+</UserControl>

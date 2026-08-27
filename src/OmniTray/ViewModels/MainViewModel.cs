@@ -7,13 +7,10 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
-using Windows.Storage;
-using Windows.Storage.FileProperties;
 using Windows.UI;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace OmniTray.ViewModels;
 
@@ -1081,6 +1078,8 @@ public sealed class DropStackViewModel : ObservableObject
 
     public ImageSource? PreviewThumbnailSource => this.GetPreviewThumbnail(0);
 
+    public Thickness PreviewThumbnailBorderThickness => this.GetPreviewBorderThickness(0);
+
     public Visibility PreviewThumbnailVisibility =>
         this.PreviewThumbnailSource is null
             ? Visibility.Collapsed
@@ -1091,19 +1090,44 @@ public sealed class DropStackViewModel : ObservableObject
             ? Visibility.Visible
             : Visibility.Collapsed;
 
+    public bool PreviewThumbnailIsShellIcon => this.GetPreviewItem(0)?.ThumbnailIsShellIcon ?? false;
+
+    public bool PreviewThumbnailHasVideoFilmstrip =>
+        this.GetPreviewItem(0)?.ThumbnailHasVideoFilmstrip ?? false;
+
+    public Visibility PreviewVideoFilmstripVisibility =>
+        this.PreviewThumbnailHasVideoFilmstrip ? Visibility.Visible : Visibility.Collapsed;
+
+    public Stretch PreviewThumbnailStretch =>
+        this.PreviewThumbnailIsShellIcon ? Stretch.Uniform : Stretch.UniformToFill;
+
     public ImageSource? SecondPreviewThumbnailSource => this.GetPreviewThumbnail(1);
+
+    public Thickness SecondPreviewThumbnailBorderThickness => this.GetPreviewBorderThickness(1);
 
     public Visibility SecondPreviewThumbnailVisibility =>
         this.SecondPreviewThumbnailSource is null
             ? Visibility.Collapsed
             : Visibility.Visible;
 
+    public bool SecondPreviewThumbnailIsShellIcon => this.GetPreviewItem(1)?.ThumbnailIsShellIcon ?? false;
+
+    public bool SecondPreviewThumbnailHasVideoFilmstrip =>
+        this.GetPreviewItem(1)?.ThumbnailHasVideoFilmstrip ?? false;
+
     public ImageSource? ThirdPreviewThumbnailSource => this.GetPreviewThumbnail(2);
+
+    public Thickness ThirdPreviewThumbnailBorderThickness => this.GetPreviewBorderThickness(2);
 
     public Visibility ThirdPreviewThumbnailVisibility =>
         this.ThirdPreviewThumbnailSource is null
             ? Visibility.Collapsed
             : Visibility.Visible;
+
+    public bool ThirdPreviewThumbnailIsShellIcon => this.GetPreviewItem(2)?.ThumbnailIsShellIcon ?? false;
+
+    public bool ThirdPreviewThumbnailHasVideoFilmstrip =>
+        this.GetPreviewItem(2)?.ThumbnailHasVideoFilmstrip ?? false;
 
     public Visibility SecondLayerVisibility => this.Items.Count >= 2 ? Visibility.Visible : Visibility.Collapsed;
 
@@ -1329,7 +1353,11 @@ public sealed class DropStackViewModel : ObservableObject
     {
         if (args.PropertyName is nameof(DropItemViewModel.ThumbnailSource) or
             nameof(DropItemViewModel.ThumbnailVisibility) or
-            nameof(DropItemViewModel.PlaceholderVisibility))
+            nameof(DropItemViewModel.PlaceholderVisibility) or
+            nameof(DropItemViewModel.ThumbnailBorderThickness) or
+            nameof(DropItemViewModel.ThumbnailIsShellIcon) or
+            nameof(DropItemViewModel.ThumbnailHasVideoFilmstrip) or
+            nameof(DropItemViewModel.LeadingGlyph))
         {
             this.NotifyPreviewChanged();
         }
@@ -1337,20 +1365,36 @@ public sealed class DropStackViewModel : ObservableObject
 
     private void NotifyPreviewChanged()
     {
+        this.OnPropertyChanged(nameof(this.LeadingGlyph));
         this.OnPropertyChanged(nameof(this.PreviewThumbnailSource));
+        this.OnPropertyChanged(nameof(this.PreviewThumbnailBorderThickness));
         this.OnPropertyChanged(nameof(this.PreviewThumbnailVisibility));
         this.OnPropertyChanged(nameof(this.PreviewGlyphVisibility));
+        this.OnPropertyChanged(nameof(this.PreviewThumbnailIsShellIcon));
+        this.OnPropertyChanged(nameof(this.PreviewThumbnailHasVideoFilmstrip));
+        this.OnPropertyChanged(nameof(this.PreviewVideoFilmstripVisibility));
+        this.OnPropertyChanged(nameof(this.PreviewThumbnailStretch));
         this.OnPropertyChanged(nameof(this.SecondPreviewThumbnailSource));
+        this.OnPropertyChanged(nameof(this.SecondPreviewThumbnailBorderThickness));
         this.OnPropertyChanged(nameof(this.SecondPreviewThumbnailVisibility));
+        this.OnPropertyChanged(nameof(this.SecondPreviewThumbnailIsShellIcon));
+        this.OnPropertyChanged(nameof(this.SecondPreviewThumbnailHasVideoFilmstrip));
         this.OnPropertyChanged(nameof(this.ThirdPreviewThumbnailSource));
+        this.OnPropertyChanged(nameof(this.ThirdPreviewThumbnailBorderThickness));
         this.OnPropertyChanged(nameof(this.ThirdPreviewThumbnailVisibility));
+        this.OnPropertyChanged(nameof(this.ThirdPreviewThumbnailIsShellIcon));
+        this.OnPropertyChanged(nameof(this.ThirdPreviewThumbnailHasVideoFilmstrip));
     }
 
     private ImageSource? GetPreviewThumbnail(int index) =>
+        this.GetPreviewItem(index)?.ThumbnailSource;
+
+    private Thickness GetPreviewBorderThickness(int index) =>
+        this.GetPreviewItem(index)?.ThumbnailBorderThickness ?? new Thickness(1);
+
+    private DropItemViewModel? GetPreviewItem(int index) =>
         this.Items
-            .Where(static item => item.Model.Kind == DropItemKind.Image)
-            .Select(static item => item.ThumbnailSource)
-            .Where(static source => source is not null)
+            .Where(static item => item.ThumbnailSource is not null)
             .ElementAtOrDefault(index);
 
     internal void RefreshSystemColors()
@@ -1418,6 +1462,13 @@ public sealed class StackCardLayoutMetrics
         SecondPreviewHeight = 33,
         FrontPreviewWidth = 42,
         FrontPreviewHeight = 36,
+        ShellIconSize = 32,
+        ThirdShellIconOffsetX = 0,
+        ThirdShellIconOffsetY = -4,
+        SecondShellIconOffsetX = -4,
+        SecondShellIconOffsetY = 0,
+        FrontShellIconOffsetX = 4,
+        FrontShellIconOffsetY = 4,
         PreviewGlyphFontSize = 18,
         BackCornerRadius = new CornerRadius(5),
         FrontCornerRadius = new CornerRadius(6),
@@ -1444,6 +1495,7 @@ public sealed class StackCardLayoutMetrics
         HorizontalSecondPreviewHeight = 41,
         HorizontalFrontPreviewWidth = 52,
         HorizontalFrontPreviewHeight = 46,
+        HorizontalShellIconSize = 32,
         HorizontalPreviewGlyphFontSize = 22,
         HorizontalNameWidth = 120,
         HorizontalPreviewRow = 0,
@@ -1474,6 +1526,13 @@ public sealed class StackCardLayoutMetrics
         SecondPreviewHeight = 74,
         FrontPreviewWidth = 120,
         FrontPreviewHeight = 80,
+        ShellIconSize = 64,
+        ThirdShellIconOffsetX = 0,
+        ThirdShellIconOffsetY = -18,
+        SecondShellIconOffsetX = -24,
+        SecondShellIconOffsetY = -10,
+        FrontShellIconOffsetX = 22,
+        FrontShellIconOffsetY = 10,
         PreviewGlyphFontSize = 32,
         BackCornerRadius = new CornerRadius(7),
         FrontCornerRadius = new CornerRadius(8),
@@ -1500,6 +1559,7 @@ public sealed class StackCardLayoutMetrics
         HorizontalSecondPreviewHeight = 74,
         HorizontalFrontPreviewWidth = 120,
         HorizontalFrontPreviewHeight = 80,
+        HorizontalShellIconSize = 64,
         HorizontalPreviewGlyphFontSize = 32,
         HorizontalNameWidth = 148,
         HorizontalPreviewRow = 0,
@@ -1530,6 +1590,13 @@ public sealed class StackCardLayoutMetrics
         SecondPreviewHeight = 74,
         FrontPreviewWidth = 120,
         FrontPreviewHeight = 80,
+        ShellIconSize = 64,
+        ThirdShellIconOffsetX = 0,
+        ThirdShellIconOffsetY = -18,
+        SecondShellIconOffsetX = -24,
+        SecondShellIconOffsetY = -10,
+        FrontShellIconOffsetX = 22,
+        FrontShellIconOffsetY = 10,
         PreviewGlyphFontSize = 32,
         BackCornerRadius = new CornerRadius(7),
         FrontCornerRadius = new CornerRadius(8),
@@ -1556,6 +1623,7 @@ public sealed class StackCardLayoutMetrics
         HorizontalSecondPreviewHeight = 74,
         HorizontalFrontPreviewWidth = 120,
         HorizontalFrontPreviewHeight = 80,
+        HorizontalShellIconSize = 64,
         HorizontalPreviewGlyphFontSize = 32,
         HorizontalNameWidth = 144,
         HorizontalPreviewRow = 0,
@@ -1596,6 +1664,20 @@ public sealed class StackCardLayoutMetrics
     public double FrontPreviewWidth { get; private init; }
 
     public double FrontPreviewHeight { get; private init; }
+
+    public double ShellIconSize { get; private init; }
+
+    public double ThirdShellIconOffsetX { get; private init; }
+
+    public double ThirdShellIconOffsetY { get; private init; }
+
+    public double SecondShellIconOffsetX { get; private init; }
+
+    public double SecondShellIconOffsetY { get; private init; }
+
+    public double FrontShellIconOffsetX { get; private init; }
+
+    public double FrontShellIconOffsetY { get; private init; }
 
     public double PreviewGlyphFontSize { get; private init; }
 
@@ -1649,6 +1731,8 @@ public sealed class StackCardLayoutMetrics
 
     public double HorizontalFrontPreviewHeight { get; private init; }
 
+    public double HorizontalShellIconSize { get; private init; }
+
     public double HorizontalPreviewGlyphFontSize { get; private init; }
 
     public double HorizontalNameWidth { get; private init; }
@@ -1693,11 +1777,18 @@ public sealed class StackCardLayoutMetrics
 
 public sealed class DropItemViewModel : ObservableObject
 {
+    private string _leadingGlyph = "\uE7B8";
     private ImageSource? _thumbnailSource;
+    private string _thumbnailAccessibleLabel = "Content";
+    private ContentThumbnailChrome _thumbnailChrome;
+    private string _thumbnailProviderId = string.Empty;
 
     public DropItemViewModel(DropItem model)
     {
         this.Model = model;
+        var fallback = ContentThumbnailFallback.For(model.Kind);
+        this._leadingGlyph = fallback.Glyph!;
+        this._thumbnailAccessibleLabel = fallback.AccessibleLabel;
         _ = this.LoadThumbnailAsync();
     }
 
@@ -1714,24 +1805,12 @@ public sealed class DropItemViewModel : ObservableObject
             {
                 this.Model.Kind == DropItemKind.Uri ? "URL" : this.Model.Kind.ToString()
             };
-            if (metadata.Facets.HasFlag(ContentFacets.Tabular))
+            foreach (var tag in metadata.Tags)
             {
-                representations.Add("Table");
-            }
-
-            if (metadata.Facets.HasFlag(ContentFacets.Code))
-            {
-                representations.Add("Code");
-            }
-
-            if (metadata.Facets.HasFlag(ContentFacets.Email))
-            {
-                representations.Add("Email");
-            }
-
-            if (metadata.Facets.HasFlag(ContentFacets.Color))
-            {
-                representations.Add("Color");
+                if (!representations.Contains(tag.DisplayName, StringComparer.OrdinalIgnoreCase))
+                {
+                    representations.Add(tag.DisplayName);
+                }
             }
 
             if (metadata.Representations.HasFlag(ContentRepresentations.Html))
@@ -1770,16 +1849,51 @@ public sealed class DropItemViewModel : ObservableObject
 
     public string AccessibleName => $"{this.DisplayName}, {this.KindLabel}";
 
-    public string LeadingGlyph =>
-        this.Model.Kind switch
+    public string LeadingGlyph
+    {
+        get => this._leadingGlyph;
+        private set => this.SetProperty(ref this._leadingGlyph, value);
+    }
+
+    public string ThumbnailAccessibleLabel
+    {
+        get => this._thumbnailAccessibleLabel;
+        private set => this.SetProperty(ref this._thumbnailAccessibleLabel, value);
+    }
+
+    public ContentThumbnailChrome ThumbnailChrome
+    {
+        get => this._thumbnailChrome;
+        private set
         {
-            DropItemKind.File => "\uE8A5",
-            DropItemKind.Folder => "\uE8B7",
-            DropItemKind.Text => "\uE8D2",
-            DropItemKind.Image => "\uEB9F",
-            DropItemKind.Uri => "\uE71B",
-            _ => "\uE7B8"
-        };
+            if (this.SetProperty(ref this._thumbnailChrome, value))
+            {
+                this.OnPropertyChanged(nameof(this.ThumbnailBorderThickness));
+                this.OnPropertyChanged(nameof(this.ThumbnailIsShellIcon));
+                this.OnPropertyChanged(nameof(this.ThumbnailHasVideoFilmstrip));
+                this.OnPropertyChanged(nameof(this.VideoFilmstripVisibility));
+            }
+        }
+    }
+
+    public Thickness ThumbnailBorderThickness =>
+        this.ThumbnailChrome == ContentThumbnailChrome.None
+            ? new Thickness(0)
+            : new Thickness(1);
+
+    public string ThumbnailProviderId
+    {
+        get => this._thumbnailProviderId;
+        private set
+        {
+            if (this.SetProperty(ref this._thumbnailProviderId, value))
+            {
+                this.OnPropertyChanged(nameof(this.ThumbnailIsShellIcon));
+                this.OnPropertyChanged(nameof(this.ThumbnailHasVideoFilmstrip));
+                this.OnPropertyChanged(nameof(this.VideoFilmstripVisibility));
+            }
+        }
+    }
 
     public ImageSource? ThumbnailSource
     {
@@ -1790,6 +1904,9 @@ public sealed class DropItemViewModel : ObservableObject
             {
                 this.OnPropertyChanged(nameof(this.ThumbnailVisibility));
                 this.OnPropertyChanged(nameof(this.PlaceholderVisibility));
+                this.OnPropertyChanged(nameof(this.ThumbnailIsShellIcon));
+                this.OnPropertyChanged(nameof(this.ThumbnailHasVideoFilmstrip));
+                this.OnPropertyChanged(nameof(this.VideoFilmstripVisibility));
             }
         }
     }
@@ -1804,50 +1921,42 @@ public sealed class DropItemViewModel : ObservableObject
             ? Visibility.Visible
             : Visibility.Collapsed;
 
+    public bool ThumbnailIsShellIcon =>
+        this.ThumbnailSource is not null &&
+        this.ThumbnailChrome == ContentThumbnailChrome.None &&
+        string.Equals(
+            this.ThumbnailProviderId,
+            "omnitray.shell-thumbnail",
+            StringComparison.Ordinal);
+
+    public bool ThumbnailHasVideoFilmstrip =>
+        this.ThumbnailSource is not null &&
+        !this.ThumbnailIsShellIcon &&
+        string.Equals(
+            this.ThumbnailProviderId,
+            "omnitray.shell-thumbnail",
+            StringComparison.Ordinal) &&
+        ContentDetection.IsVideoFile(
+            this.Model.FileFacts?.ContentType,
+            Path.GetExtension(this.Model.SourcePath));
+
+    public Visibility VideoFilmstripVisibility =>
+        this.ThumbnailHasVideoFilmstrip ? Visibility.Visible : Visibility.Collapsed;
+
     private async Task LoadThumbnailAsync()
     {
-        if (string.IsNullOrWhiteSpace(this.Model.SourcePath))
-        {
-            return;
-        }
-
-        StorageItemThumbnail? thumbnail = null;
         try
         {
-            const uint thumbnailSize = 120;
-            if (this.Model.Kind == DropItemKind.Folder)
-            {
-                var folder = await StorageFolder.GetFolderFromPathAsync(this.Model.SourcePath);
-                thumbnail = await folder.GetThumbnailAsync(
-                    ThumbnailMode.SingleItem,
-                    thumbnailSize,
-                    ThumbnailOptions.UseCurrentScale);
-            }
-            else
-            {
-                var file = await StorageFile.GetFileFromPathAsync(this.Model.SourcePath);
-                thumbnail = await file.GetThumbnailAsync(
-                    ThumbnailMode.SingleItem,
-                    thumbnailSize,
-                    ThumbnailOptions.UseCurrentScale);
-            }
-
-            if (thumbnail is null)
-            {
-                return;
-            }
-
-            var bitmap = new BitmapImage();
-            await bitmap.SetSourceAsync(thumbnail);
-            this.ThumbnailSource = bitmap;
+            var presentation = await ContentThumbnailService.Default.ResolveAsync(this.Model);
+            this.LeadingGlyph = presentation.Glyph;
+            this.ThumbnailAccessibleLabel = presentation.AccessibleLabel;
+            this.ThumbnailChrome = presentation.Chrome;
+            this.ThumbnailProviderId = presentation.ProviderId;
+            this.ThumbnailSource = presentation.ImageSource;
         }
         catch
         {
-            // Missing and inaccessible sources retain their stable type glyph.
-        }
-        finally
-        {
-            thumbnail?.Dispose();
+            // Provider and source failures retain the stable generic fallback.
         }
     }
 }

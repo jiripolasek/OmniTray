@@ -147,6 +147,78 @@ public sealed class StackCatalogReaderTests
     }
 
     [TestMethod]
+    public void ReadStacks_RestoresCaptureProvenanceBackingFileFactsAndHtmlResources()
+    {
+        var stackId = Guid.NewGuid();
+        var itemId = Guid.NewGuid();
+        var captureId = Guid.NewGuid();
+        var json = $$"""
+                     {
+                       "stacks": [
+                         {
+                           "id": "{{stackId}}",
+                           "name": "Captured",
+                           "tint": "Blue",
+                           "items": [
+                             {
+                               "id": "{{itemId}}",
+                               "kind": 0,
+                               "displayName": "Report.xlsx",
+                               "sourcePath": "C:\\Reports\\Report.xlsx",
+                               "sourceApplicationName": "Microsoft Excel",
+                               "sourcePackageFamilyName": "Microsoft.Office.Excel_8wekyb3d8bbwe",
+                               "sourceApplicationLink": "ms-excel://sheet/42",
+                               "capture": {
+                                 "captureId": "{{captureId}}",
+                                 "channel": 1,
+                                 "capturedAt": "2026-08-26T11:26:07Z",
+                                 "ordinal": 2,
+                                 "requestedOperation": 3,
+                                 "formats": [
+                                   { "formatId": "Biff12", "status": 1, "detail": "6671 bytes" },
+                                   { "formatId": "Embed Source", "status": 2, "detail": "COMException" }
+                                 ]
+                               },
+                               "backing": { "kind": 1, "path": "C:\\Reports\\Report.xlsx" },
+                               "fileFacts": {
+                                 "originalFileName": "Report.xlsx",
+                                 "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                 "size": 4096,
+                                 "modifiedAt": "2026-08-25T10:00:00Z"
+                               },
+                               "htmlResources": [
+                                 {
+                                   "resourceKey": "https://example.com/chart.png",
+                                   "managedRelativePath": "Content\\html-resource.png",
+                                   "size": 128
+                                 }
+                               ],
+                               "isOwned": false,
+                               "createdAt": "2026-08-26T11:26:07Z"
+                             }
+                           ]
+                         }
+                       ]
+                     }
+                     """;
+
+        var item = StackCatalogReader.ReadStacks(json).Single().Items.Single();
+
+        Assert.AreEqual("Microsoft.Office.Excel_8wekyb3d8bbwe", item.SourcePackageFamilyName);
+        Assert.AreEqual("ms-excel://sheet/42", item.SourceApplicationLink);
+        Assert.AreEqual(captureId, item.Capture?.CaptureId);
+        Assert.AreEqual(CaptureChannel.Clipboard, item.Capture?.Channel);
+        Assert.AreEqual(2, item.Capture?.Ordinal);
+        Assert.AreEqual(CaptureRequestedOperation.Copy | CaptureRequestedOperation.Move,
+            item.Capture?.RequestedOperation);
+        Assert.AreEqual(DataFormatReadStatus.Failed, item.Capture?.Formats[1].Status);
+        Assert.AreEqual(ContentBackingKind.OriginalPath, item.Backing.Kind);
+        Assert.AreEqual((ulong)4096, item.FileFacts?.Size);
+        Assert.AreEqual("https://example.com/chart.png", item.HtmlResources.Single().ResourceKey);
+        Assert.IsTrue(StackFilter.Matches(DropStack.Create([item]), "from:excel"));
+    }
+
+    [TestMethod]
     public void ReadStacks_RejectsDuplicateStackIds()
     {
         var stackId = Guid.NewGuid();

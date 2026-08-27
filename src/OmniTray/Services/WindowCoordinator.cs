@@ -252,10 +252,15 @@ internal sealed partial class WindowCoordinator
         this._settingsWindow.Activate();
     }
 
-    public void ShowDataFormatInspector()
+    public void ShowDataFormatInspector(DropItem? item = null)
     {
         this._dataFormatInspectorWindow ??= this.CreateDataFormatInspectorWindow();
         CenterWindow(this._dataFormatInspectorWindow, 1040, 720);
+        if (item is not null)
+        {
+            this._dataFormatInspectorWindow.Inspect(item);
+        }
+
         this._dataFormatInspectorWindow.Activate();
     }
 

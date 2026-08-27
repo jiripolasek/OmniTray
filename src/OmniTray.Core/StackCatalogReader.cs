@@ -46,7 +46,13 @@ public static class StackCatalogReader
             item.IsOwned,
             item.CreatedAt,
             RestoreCustomFormats(item.CustomFormats),
-            item.ApplicationLink)),
+            item.ApplicationLink,
+            item.SourcePackageFamilyName,
+            item.SourceApplicationLink,
+            item.Capture,
+            item.Backing,
+            item.FileFacts,
+            item.HtmlResources)),
         stack.InspectorViewMode);
 
     private static IReadOnlyList<DropItemDataFormat> RestoreCustomFormats(
@@ -119,6 +125,18 @@ internal sealed class ItemReadDocument
     public string? SourceApplicationName { get; set; }
 
     public string? ApplicationLink { get; set; }
+
+    public string? SourcePackageFamilyName { get; set; }
+
+    public string? SourceApplicationLink { get; set; }
+
+    public DropCaptureMetadata? Capture { get; set; }
+
+    public ContentBacking? Backing { get; set; }
+
+    public DropFileFacts? FileFacts { get; set; }
+
+    public List<DropItemHtmlResource> HtmlResources { get; set; } = [];
 
     public List<ItemDataFormatReadDocument> CustomFormats { get; set; } = [];
 

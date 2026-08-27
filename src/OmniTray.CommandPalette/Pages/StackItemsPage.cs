@@ -55,12 +55,18 @@ internal sealed partial class StackItemsPage : DynamicListPage
         this.RaiseItemsChanged(this._items.Length);
     }
 
-    private static bool Matches(DropItem item, string term) =>
-        item.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-        item.Kind.ToString().Contains(term, StringComparison.OrdinalIgnoreCase) ||
-        (item.SourcePath?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
-        (item.Url?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
-        (item.SourceUrl?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
-        (item.SourceApplicationName?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
-        (item.Text?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false);
+    private static bool Matches(DropItem item, string term)
+    {
+        var tags = ContentMetadataPolicy.GetMetadata(item).Tags;
+        return item.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+               item.Kind.ToString().Contains(term, StringComparison.OrdinalIgnoreCase) ||
+               (item.SourcePath?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
+               (item.Url?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
+               (item.SourceUrl?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
+               (item.SourceApplicationName?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
+               (item.Text?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
+               tags.Any(tag =>
+                   tag.Id.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                   tag.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase));
+    }
 }

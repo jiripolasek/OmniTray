@@ -11,8 +11,8 @@
         <ItemsPanelTemplate x:Key="ThumbnailItemsPanel">
             <ItemsWrapGrid
                 HorizontalAlignment="Stretch"
-                ItemWidth="108"
                 ItemHeight="120"
+                ItemWidth="108"
                 Orientation="Horizontal" />
         </ItemsPanelTemplate>
 
@@ -28,7 +28,7 @@
             <Setter Property="Padding" Value="0" />
         </Style>
 
-        <DataTemplate x:Key="ListItemTemplate" x:DataType="viewModels:DropItemViewModel">
+        <DataTemplate x:Key="SmallListItemTemplate" x:DataType="viewModels:DropItemViewModel">
             <Grid
                 MinHeight="48"
                 Padding="32,8,8,8"
@@ -49,9 +49,12 @@
                     <Border
                         Background="{ThemeResource LayerFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                        BorderThickness="1"
+                        BorderThickness="{x:Bind ThumbnailBorderThickness, Mode=OneWay}"
                         CornerRadius="6">
-                        <Image
+                        <controls:ThumbnailImagePresenter
+                            HasVideoFilmstrip="{x:Bind ThumbnailHasVideoFilmstrip, Mode=OneWay}"
+                            IsShellIcon="{x:Bind ThumbnailIsShellIcon, Mode=OneWay}"
+                            ShellIconSize="32"
                             Source="{x:Bind ThumbnailSource, Mode=OneWay}"
                             Stretch="UniformToFill"
                             Visibility="{x:Bind ThumbnailVisibility, Mode=OneWay}" />
@@ -61,7 +64,71 @@
                         VerticalAlignment="Center"
                         FontSize="17"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Glyph="{x:Bind LeadingGlyph}"
+                        Glyph="{x:Bind LeadingGlyph, Mode=OneWay}"
+                        Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}" />
+                </Grid>
+                <StackPanel
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    Spacing="1">
+                    <TextBlock
+                        MaxLines="1"
+                        Text="{x:Bind DisplayName}"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{ThemeResource CaptionTextBlockStyle}"
+                        Text="{x:Bind KindLabel}" />
+                </StackPanel>
+                <FontIcon
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Drag item"
+                    FontSize="12"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Glyph="&#xE700;"
+                    Opacity="0.62" />
+                <controls:InsertionAdorner x:Name="ItemInsertionAdorner" Grid.ColumnSpan="3" />
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="LargeListItemTemplate" x:DataType="viewModels:DropItemViewModel">
+            <Grid
+                MinHeight="80"
+                Padding="32,8,8,8"
+                AllowDrop="True"
+                AutomationProperties.Name="{x:Bind AccessibleName}"
+                Background="{ThemeResource SubtleFillColorTransparentBrush}"
+                ColumnSpacing="12"
+                ContextRequested="OnItemRowContextRequested"
+                PointerEntered="OnItemRowPointerEntered"
+                PointerExited="OnItemRowPointerExited"
+                Tag="{x:Bind}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="68" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="0" />
+                </Grid.ColumnDefinitions>
+                <Grid Width="64" Height="64">
+                    <Border
+                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="{x:Bind ThumbnailBorderThickness, Mode=OneWay}"
+                        CornerRadius="8">
+                        <controls:ThumbnailImagePresenter
+                            HasVideoFilmstrip="{x:Bind ThumbnailHasVideoFilmstrip, Mode=OneWay}"
+                            IsShellIcon="{x:Bind ThumbnailIsShellIcon, Mode=OneWay}"
+                            ShellIconSize="64"
+                            Source="{x:Bind ThumbnailSource, Mode=OneWay}"
+                            Stretch="UniformToFill"
+                            Visibility="{x:Bind ThumbnailVisibility, Mode=OneWay}" />
+                    </Border>
+                    <FontIcon
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="28"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Glyph="{x:Bind LeadingGlyph, Mode=OneWay}"
                         Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}" />
                 </Grid>
                 <StackPanel
@@ -107,9 +174,12 @@
                     <Border
                         Background="{ThemeResource LayerFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                        BorderThickness="1"
+                        BorderThickness="{x:Bind ThumbnailBorderThickness, Mode=OneWay}"
                         CornerRadius="7">
-                        <Image
+                        <controls:ThumbnailImagePresenter
+                            HasVideoFilmstrip="{x:Bind ThumbnailHasVideoFilmstrip, Mode=OneWay}"
+                            IsShellIcon="{x:Bind ThumbnailIsShellIcon, Mode=OneWay}"
+                            ShellIconSize="64"
                             Source="{x:Bind ThumbnailSource, Mode=OneWay}"
                             Stretch="UniformToFill"
                             Visibility="{x:Bind ThumbnailVisibility, Mode=OneWay}" />
@@ -119,7 +189,7 @@
                         VerticalAlignment="Center"
                         FontSize="24"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Glyph="{x:Bind LeadingGlyph}"
+                        Glyph="{x:Bind LeadingGlyph, Mode=OneWay}"
                         Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}" />
                 </Grid>
                 <TextBlock
@@ -148,17 +218,17 @@
             DragLeave="OnItemListDragLeave"
             DragOver="OnItemListDragOver"
             Drop="OnItemListDrop"
-            KeyDown="OnItemListKeyDown"
             ItemContainerStyle="{StaticResource ListItemContainerStyle}"
-            ItemTemplate="{StaticResource ListItemTemplate}"
+            ItemTemplate="{StaticResource SmallListItemTemplate}"
             ItemsPanel="{StaticResource ListItemsPanel}"
+            KeyDown="OnItemListKeyDown"
             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
             ScrollViewer.HorizontalScrollMode="Disabled"
             ScrollViewer.VerticalScrollBarVisibility="Disabled"
             ScrollViewer.VerticalScrollMode="Disabled"
             SelectionChanged="OnItemSelectionChanged"
-            SizeChanged="OnItemListSizeChanged"
-            SelectionMode="Extended">
+            SelectionMode="Extended"
+            SizeChanged="OnItemListSizeChanged">
             <ListView.ContextFlyout>
                 <CommandBarFlyout
                     x:Name="SelectionCommandsFlyout"
@@ -227,9 +297,9 @@
                         </AppBarButton>
                         <AppBarButton
                             x:Name="OpenSourceUrlButton"
-                            AutomationProperties.Name="Open source URL"
+                            AutomationProperties.Name="Open content source"
                             Click="OnOpenSourceUrlClick"
-                            Label="Open source URL"
+                            Label="Open source"
                             Visibility="Collapsed">
                             <AppBarButton.Icon>
                                 <FontIcon Glyph="&#xE71B;" />
@@ -255,6 +325,16 @@
                             Icon="Setting"
                             Label="Properties"
                             Visibility="Collapsed" />
+                        <AppBarButton
+                            x:Name="InspectPayloadButton"
+                            AutomationProperties.Name="Inspect captured payload"
+                            Click="OnInspectPayloadClick"
+                            Label="Inspect payload"
+                            Visibility="Collapsed">
+                            <AppBarButton.Icon>
+                                <FontIcon Glyph="&#xE946;" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
                         <AppBarButton
                             x:Name="DeleteFromDiskButton"
                             AutomationProperties.Name="Delete selected filesystem items from disk"

@@ -112,7 +112,8 @@ internal sealed class DropCommandExecutionService
             return false;
         }
 
-        if (!DropCommandTemplates.TryGet(command.TemplateId, out _) || !DropCommandTemplates.IsConfigured(command))
+        if (!DropCommandTemplates.TryGet(command.TemplateId, out var template) ||
+            !DropCommandTemplates.IsConfigured(command))
         {
             reason = "This command is not fully configured.";
             return false;
@@ -124,8 +125,6 @@ internal sealed class DropCommandExecutionService
             return false;
         }
 
-        var isDestructive = command.TemplateId is DropCommandTemplateIds.MoveToFolder or
-            DropCommandTemplateIds.Recycle;
         if (!ContentRequirements.AreSatisfiedBy(
                 DropCommandTemplates.GetRequirements(command),
                 input.Models,
@@ -134,56 +133,9 @@ internal sealed class DropCommandExecutionService
             return false;
         }
 
-        foreach (var resolved in input.Items)
+        if (template.ValidateInput(command, input) is { Length: > 0 } validationError)
         {
-            if (command.TemplateId == DropCommandTemplateIds.CopyToClipboard ||
-                (command.TemplateId == DropCommandTemplateIds.Share &&
-                 resolved.Item.Kind is DropItemKind.Text or DropItemKind.Uri))
-            {
-                continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(resolved.Item.SourcePath) || !PathExists(resolved.Item))
-            {
-                reason = "Every item must have an available local path.";
-                return false;
-            }
-
-            if (command.TemplateId == DropCommandTemplateIds.OpenInApp && resolved.IsTransient)
-            {
-                reason = "Open in app currently requires a file-backed drop.";
-                return false;
-            }
-
-            if (command.TemplateId is DropCommandTemplateIds.MoveToFolder or DropCommandTemplateIds.Recycle &&
-                (resolved.Item.IsOwned || resolved.IsTransient))
-            {
-                reason = "This command accepts original files and folders only.";
-                return false;
-            }
-
-            if (isDestructive && resolved.Item.Kind == DropItemKind.Folder && IsFileSystemRoot(resolved.Item.SourcePath))
-            {
-                reason = "Filesystem roots cannot be moved or recycled.";
-                return false;
-            }
-
-            if (command.TemplateId is DropCommandTemplateIds.CopyToFolder or DropCommandTemplateIds.MoveToFolder &&
-                resolved.Item.Kind == DropItemKind.Folder &&
-                DropCommandTemplates.TryGetParameter(
-                    command,
-                    DropCommandParameterNames.DestinationFolder,
-                    out var destinationFolder) &&
-                IsSameOrDescendantPath(destinationFolder, resolved.Item.SourcePath))
-            {
-                reason = "A folder cannot be copied or moved into itself.";
-                return false;
-            }
-        }
-
-        if (isDestructive && HasOverlappingSourcePaths(input.Items))
-        {
-            reason = "A folder and one of its children cannot be moved or recycled together.";
+            reason = validationError;
             return false;
         }
 
@@ -238,16 +190,117 @@ internal sealed class DropCommandExecutionService
             return new DropCommandExecutionResult([], input.Items.Count, reason, false);
         }
 
-        return command.TemplateId switch
+        return DropCommandTemplates.TryGet(command.TemplateId, out var template)
+            ? await template.ExecuteAsync(this, command, input, ownerHwnd)
+            : new DropCommandExecutionResult(
+                [],
+                input.Items.Count,
+                "The command template is unavailable.",
+                false);
+    }
+
+    internal static string? ValidateOpenInAppInput(
+        DropCommandInstance command,
+        DropCommandInput input)
+    {
+        _ = command;
+        foreach (var resolved in input.Items)
         {
-            DropCommandTemplateIds.OpenInApp => await OpenInAppAsync(command, input),
-            DropCommandTemplateIds.CopyToFolder => await TransferToFolderAsync(command, input, false),
-            DropCommandTemplateIds.MoveToFolder => await TransferToFolderAsync(command, input, true),
-            DropCommandTemplateIds.Recycle => await RecycleAsync(input),
-            DropCommandTemplateIds.CopyToClipboard => CopyToClipboard(command, input),
-            DropCommandTemplateIds.Share => await this.ShareAsync(command, input, ownerHwnd),
-            _ => new DropCommandExecutionResult([], input.Items.Count, "The command template is unavailable.", false)
-        };
+            if (!HasAvailablePath(resolved.Item))
+            {
+                return "Every item must have an available local path.";
+            }
+
+            if (resolved.IsTransient)
+            {
+                return "Open in app currently requires a file-backed drop.";
+            }
+        }
+
+        return null;
+    }
+
+    internal static string? ValidateTransferInput(
+        DropCommandInstance command,
+        DropCommandInput input,
+        bool move)
+    {
+        _ = DropCommandTemplates.TryGetParameter(
+            command,
+            DropCommandParameterNames.DestinationFolder,
+            out var destinationFolder);
+        foreach (var resolved in input.Items)
+        {
+            if (!HasAvailablePath(resolved.Item))
+            {
+                return "Every item must have an available local path.";
+            }
+
+            if (move && (resolved.Item.IsOwned || resolved.IsTransient))
+            {
+                return "This command accepts original files and folders only.";
+            }
+
+            if (move &&
+                resolved.Item.Kind == DropItemKind.Folder &&
+                IsFileSystemRoot(resolved.Item.SourcePath))
+            {
+                return "Filesystem roots cannot be moved or recycled.";
+            }
+
+            if (resolved.Item.Kind == DropItemKind.Folder &&
+                IsSameOrDescendantPath(destinationFolder, resolved.Item.SourcePath!))
+            {
+                return "A folder cannot be copied or moved into itself.";
+            }
+        }
+
+        return move && HasOverlappingSourcePaths(input.Items)
+            ? "A folder and one of its children cannot be moved or recycled together."
+            : null;
+    }
+
+    internal static string? ValidateRecycleInput(DropCommandInput input)
+    {
+        foreach (var resolved in input.Items)
+        {
+            if (!HasAvailablePath(resolved.Item))
+            {
+                return "Every item must have an available local path.";
+            }
+
+            if (resolved.Item.IsOwned || resolved.IsTransient)
+            {
+                return "This command accepts original files and folders only.";
+            }
+
+            if (resolved.Item.Kind == DropItemKind.Folder && IsFileSystemRoot(resolved.Item.SourcePath))
+            {
+                return "Filesystem roots cannot be moved or recycled.";
+            }
+        }
+
+        return HasOverlappingSourcePaths(input.Items)
+            ? "A folder and one of its children cannot be moved or recycled together."
+            : null;
+    }
+
+    internal static string? ValidateShareInput(DropCommandInput input)
+    {
+        foreach (var resolved in input.Items)
+        {
+            if (resolved.Item.Kind is DropItemKind.Text or DropItemKind.Uri)
+            {
+                continue;
+            }
+
+            if (!HasAvailablePath(resolved.Item))
+            {
+                return "Every item must have an available local path.";
+            }
+        }
+
+        return null;
     }
 
     private static ContentRepresentations GetRepresentations(DataPackageView dataView)
@@ -288,10 +341,17 @@ internal sealed class DropCommandExecutionService
             representations |= ContentRepresentations.ApplicationLink;
         }
 
+        if (dataView.Contains(StandardDataFormats.Uri))
+        {
+            // The legacy URI format does not expose its scheme until the payload is read.
+            representations |= ContentRepresentations.WebLink |
+                               ContentRepresentations.ApplicationLink;
+        }
+
         return representations;
     }
 
-    private static async Task<DropCommandExecutionResult> OpenInAppAsync(
+    internal async Task<DropCommandExecutionResult> OpenInAppAsync(
         DropCommandInstance command,
         DropCommandInput input)
     {
@@ -361,7 +421,7 @@ internal sealed class DropCommandExecutionService
         _ = Process.Start(startInfo) ?? throw new InvalidOperationException("The application did not start.");
     }
 
-    private static Task<DropCommandExecutionResult> TransferToFolderAsync(
+    internal Task<DropCommandExecutionResult> TransferToFolderAsync(
         DropCommandInstance command,
         DropCommandInput input,
         bool move)
@@ -416,7 +476,7 @@ internal sealed class DropCommandExecutionService
         });
     }
 
-    private static Task<DropCommandExecutionResult> RecycleAsync(DropCommandInput input)
+    internal Task<DropCommandExecutionResult> RecycleAsync(DropCommandInput input)
     {
         return Task.Run(() =>
         {
@@ -459,7 +519,7 @@ internal sealed class DropCommandExecutionService
         });
     }
 
-    private static DropCommandExecutionResult CopyToClipboard(
+    internal Task<DropCommandExecutionResult> CopyToClipboard(
         DropCommandInstance command,
         DropCommandInput input)
     {
@@ -469,19 +529,20 @@ internal sealed class DropCommandExecutionService
             DragDropDataService.WriteStandardContent(data, input.Models, command.DisplayName);
             Clipboard.SetContent(data);
             Clipboard.Flush();
-            return new DropCommandExecutionResult(
+            return Task.FromResult(new DropCommandExecutionResult(
                 input.Items.Select(static item => item.Item.Id).ToArray(),
                 0,
                 null,
-                false);
+                false));
         }
         catch (Exception exception)
         {
-            return new DropCommandExecutionResult([], input.Items.Count, exception.Message, false);
+            return Task.FromResult(
+                new DropCommandExecutionResult([], input.Items.Count, exception.Message, false));
         }
     }
 
-    private async Task<DropCommandExecutionResult> ShareAsync(
+    internal async Task<DropCommandExecutionResult> ShareAsync(
         DropCommandInstance command,
         DropCommandInput input,
         nint ownerHwnd)
@@ -509,6 +570,9 @@ internal sealed class DropCommandExecutionService
             return new DropCommandExecutionResult([], input.Items.Count, exception.Message, false);
         }
     }
+
+    private static bool HasAvailablePath(DropItem item) =>
+        !string.IsNullOrWhiteSpace(item.SourcePath) && PathExists(item);
 
     private static bool PathExists(DropItem item) => item.Kind == DropItemKind.Folder
         ? Directory.Exists(item.SourcePath)

@@ -160,8 +160,8 @@ public partial class App : Application
 
     public void ShowSettings() => this.RunOnUiThread(() => this._windows?.ShowSettings());
 
-    internal void ShowDataFormatInspector() =>
-        this.RunOnUiThread(() => this._windows?.ShowDataFormatInspector());
+    internal void ShowDataFormatInspector(DropItem? item = null) =>
+        this.RunOnUiThread(() => this._windows?.ShowDataFormatInspector(item));
 
     public void ShowPopup() => this.RunOnUiThread(() => this._windows?.ShowPopup());
 
@@ -349,7 +349,9 @@ public partial class App : Application
 
         try
         {
-            var items = await DragDropDataService.ReadAsync(Clipboard.GetContent());
+            var items = await DragDropDataService.ReadAsync(
+                Clipboard.GetContent(),
+                CaptureChannel.Clipboard);
             if (items.Count == 0)
             {
                 this.ShowToast(

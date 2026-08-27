@@ -304,7 +304,8 @@ public sealed partial class MainPage : Page
         await this.CreateStackFromDataPackageAsync(
             dataView,
             "The clipboard does not contain files, folders, text, or an image.",
-            "The clipboard content could not be captured");
+            "The clipboard content could not be captured",
+            CaptureChannel.Clipboard);
     }
 
     private void OnStackDragStarting(UIElement sender, DragStartingEventArgs args)
@@ -871,11 +872,12 @@ public sealed partial class MainPage : Page
     private async Task CreateStackFromDataPackageAsync(
         DataPackageView dataView,
         string emptyMessage,
-        string failureMessage)
+        string failureMessage,
+        CaptureChannel channel = CaptureChannel.Drag)
     {
         try
         {
-            var items = await DragDropDataService.ReadAsync(dataView);
+            var items = await DragDropDataService.ReadAsync(dataView, channel);
             if (items.Count == 0)
             {
                 ShowStatus(emptyMessage, InfoBarSeverity.Warning);

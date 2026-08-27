@@ -31,7 +31,13 @@ public sealed record DropItem
         IReadOnlyList<DropItemDataFormat>? customFormats,
         bool isOwned,
         DateTimeOffset createdAt,
-        string? applicationLink = null)
+        string? applicationLink = null,
+        string? sourcePackageFamilyName = null,
+        string? sourceApplicationLink = null,
+        DropCaptureMetadata? capture = null,
+        ContentBacking? backing = null,
+        DropFileFacts? fileFacts = null,
+        IReadOnlyList<DropItemHtmlResource>? htmlResources = null)
     {
         this.Id = id;
         this.Kind = kind;
@@ -47,6 +53,17 @@ public sealed record DropItem
         this.IsOwned = isOwned;
         this.CreatedAt = createdAt;
         this.ApplicationLink = NormalizeOptionalAbsoluteUri(applicationLink);
+        this.Provenance = new ContentProvenance
+        {
+            ApplicationName = NormalizeOptionalValue(sourceApplicationName),
+            PackageFamilyName = NormalizeOptionalValue(sourcePackageFamilyName),
+            SourceWebLink = NormalizeOptionalUrl(sourceUrl),
+            SourceApplicationLink = NormalizeOptionalAbsoluteUri(sourceApplicationLink)
+        };
+        this.Capture = NormalizeCapture(capture);
+        this.Backing = NormalizeBacking(backing, kind, sourcePath, isOwned);
+        this.FileFacts = NormalizeFileFacts(fileFacts);
+        this.HtmlResources = NormalizeHtmlResources(htmlResources);
     }
 
     public Guid Id { get; }
@@ -70,6 +87,20 @@ public sealed record DropItem
     public string? SourceApplicationName { get; }
 
     public string? ApplicationLink { get; }
+
+    public string? SourcePackageFamilyName => this.Provenance.PackageFamilyName;
+
+    public string? SourceApplicationLink => this.Provenance.SourceApplicationLink;
+
+    public ContentProvenance Provenance { get; }
+
+    public DropCaptureMetadata? Capture { get; }
+
+    public ContentBacking Backing { get; }
+
+    public DropFileFacts? FileFacts { get; }
+
+    public IReadOnlyList<DropItemHtmlResource> HtmlResources { get; }
 
     public IReadOnlyList<DropItemDataFormat> CustomFormats { get; }
 
@@ -258,7 +289,13 @@ public sealed record DropItem
             this.CustomFormats,
             this.IsOwned,
             this.CreatedAt,
-            NormalizeOptionalAbsoluteUri(applicationLink) ?? this.ApplicationLink);
+            NormalizeOptionalAbsoluteUri(applicationLink) ?? this.ApplicationLink,
+            this.SourcePackageFamilyName,
+            this.SourceApplicationLink,
+            this.Capture,
+            this.Backing,
+            this.FileFacts,
+            this.HtmlResources);
     }
 
     public DropItem WithCustomFormats(IReadOnlyList<DropItemDataFormat>? customFormats)
@@ -277,7 +314,44 @@ public sealed record DropItem
             customFormats,
             this.IsOwned,
             this.CreatedAt,
-            this.ApplicationLink);
+            this.ApplicationLink,
+            this.SourcePackageFamilyName,
+            this.SourceApplicationLink,
+            this.Capture,
+            this.Backing,
+            this.FileFacts,
+            this.HtmlResources);
+    }
+
+    public DropItem WithMetadata(
+        ContentProvenance? provenance = null,
+        DropCaptureMetadata? capture = null,
+        ContentBacking? backing = null,
+        DropFileFacts? fileFacts = null,
+        IReadOnlyList<DropItemHtmlResource>? htmlResources = null)
+    {
+        provenance ??= this.Provenance;
+        return new DropItem(
+            this.Id,
+            this.Kind,
+            this.DisplayName,
+            this.SourcePath,
+            this.Text,
+            this.Html,
+            this.Rtf,
+            this.Url,
+            provenance.SourceWebLink,
+            provenance.ApplicationName,
+            this.CustomFormats,
+            this.IsOwned,
+            this.CreatedAt,
+            this.ApplicationLink,
+            provenance.PackageFamilyName,
+            provenance.SourceApplicationLink,
+            capture ?? this.Capture,
+            backing ?? this.Backing,
+            fileFacts ?? this.FileFacts,
+            htmlResources ?? this.HtmlResources);
     }
 
     public static DropItem Restore(
@@ -294,7 +368,13 @@ public sealed record DropItem
         bool isOwned,
         DateTimeOffset createdAt,
         IReadOnlyList<DropItemDataFormat>? customFormats = null,
-        string? applicationLink = null)
+        string? applicationLink = null,
+        string? sourcePackageFamilyName = null,
+        string? sourceApplicationLink = null,
+        DropCaptureMetadata? capture = null,
+        ContentBacking? backing = null,
+        DropFileFacts? fileFacts = null,
+        IReadOnlyList<DropItemHtmlResource>? htmlResources = null)
     {
         if (id == Guid.Empty)
         {
@@ -334,7 +414,13 @@ public sealed record DropItem
             customFormats,
             isOwned,
             createdAt,
-            applicationLink);
+            applicationLink,
+            sourcePackageFamilyName,
+            sourceApplicationLink,
+            capture,
+            backing,
+            fileFacts,
+            htmlResources);
     }
 
     public static DropItem Restore(
@@ -379,6 +465,73 @@ public sealed record DropItem
 
         return formats;
     }
+
+    private static DropCaptureMetadata? NormalizeCapture(DropCaptureMetadata? capture)
+    {
+        if (capture is null || capture.CaptureId == Guid.Empty || capture.Ordinal < 0)
+        {
+            return null;
+        }
+
+        return capture with
+        {
+            Formats = capture.Formats
+                .Where(static format => !string.IsNullOrWhiteSpace(format.FormatId))
+                .Select(static format => format with
+                {
+                    FormatId = format.FormatId.Trim(),
+                    Detail = NormalizeOptionalValue(format.Detail)
+                })
+                .DistinctBy(static format => format.FormatId, StringComparer.Ordinal)
+                .ToArray()
+        };
+    }
+
+    private static ContentBacking NormalizeBacking(
+        ContentBacking? backing,
+        DropItemKind kind,
+        string? sourcePath,
+        bool isOwned)
+    {
+        var path = NormalizeOptionalValue(backing?.Path) ?? NormalizeOptionalValue(sourcePath);
+        var inferredKind = string.IsNullOrWhiteSpace(path)
+            ? ContentBackingKind.None
+            : !isOwned
+                ? ContentBackingKind.OriginalPath
+                : kind is DropItemKind.Text or DropItemKind.Image
+                    ? ContentBackingKind.GeneratedProjection
+                    : ContentBackingKind.ManagedSnapshot;
+        return new ContentBacking
+        {
+            Kind = backing?.Kind ?? inferredKind,
+            Path = path
+        };
+    }
+
+    private static DropFileFacts? NormalizeFileFacts(DropFileFacts? facts) =>
+        facts is null || string.IsNullOrWhiteSpace(facts.OriginalFileName)
+            ? null
+            : facts with
+            {
+                OriginalFileName = facts.OriginalFileName.Trim(),
+                ContentType = NormalizeOptionalValue(facts.ContentType),
+                Sha256 = NormalizeOptionalValue(facts.Sha256)
+            };
+
+    private static IReadOnlyList<DropItemHtmlResource> NormalizeHtmlResources(
+        IReadOnlyList<DropItemHtmlResource>? resources) => resources is null
+        ? []
+        : resources
+            .Where(static resource =>
+                !string.IsNullOrWhiteSpace(resource.ResourceKey) &&
+                !string.IsNullOrWhiteSpace(resource.ManagedRelativePath))
+            .Select(static resource => resource with
+            {
+                ResourceKey = resource.ResourceKey.Trim(),
+                ManagedRelativePath = resource.ManagedRelativePath.Trim()
+            })
+            .DistinctBy(static resource => resource.ResourceKey, StringComparer.Ordinal)
+            .ToArray();
 
     private static string CreateCompactDisplayName(string? value, string fallback)
     {

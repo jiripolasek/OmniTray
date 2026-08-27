@@ -13,18 +13,24 @@ internal sealed partial class StackItemListItem : ListItem
     {
         ArgumentNullException.ThrowIfNull(item);
 
+        var metadata = ContentMetadataPolicy.GetMetadata(item);
+        var icon = GetIcon(item, metadata);
         this.Title = item.DisplayName;
         this.Subtitle = $"{FormatKind(item.Kind)} · {item.CreatedAt.ToLocalTime():g}";
-        this.Icon = GetIcon(item.Kind);
+        this.Icon = icon;
         this.TextToSuggest = item.DisplayName;
-        this.Tags = [new Tag(FormatKind(item.Kind))];
+        this.Tags =
+        [
+            new Tag(FormatKind(item.Kind)),
+            .. metadata.Tags.Select(static tag => new Tag(tag.DisplayName))
+        ];
         this.MoreCommands = CreateMoreCommands(stackId, item);
         this.Details = new Details
         {
             Title = item.DisplayName,
-            Body = CreateDetailsBody(item),
+            Body = CreateDetailsBody(item, metadata),
             Size = ContentSize.Medium,
-            HeroImage = GetIcon(item.Kind)
+            HeroImage = icon
         };
     }
 
@@ -79,7 +85,7 @@ internal sealed partial class StackItemListItem : ListItem
         return [.. commands];
     }
 
-    private static string CreateDetailsBody(DropItem item)
+    private static string CreateDetailsBody(DropItem item, ContentMetadata metadata)
     {
         var created = item.CreatedAt.ToLocalTime();
         var body = $"**Type:** {FormatKind(item.Kind)}  \n**Shelved:** {created:F}";
@@ -120,6 +126,12 @@ internal sealed partial class StackItemListItem : ListItem
             body += $"  \n**Formats:** {string.Join(", ", formats)}";
         }
 
+        var classifications = metadata.Tags;
+        if (classifications.Count > 0)
+        {
+            body += $"  \n**Classifications:** {string.Join(", ", classifications.Select(static tag => tag.DisplayName))}";
+        }
+
         if (!string.IsNullOrWhiteSpace(item.Text))
         {
             body += $"\n\n{MarkdownText.Escape(item.Text)}";
@@ -138,13 +150,21 @@ internal sealed partial class StackItemListItem : ListItem
         _ => "Item"
     };
 
-    private static IconInfo GetIcon(DropItemKind kind) => kind switch
+    private static IconInfo GetIcon(DropItem item, ContentMetadata metadata)
     {
-        DropItemKind.File => Icons.File,
-        DropItemKind.Folder => Icons.Folder,
-        DropItemKind.Text => Icons.Text,
-        DropItemKind.Image => Icons.Image,
-        DropItemKind.Uri => Icons.Link,
-        _ => Icons.Stack
-    };
+        var operation = ContentThumbnailRegistry.Default.ResolveAsync(
+            new ContentThumbnailContext(
+                item,
+                metadata,
+                new ContentThumbnailRequest { PixelSize = 64 }));
+        if (operation.IsCompletedSuccessfully &&
+            operation.Result.Thumbnail?.Glyph is { Length: > 0 } glyph)
+        {
+            return new IconInfo(glyph);
+        }
+
+        // External providers may resolve asynchronously; the Command Palette uses the stable
+        // fallback until a future shared raster-cache adapter is available.
+        return Icons.Stack;
+    }
 }

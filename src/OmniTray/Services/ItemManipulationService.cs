@@ -52,10 +52,14 @@ internal static class ItemManipulationService
     public static async Task OpenSourceUrlAsync(DropItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
-        if (!ContentDetection.TryNormalizeWebUrl(item.SourceUrl, out var sourceUrl) ||
-            !await Launcher.LaunchUriAsync(new Uri(sourceUrl)))
+        Uri? source = ContentDetection.TryNormalizeWebUrl(item.SourceUrl, out var sourceUrl)
+            ? new Uri(sourceUrl)
+            : Uri.TryCreate(item.SourceApplicationLink, UriKind.Absolute, out var applicationLink)
+                ? applicationLink
+                : null;
+        if (source is null || !await Launcher.LaunchUriAsync(source))
         {
-            throw new InvalidOperationException("Windows could not open the saved source URL.");
+            throw new InvalidOperationException("Windows could not open the saved source.");
         }
     }
 

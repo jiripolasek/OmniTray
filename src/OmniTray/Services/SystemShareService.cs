@@ -6,6 +6,7 @@
 
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
+using Windows.Storage.Streams;
 
 namespace OmniTray.Services;
 
@@ -122,6 +123,10 @@ internal sealed class SystemShareService
         private readonly string? _html;
         private readonly string? _rtf;
         private readonly string? _sourceUrl;
+        private readonly string? _sourceApplicationName;
+        private readonly string? _sourcePackageFamilyName;
+        private readonly string? _sourceApplicationLink;
+        private readonly IReadOnlyList<DropItemHtmlResource> _htmlResources;
         private readonly string? _text;
         private readonly string _title;
         private readonly string? _url;
@@ -134,6 +139,10 @@ internal sealed class SystemShareService
             string? url,
             string? applicationLink,
             string? sourceUrl,
+            string? sourceApplicationName,
+            string? sourcePackageFamilyName,
+            string? sourceApplicationLink,
+            IReadOnlyList<DropItemHtmlResource> htmlResources,
             IReadOnlyList<IStorageItem> storageItems)
         {
             this._title = title;
@@ -143,6 +152,10 @@ internal sealed class SystemShareService
             this._url = url;
             this._applicationLink = applicationLink;
             this._sourceUrl = sourceUrl;
+            this._sourceApplicationName = sourceApplicationName;
+            this._sourcePackageFamilyName = sourcePackageFamilyName;
+            this._sourceApplicationLink = sourceApplicationLink;
+            this._htmlResources = htmlResources;
             this._storageItems = storageItems;
         }
 
@@ -185,6 +198,10 @@ internal sealed class SystemShareService
                 singleItem?.Url,
                 singleItem?.ApplicationLink,
                 singleItem?.SourceUrl,
+                singleItem?.SourceApplicationName,
+                singleItem?.SourcePackageFamilyName,
+                singleItem?.SourceApplicationLink,
+                singleItem?.HtmlResources ?? [],
                 storageItems);
         }
 
@@ -220,6 +237,55 @@ internal sealed class SystemShareService
             if (ContentDetection.TryNormalizeWebUrl(this._sourceUrl, out var sourceUrl))
             {
                 data.Properties.ContentSourceWebLink = new Uri(sourceUrl);
+            }
+
+            if (!string.IsNullOrWhiteSpace(this._sourceApplicationName))
+            {
+                try
+                {
+                    data.Properties.ApplicationName = this._sourceApplicationName;
+                }
+                catch
+                {
+                    // Invalid attribution metadata must not break the share payload.
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(this._sourcePackageFamilyName))
+            {
+                try
+                {
+                    data.Properties.PackageFamilyName = this._sourcePackageFamilyName;
+                }
+                catch
+                {
+                    // Invalid attribution metadata must not break the share payload.
+                }
+            }
+
+            if (Uri.TryCreate(this._sourceApplicationLink, UriKind.Absolute, out var sourceApplicationLink))
+            {
+                try
+                {
+                    data.Properties.ContentSourceApplicationLink = sourceApplicationLink;
+                }
+                catch
+                {
+                    // Invalid attribution metadata must not break the share payload.
+                }
+            }
+
+            foreach (var resource in this._htmlResources)
+            {
+                try
+                {
+                    data.ResourceMap[resource.ResourceKey] = RandomAccessStreamReference.CreateFromUri(
+                        ContentStore.CreateHtmlResourceUri(resource));
+                }
+                catch
+                {
+                    // Missing managed resources must not break the remaining share payload.
+                }
             }
 
             if (this._storageItems.Count > 0)

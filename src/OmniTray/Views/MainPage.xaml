@@ -264,65 +264,65 @@
                                                         Height="{x:Bind CardLayout.PreviewContainerHeight, Mode=OneWay}"
                                                         Margin="{x:Bind CardLayout.PreviewMargin, Mode=OneWay}"
                                                         HorizontalAlignment="{x:Bind CardLayout.PreviewHorizontalAlignment, Mode=OneWay}">
-                                                        <Border
+                                                        <controls:StackThumbnailPresenter
                                                             Width="{x:Bind CardLayout.ThirdPreviewWidth, Mode=OneWay}"
                                                             Height="{x:Bind CardLayout.ThirdPreviewHeight, Mode=OneWay}"
                                                             HorizontalAlignment="Center"
                                                             VerticalAlignment="Center"
-                                                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                                            BorderBrush="{x:Bind TintBrush}"
-                                                            BorderThickness="1"
-                                                            CornerRadius="{x:Bind CardLayout.BackCornerRadius, Mode=OneWay}"
-                                                            Opacity="0.55"
-                                                            Visibility="{x:Bind ThirdLayerVisibility, Mode=OneWay}">
-                                                            <Border.RenderTransform>
-                                                                <CompositeTransform Rotation="12" TranslateY="{x:Bind CardLayout.ThirdTranslateY, Mode=OneWay}" />
-                                                            </Border.RenderTransform>
-                                                            <Image
-                                                                Source="{x:Bind ThirdPreviewThumbnailSource, Mode=OneWay}"
-                                                                Stretch="UniformToFill"
-                                                                Visibility="{x:Bind ThirdPreviewThumbnailVisibility, Mode=OneWay}" />
-                                                        </Border>
-                                                        <Border
+                                                            FrameBackground="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                                            FrameBorderBrush="{x:Bind TintBrush}"
+                                                            FrameBorderThickness="{x:Bind ThirdPreviewThumbnailBorderThickness, Mode=OneWay}"
+                                                            FrameCornerRadius="{x:Bind CardLayout.BackCornerRadius, Mode=OneWay}"
+                                                            FrameOpacity="0.55"
+                                                            FrameRotation="12"
+                                                            FrameTranslateY="{x:Bind CardLayout.ThirdTranslateY, Mode=OneWay}"
+                                                            HasVideoFilmstrip="{x:Bind ThirdPreviewThumbnailHasVideoFilmstrip, Mode=OneWay}"
+                                                            IconOffsetX="{x:Bind CardLayout.ThirdShellIconOffsetX, Mode=OneWay}"
+                                                            IconOffsetY="{x:Bind CardLayout.ThirdShellIconOffsetY, Mode=OneWay}"
+                                                            IconSize="{x:Bind CardLayout.ShellIconSize, Mode=OneWay}"
+                                                            IsShellIcon="{x:Bind ThirdPreviewThumbnailIsShellIcon, Mode=OneWay}"
+                                                            Source="{x:Bind ThirdPreviewThumbnailSource, Mode=OneWay}"
+                                                            Visibility="{x:Bind ThirdLayerVisibility, Mode=OneWay}" />
+                                                        <controls:StackThumbnailPresenter
                                                             Width="{x:Bind CardLayout.SecondPreviewWidth, Mode=OneWay}"
                                                             Height="{x:Bind CardLayout.SecondPreviewHeight, Mode=OneWay}"
                                                             HorizontalAlignment="Center"
                                                             VerticalAlignment="Center"
-                                                            Background="{ThemeResource LayerFillColorDefaultBrush}"
-                                                            BorderBrush="{x:Bind TintBrush}"
-                                                            BorderThickness="1"
-                                                            CornerRadius="{x:Bind CardLayout.BackCornerRadius, Mode=OneWay}"
-                                                            Opacity="0.78"
-                                                            Visibility="{x:Bind SecondLayerVisibility, Mode=OneWay}">
-                                                            <Border.RenderTransform>
-                                                                <CompositeTransform Rotation="-9" TranslateY="{x:Bind CardLayout.SecondTranslateY, Mode=OneWay}" />
-                                                            </Border.RenderTransform>
-                                                            <Image
-                                                                Source="{x:Bind SecondPreviewThumbnailSource, Mode=OneWay}"
-                                                                Stretch="UniformToFill"
-                                                                Visibility="{x:Bind SecondPreviewThumbnailVisibility, Mode=OneWay}" />
-                                                        </Border>
-                                                        <Border
+                                                            FrameBackground="{ThemeResource LayerFillColorDefaultBrush}"
+                                                            FrameBorderBrush="{x:Bind TintBrush}"
+                                                            FrameBorderThickness="{x:Bind SecondPreviewThumbnailBorderThickness, Mode=OneWay}"
+                                                            FrameCornerRadius="{x:Bind CardLayout.BackCornerRadius, Mode=OneWay}"
+                                                            FrameOpacity="0.78"
+                                                            FrameRotation="-9"
+                                                            FrameTranslateY="{x:Bind CardLayout.SecondTranslateY, Mode=OneWay}"
+                                                            HasVideoFilmstrip="{x:Bind SecondPreviewThumbnailHasVideoFilmstrip, Mode=OneWay}"
+                                                            IconOffsetX="{x:Bind CardLayout.SecondShellIconOffsetX, Mode=OneWay}"
+                                                            IconOffsetY="{x:Bind CardLayout.SecondShellIconOffsetY, Mode=OneWay}"
+                                                            IconSize="{x:Bind CardLayout.ShellIconSize, Mode=OneWay}"
+                                                            IsShellIcon="{x:Bind SecondPreviewThumbnailIsShellIcon, Mode=OneWay}"
+                                                            Source="{x:Bind SecondPreviewThumbnailSource, Mode=OneWay}"
+                                                            Visibility="{x:Bind SecondLayerVisibility, Mode=OneWay}" />
+                                                        <controls:StackThumbnailPresenter
                                                             Width="{x:Bind CardLayout.FrontPreviewWidth, Mode=OneWay}"
                                                             Height="{x:Bind CardLayout.FrontPreviewHeight, Mode=OneWay}"
                                                             HorizontalAlignment="Center"
                                                             VerticalAlignment="Center"
-                                                            Background="{ThemeResource LayerFillColorDefaultBrush}"
-                                                            BorderBrush="{x:Bind TintBrush}"
-                                                            BorderThickness="1"
-                                                            CornerRadius="{x:Bind CardLayout.FrontCornerRadius, Mode=OneWay}">
-                                                            <Grid>
-                                                                <Image
-                                                                    Source="{x:Bind PreviewThumbnailSource, Mode=OneWay}"
-                                                                    Stretch="UniformToFill"
-                                                                    Visibility="{x:Bind PreviewThumbnailVisibility, Mode=OneWay}" />
-                                                                <FontIcon
-                                                                    FontSize="{x:Bind CardLayout.PreviewGlyphFontSize, Mode=OneWay}"
-                                                                    Foreground="{x:Bind TintBrush}"
-                                                                    Glyph="{x:Bind LeadingGlyph, Mode=OneWay}"
-                                                                    Visibility="{x:Bind PreviewGlyphVisibility, Mode=OneWay}" />
-                                                            </Grid>
-                                                        </Border>
+                                                            FrameBackground="{ThemeResource LayerFillColorDefaultBrush}"
+                                                            FrameBorderBrush="{x:Bind TintBrush}"
+                                                            FrameBorderThickness="{x:Bind PreviewThumbnailBorderThickness, Mode=OneWay}"
+                                                            FrameCornerRadius="{x:Bind CardLayout.FrontCornerRadius, Mode=OneWay}"
+                                                            HasVideoFilmstrip="{x:Bind PreviewThumbnailHasVideoFilmstrip, Mode=OneWay}"
+                                                            IconOffsetX="{x:Bind CardLayout.FrontShellIconOffsetX, Mode=OneWay}"
+                                                            IconOffsetY="{x:Bind CardLayout.FrontShellIconOffsetY, Mode=OneWay}"
+                                                            IconSize="{x:Bind CardLayout.ShellIconSize, Mode=OneWay}"
+                                                            IsShellIcon="{x:Bind PreviewThumbnailIsShellIcon, Mode=OneWay}"
+                                                            Source="{x:Bind PreviewThumbnailSource, Mode=OneWay}"
+                                                            Visibility="{x:Bind PreviewThumbnailVisibility, Mode=OneWay}" />
+                                                        <FontIcon
+                                                            FontSize="{x:Bind CardLayout.PreviewGlyphFontSize, Mode=OneWay}"
+                                                            Foreground="{x:Bind TintBrush}"
+                                                            Glyph="{x:Bind LeadingGlyph, Mode=OneWay}"
+                                                            Visibility="{x:Bind PreviewGlyphVisibility, Mode=OneWay}" />
                                                     </Grid>
                                                     <StackPanel
                                                         Grid.Row="{x:Bind CardLayout.TextRow, Mode=OneWay}"
@@ -400,6 +400,7 @@
                                             Grid.Row="1"
                                             Margin="12,0,12,10"
                                             Stack="{x:Bind}"
+                                            StackCardDisplayMode="{x:Bind VerticalStackCardDisplayMode, Mode=OneWay}"
                                             Visibility="Collapsed" />
                                     </Grid>
 

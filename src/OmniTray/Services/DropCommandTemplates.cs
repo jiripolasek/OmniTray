@@ -16,7 +16,10 @@ internal sealed record DropCommandTemplateDescriptor(
     bool ConfiguresApplication,
     bool RequiresDestinationFolder,
     Func<DropCommandInstance, DropCommandConfirmationContext, DropCommandConfirmationRequest>?
-        CreateConfirmation);
+        CreateConfirmation,
+    Func<DropCommandInstance, DropCommandInput, string?> ValidateInput,
+    Func<DropCommandExecutionService, DropCommandInstance, DropCommandInput, nint, Task<DropCommandExecutionResult>>
+        ExecuteAsync);
 
 internal sealed record DropCommandConfirmationContext(int ItemCount, bool IsFromStack);
 
@@ -24,6 +27,75 @@ internal sealed record DropCommandConfirmationRequest(
     string Title,
     string Message,
     string PrimaryButtonText);
+
+internal sealed class DropCommandProviderRegistry
+{
+    private readonly object _gate = new();
+    private readonly Dictionary<string, DropCommandTemplateDescriptor> _providers =
+        new(StringComparer.Ordinal);
+
+    public event EventHandler? ProvidersChanged;
+
+    public IReadOnlyList<DropCommandTemplateDescriptor> Providers
+    {
+        get
+        {
+            lock (this._gate)
+            {
+                return this._providers.Values.ToArray();
+            }
+        }
+    }
+
+    public void Register(DropCommandTemplateDescriptor provider)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+        if (string.IsNullOrWhiteSpace(provider.Id))
+        {
+            throw new ArgumentException("A command provider ID is required.", nameof(provider));
+        }
+
+        lock (this._gate)
+        {
+            if (!this._providers.TryAdd(provider.Id.Trim(), provider))
+            {
+                throw new InvalidOperationException(
+                    $"A drop command provider with ID '{provider.Id}' is already registered.");
+            }
+        }
+
+        this.ProvidersChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public bool Unregister(string providerId)
+    {
+        if (string.IsNullOrWhiteSpace(providerId))
+        {
+            throw new ArgumentException("A command provider ID is required.", nameof(providerId));
+        }
+
+        bool removed;
+        lock (this._gate)
+        {
+            removed = this._providers.Remove(providerId.Trim());
+        }
+
+        if (removed)
+        {
+            this.ProvidersChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        return removed;
+    }
+
+    public bool TryGet(string providerId, out DropCommandTemplateDescriptor provider)
+    {
+        lock (this._gate)
+        {
+            return this._providers.TryGetValue(providerId, out provider!);
+        }
+    }
+}
 
 internal static class DropCommandTemplates
 {
@@ -38,9 +110,29 @@ internal static class DropCommandTemplates
         ContentRequirement.All(ContentProperty.HasFile, ContentProperty.HasImageFile)
     ];
 
-    private static readonly IReadOnlyDictionary<string, DropCommandTemplateDescriptor> TemplatesById =
-        new[]
+    public static DropCommandProviderRegistry Registry { get; } = CreateDefaultRegistry();
+
+    public static IReadOnlyList<DropCommandTemplateDescriptor> All => Registry.Providers;
+
+    public static bool TryGet(string templateId, out DropCommandTemplateDescriptor descriptor) =>
+        Registry.TryGet(templateId, out descriptor);
+
+    public static DropCommandTemplateDescriptor? Get(string templateId) =>
+        TryGet(templateId, out var descriptor) ? descriptor : null;
+
+    private static DropCommandProviderRegistry CreateDefaultRegistry()
+    {
+        var registry = new DropCommandProviderRegistry();
+        foreach (var provider in CreateBuiltInProviders())
         {
+            registry.Register(provider);
+        }
+
+        return registry;
+    }
+
+    private static IReadOnlyList<DropCommandTemplateDescriptor> CreateBuiltInProviders() =>
+        [
             new DropCommandTemplateDescriptor(
                 DropCommandTemplateIds.OpenInApp,
                 "Open in app",
@@ -50,7 +142,9 @@ internal static class DropCommandTemplates
                 ResolveOpenAppRequirements,
                 true,
                 false,
-                null),
+                null,
+                static (command, input) => DropCommandExecutionService.ValidateOpenInAppInput(command, input),
+                static (service, command, input, _) => service.OpenInAppAsync(command, input)),
             new DropCommandTemplateDescriptor(
                 DropCommandTemplateIds.CopyToFolder,
                 "Copy to folder",
@@ -60,7 +154,9 @@ internal static class DropCommandTemplates
                 null,
                 false,
                 true,
-                null),
+                null,
+                static (command, input) => DropCommandExecutionService.ValidateTransferInput(command, input, false),
+                static (service, command, input, _) => service.TransferToFolderAsync(command, input, false)),
             new DropCommandTemplateDescriptor(
                 DropCommandTemplateIds.MoveToFolder,
                 "Move to folder",
@@ -78,7 +174,9 @@ internal static class DropCommandTemplates
                     context.IsFromStack
                         ? $"Move {context.ItemCount} {GetItemNoun(context.ItemCount)} using “{command.DisplayName}”? Successful items will be removed from their OmniTray stack."
                         : $"Move {context.ItemCount} original {GetItemNoun(context.ItemCount)} using “{command.DisplayName}”?",
-                    "Move")),
+                    "Move"),
+                static (command, input) => DropCommandExecutionService.ValidateTransferInput(command, input, true),
+                static (service, command, input, _) => service.TransferToFolderAsync(command, input, true)),
             new DropCommandTemplateDescriptor(
                 DropCommandTemplateIds.Recycle,
                 "Recycle",
@@ -94,7 +192,9 @@ internal static class DropCommandTemplates
                 static (command, context) => new DropCommandConfirmationRequest(
                     command.DisplayName,
                     $"Send {context.ItemCount} {GetItemNoun(context.ItemCount)} to the Windows Recycle Bin?",
-                    "Recycle")),
+                    "Recycle"),
+                static (_, input) => DropCommandExecutionService.ValidateRecycleInput(input),
+                static (service, _, input, _) => service.RecycleAsync(input)),
             new DropCommandTemplateDescriptor(
                 DropCommandTemplateIds.CopyToClipboard,
                 "Copy to clipboard",
@@ -104,7 +204,9 @@ internal static class DropCommandTemplates
                 null,
                 false,
                 false,
-                null),
+                null,
+                static (_, _) => null,
+                static (service, command, input, _) => service.CopyToClipboard(command, input)),
             new DropCommandTemplateDescriptor(
                 DropCommandTemplateIds.Share,
                 "Share",
@@ -114,17 +216,13 @@ internal static class DropCommandTemplates
                 null,
                 false,
                 false,
-                null)
-        }.ToDictionary(static template => template.Id, StringComparer.Ordinal);
-
-    public static IReadOnlyList<DropCommandTemplateDescriptor> All { get; } =
-        TemplatesById.Values.ToArray();
-
-    public static bool TryGet(string templateId, out DropCommandTemplateDescriptor descriptor) =>
-        TemplatesById.TryGetValue(templateId, out descriptor!);
-
-    public static DropCommandTemplateDescriptor? Get(string templateId) =>
-        TryGet(templateId, out var descriptor) ? descriptor : null;
+                null,
+                static (_, input) => DropCommandExecutionService.ValidateShareInput(input),
+                static (service, command, input, ownerHwnd) => service.ShareAsync(
+                    command,
+                    input,
+                    ownerHwnd))
+        ];
 
     public static DropCommandInstance CreateInstance(string templateId)
     {

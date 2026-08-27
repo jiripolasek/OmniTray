@@ -39,6 +39,14 @@ public sealed partial class StackItemsOrganizer : UserControl
         typeof(StackItemsOrganizer),
         new PropertyMetadata(154d, OnMaximumListHeightChanged));
 
+    public static readonly DependencyProperty StackCardDisplayModeProperty = DependencyProperty.Register(
+        nameof(StackCardDisplayMode),
+        typeof(OmniTray.Core.StackCardDisplayMode),
+        typeof(StackItemsOrganizer),
+        new PropertyMetadata(
+            OmniTray.Core.StackCardDisplayMode.SmallList,
+            OnStackCardDisplayModeChanged));
+
     private readonly DispatcherQueueTimer _commandHoverTimer;
     private readonly ListInsertionAdornerController _itemInsertionAdorner;
     private FrameworkElement? _commandFlyoutAnchor;
@@ -83,18 +91,19 @@ public sealed partial class StackItemsOrganizer : UserControl
         set => this.SetValue(MaximumListHeightProperty, value);
     }
 
+    public OmniTray.Core.StackCardDisplayMode StackCardDisplayMode
+    {
+        get => (OmniTray.Core.StackCardDisplayMode)this.GetValue(StackCardDisplayModeProperty);
+        set => this.SetValue(StackCardDisplayModeProperty, value);
+    }
+
     internal Window? DialogOwner { get; set; }
 
     internal void SetThumbnailView(bool useThumbnails)
     {
         this.ResetCommandFlyout(true);
         this._isThumbnailView = useThumbnails;
-        this.ItemList.ItemTemplate = (DataTemplate)this.Resources[
-            useThumbnails ? "ThumbnailItemTemplate" : "ListItemTemplate"];
-        this.ItemList.ItemsPanel = (ItemsPanelTemplate)this.Resources[
-            useThumbnails ? "ThumbnailItemsPanel" : "ListItemsPanel"];
-        this.ItemList.ItemContainerStyle = (Style)this.Resources[
-            useThumbnails ? "ThumbnailItemContainerStyle" : "ListItemContainerStyle"];
+        this.UpdateItemPresentation();
         this._itemInsertionAdorner.SetLayout(
             useThumbnails ? Orientation.Horizontal : Orientation.Vertical,
             useThumbnails);
@@ -146,6 +155,30 @@ public sealed partial class StackItemsOrganizer : UserControl
         {
             organizer.ApplyScrollingLayout();
         }
+    }
+
+    private static void OnStackCardDisplayModeChanged(
+        DependencyObject sender,
+        DependencyPropertyChangedEventArgs args)
+    {
+        if (sender is StackItemsOrganizer organizer)
+        {
+            organizer.UpdateItemPresentation();
+        }
+    }
+
+    private void UpdateItemPresentation()
+    {
+        var templateKey = this._isThumbnailView
+            ? "ThumbnailItemTemplate"
+            : this.StackCardDisplayMode == OmniTray.Core.StackCardDisplayMode.SmallList
+                ? "SmallListItemTemplate"
+                : "LargeListItemTemplate";
+        this.ItemList.ItemTemplate = (DataTemplate)this.Resources[templateKey];
+        this.ItemList.ItemsPanel = (ItemsPanelTemplate)this.Resources[
+            this._isThumbnailView ? "ThumbnailItemsPanel" : "ListItemsPanel"];
+        this.ItemList.ItemContainerStyle = (Style)this.Resources[
+            this._isThumbnailView ? "ThumbnailItemContainerStyle" : "ListItemContainerStyle"];
     }
 
     private void ApplyScrollingLayout()
@@ -650,6 +683,15 @@ public sealed partial class StackItemsOrganizer : UserControl
         }
     }
 
+    private void OnInspectPayloadClick(object sender, RoutedEventArgs args)
+    {
+        var item = this.GetCommandItems().SingleOrDefault();
+        if (item is not null)
+        {
+            App.Current.ShowDataFormatInspector(item);
+        }
+    }
+
     private async void OnDeleteFromDiskClick(object sender, RoutedEventArgs args)
     {
         var source = this.Stack;
@@ -881,7 +923,8 @@ public sealed partial class StackItemsOrganizer : UserControl
             ? Visibility.Visible
             : Visibility.Collapsed;
         this.OpenSourceUrlButton.Visibility = Has(singleActions, ContentActions.OpenSource) &&
-                                              (singleItem?.Kind != DropItemKind.Uri ||
+                                              (!string.IsNullOrWhiteSpace(singleItem?.SourceApplicationLink) ||
+                                               singleItem?.Kind != DropItemKind.Uri ||
                                                !string.Equals(
                                                    singleItem.Url,
                                                    singleItem.SourceUrl,
@@ -897,6 +940,9 @@ public sealed partial class StackItemsOrganizer : UserControl
         this.ShowPropertiesButton.Visibility = Has(singleActions, ContentActions.ShowProperties)
             ? Visibility.Visible
             : Visibility.Collapsed;
+        this.InspectPayloadButton.Visibility = singleItem is null
+            ? Visibility.Collapsed
+            : Visibility.Visible;
         this.DeleteFromDiskButton.Visibility = hasSelection && selectedItems.All(static item =>
             ContentMetadataPolicy.HasAction(item, ContentActions.Delete))
             ? Visibility.Visible

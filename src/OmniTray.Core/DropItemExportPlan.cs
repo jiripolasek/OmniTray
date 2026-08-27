@@ -13,6 +13,10 @@ public sealed record DropItemExportPlan(
     string? Url,
     string? ApplicationLink,
     string? SourceUrl,
+    string? SourceApplicationName,
+    string? SourcePackageFamilyName,
+    string? SourceApplicationLink,
+    IReadOnlyList<DropItemHtmlResource> HtmlResources,
     IReadOnlyList<DropItemDataFormat> CustomFormats,
     bool IncludesStorageItems,
     bool IncludesBitmap)
@@ -41,6 +45,10 @@ public sealed record DropItemExportPlan(
             singleItem?.Url,
             singleItem?.ApplicationLink,
             singleItem?.SourceUrl,
+            singleItem?.SourceApplicationName,
+            singleItem?.SourcePackageFamilyName,
+            singleItem?.SourceApplicationLink,
+            singleItem?.HtmlResources ?? [],
             singleItem?.CustomFormats ?? [],
             items.Any(CanExportAsStorageItem),
             singleItem?.Kind == DropItemKind.Image && !containsHtmlTable);

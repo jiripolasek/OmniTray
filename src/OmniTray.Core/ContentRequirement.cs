@@ -17,30 +17,49 @@ public sealed record ContentRequirement
 {
     private ContentRequirement(
         ContentRequirementCardinality cardinality,
-        IReadOnlyList<ContentProperty> alternatives)
+        IReadOnlyList<ContentProperty> alternatives,
+        IReadOnlyList<string> tagAlternatives)
     {
         ArgumentNullException.ThrowIfNull(alternatives);
-        if (alternatives.Count == 0)
+        ArgumentNullException.ThrowIfNull(tagAlternatives);
+        if (alternatives.Count == 0 && tagAlternatives.Count == 0)
         {
-            throw new ArgumentException("At least one content property is required.", nameof(alternatives));
+            throw new ArgumentException("At least one content property or tag is required.");
         }
 
         this.Cardinality = cardinality;
         this.Alternatives = alternatives.Distinct().ToArray();
+        this.TagAlternatives = tagAlternatives
+            .Select(static tagId => string.IsNullOrWhiteSpace(tagId)
+                ? throw new ArgumentException("Content tag IDs cannot be empty.", nameof(tagAlternatives))
+                : tagId.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
     }
 
     public ContentRequirementCardinality Cardinality { get; }
 
     public IReadOnlyList<ContentProperty> Alternatives { get; }
 
+    public IReadOnlyList<string> TagAlternatives { get; }
+
     public static ContentRequirement All(params ContentProperty[] alternatives) =>
-        new(ContentRequirementCardinality.All, alternatives);
+        new(ContentRequirementCardinality.All, alternatives, []);
 
     public static ContentRequirement Any(params ContentProperty[] alternatives) =>
-        new(ContentRequirementCardinality.Any, alternatives);
+        new(ContentRequirementCardinality.Any, alternatives, []);
 
     public static ContentRequirement ExactlyOne(params ContentProperty[] alternatives) =>
-        new(ContentRequirementCardinality.ExactlyOne, alternatives);
+        new(ContentRequirementCardinality.ExactlyOne, alternatives, []);
+
+    public static ContentRequirement All(params string[] tagIds) =>
+        new(ContentRequirementCardinality.All, [], tagIds);
+
+    public static ContentRequirement Any(params string[] tagIds) =>
+        new(ContentRequirementCardinality.Any, [], tagIds);
+
+    public static ContentRequirement ExactlyOne(params string[] tagIds) =>
+        new(ContentRequirementCardinality.ExactlyOne, [], tagIds);
 
     public bool IsSatisfiedBy(IReadOnlyList<DropItem> items)
     {
@@ -57,7 +76,9 @@ public sealed record ContentRequirement
         }
 
         var matchingItemCount = items.Count(item =>
-            this.Alternatives.Any(property => ContentMetadataPolicy.Matches(item, property)));
+            this.Alternatives.Any(property => ContentMetadataPolicy.Matches(item, property)) ||
+            this.TagAlternatives.Any(tagId => item.Tags.Any(tag =>
+                string.Equals(tag.Id, tagId, StringComparison.Ordinal))));
         return this.Cardinality switch
         {
             ContentRequirementCardinality.All => matchingItemCount == items.Count,
@@ -69,47 +90,25 @@ public sealed record ContentRequirement
 
     public string Describe() => this.Cardinality switch
     {
-        ContentRequirementCardinality.All => $"Every item must {DescribeAlternatives(this.Alternatives)}.",
-        ContentRequirementCardinality.Any => $"At least one item must {DescribeAlternatives(this.Alternatives)}.",
-        ContentRequirementCardinality.ExactlyOne => $"Exactly one item must {DescribeAlternatives(this.Alternatives)}.",
+        ContentRequirementCardinality.All => $"Every item must {this.DescribeAlternatives()}.",
+        ContentRequirementCardinality.Any => $"At least one item must {this.DescribeAlternatives()}.",
+        ContentRequirementCardinality.ExactlyOne => $"Exactly one item must {this.DescribeAlternatives()}.",
         _ => "The content does not meet this command's requirements."
     };
 
-    private static string DescribeAlternatives(IReadOnlyList<ContentProperty> alternatives)
+    private string DescribeAlternatives()
     {
-        var descriptions = alternatives.Select(DescribeProperty).ToArray();
+        var descriptions = this.Alternatives
+            .Select(DescribeProperty)
+            .Concat(this.TagAlternatives.Select(static tagId => $"have the ‘{tagId}’ classification"))
+            .ToArray();
         return descriptions.Length == 1
             ? descriptions[0]
             : string.Join(" or ", descriptions);
     }
 
-    private static string DescribeProperty(ContentProperty property) => property switch
-    {
-        ContentProperty.HasLocalPath => "have an available local path",
-        ContentProperty.HasOriginalPath => "have its original path",
-        ContentProperty.HasText => "have text",
-        ContentProperty.HasHtml => "have HTML",
-        ContentProperty.HasRtf => "have rich text",
-        ContentProperty.HasBitmap => "have a bitmap",
-        ContentProperty.HasImageFile => "have an image file",
-        ContentProperty.HasStorageItem => "have a file or folder representation",
-        ContentProperty.HasWebLink => "have a web link",
-        ContentProperty.HasApplicationLink => "have an application link",
-        ContentProperty.HasCustomFormat => "have a native data format",
-        ContentProperty.HasFile => "be a file",
-        ContentProperty.HasFolder => "be a folder",
-        ContentProperty.CanOpen => "be openable",
-        ContentProperty.CanReveal => "be revealable",
-        ContentProperty.CanCopy => "be copyable",
-        ContentProperty.CanCut => "be cuttable",
-        ContentProperty.CanDelete => "be deletable",
-        ContentProperty.CanShare => "be shareable",
-        ContentProperty.IsTabular => "contain tabular content",
-        ContentProperty.IsCode => "contain code",
-        ContentProperty.IsEmail => "contain an email address",
-        ContentProperty.IsColor => "contain a color",
-        _ => "meet the content requirement"
-    };
+    private static string DescribeProperty(ContentProperty property) =>
+        property.RequirementDescription;
 }
 
 public static class ContentRequirements

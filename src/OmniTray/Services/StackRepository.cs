@@ -138,7 +138,13 @@ internal sealed class StackRepository
             item.IsOwned,
             item.CreatedAt,
             RestoreCustomFormats(item.CustomFormats),
-            item.ApplicationLink)),
+            item.ApplicationLink,
+            item.SourcePackageFamilyName,
+            item.SourceApplicationLink,
+            item.Capture,
+            item.Backing,
+            item.FileFacts,
+            item.HtmlResources)),
         stack.InspectorViewMode);
 
     private static StackDocument CreateStackDocument(DropStack stack) => new()
@@ -162,6 +168,12 @@ internal sealed class StackRepository
                 SourceUrl = item.SourceUrl,
                 SourceApplicationName = item.SourceApplicationName,
                 ApplicationLink = item.ApplicationLink,
+                SourcePackageFamilyName = item.SourcePackageFamilyName,
+                SourceApplicationLink = item.SourceApplicationLink,
+                Capture = item.Capture,
+                Backing = item.Backing,
+                FileFacts = item.FileFacts,
+                HtmlResources = [.. item.HtmlResources],
                 CustomFormats =
                 [
                     .. item.CustomFormats.Select(static format => new ItemDataFormatDocument
@@ -334,6 +346,18 @@ internal sealed class ItemDocument
     public string? SourceApplicationName { get; set; }
 
     public string? ApplicationLink { get; set; }
+
+    public string? SourcePackageFamilyName { get; set; }
+
+    public string? SourceApplicationLink { get; set; }
+
+    public DropCaptureMetadata? Capture { get; set; }
+
+    public ContentBacking? Backing { get; set; }
+
+    public DropFileFacts? FileFacts { get; set; }
+
+    public List<DropItemHtmlResource> HtmlResources { get; set; } = [];
 
     public List<ItemDataFormatDocument> CustomFormats { get; set; } = [];
 

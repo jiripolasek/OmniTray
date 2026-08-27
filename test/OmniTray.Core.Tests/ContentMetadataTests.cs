@@ -133,6 +133,65 @@ public sealed class ContentMetadataTests
     }
 
     [TestMethod]
+    public void MarkdownJsonDateAndOcrRecognition_RemainDerivedFacets()
+    {
+        var markdown = DropItem.CreateText("# Heading\n\n- first");
+        var json = DropItem.CreateText("{\"enabled\":true}");
+        var date = DropItem.CreateText("2026-08-26T13:26:07+02:00");
+        var ocr = DropItem.CreateText("Recognized words").WithMetadata(
+            capture: new DropCaptureMetadata
+            {
+                CaptureId = Guid.NewGuid(),
+                CapturedAt = DateTimeOffset.UtcNow,
+                Formats =
+                [
+                    new DataFormatInventoryEntry
+                    {
+                        FormatId = "Contoso.OcrText",
+                        Status = DataFormatReadStatus.Succeeded
+                    }
+                ]
+            });
+
+        Assert.IsTrue(ContentMetadataPolicy.GetMetadata(markdown).Facets.HasFlag(ContentFacets.Markdown));
+        Assert.IsTrue(ContentMetadataPolicy.GetMetadata(json).Facets.HasFlag(ContentFacets.Json));
+        Assert.IsTrue(ContentMetadataPolicy.GetMetadata(date).Facets.HasFlag(ContentFacets.DateTime));
+        Assert.IsTrue(ContentMetadataPolicy.GetMetadata(ocr).Facets.HasFlag(ContentFacets.OcrText));
+        Assert.AreEqual(DropItemKind.Text, json.Kind);
+    }
+
+    [TestMethod]
+    public void ExportPlan_SeparatesApplicationLinkFromSourceAttribution()
+    {
+        var resource = new DropItemHtmlResource
+        {
+            ResourceKey = "https://example.com/chart.png",
+            ManagedRelativePath = @"Content\chart.png",
+            Size = 42
+        };
+        var item = DropItem.CreateText(
+                "Open draft",
+                html: "<img src=\"https://example.com/chart.png\">",
+                applicationLink: "contoso-mail://draft/42")
+            .WithMetadata(
+                new ContentProvenance
+                {
+                    ApplicationName = "Contoso Mail",
+                    PackageFamilyName = "Contoso.Mail_123",
+                    SourceWebLink = "https://example.com/drafts/42",
+                    SourceApplicationLink = "contoso-mail://folder/drafts"
+                },
+                htmlResources: [resource]);
+
+        var plan = DropItemExportPlan.Create([item]);
+
+        Assert.AreEqual("contoso-mail://draft/42", plan.ApplicationLink);
+        Assert.AreEqual("contoso-mail://folder/drafts", plan.SourceApplicationLink);
+        Assert.AreEqual("Contoso.Mail_123", plan.SourcePackageFamilyName);
+        Assert.AreEqual(resource, plan.HtmlResources.Single());
+    }
+
+    [TestMethod]
     public void ExcelRange_ExportPlanReAdvertisesExactRichRepresentations()
     {
         const string plainText = "Region\tSales\r\nNorth\t42";

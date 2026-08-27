@@ -27,6 +27,7 @@ public sealed partial class DataFormatInspectorWindow : Window
         StandardDataFormats.WebLink
     };
 
+    private int _inspectionGeneration;
     private bool _isInspecting;
 
     public DataFormatInspectorWindow()
@@ -42,6 +43,83 @@ public sealed partial class DataFormatInspectorWindow : Window
     }
 
     public ObservableCollection<DataFormatInspectionEntry> Formats { get; } = [];
+
+    public void Inspect(DropItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        var generation = ++this._inspectionGeneration;
+        this._isInspecting = false;
+        this.InspectClipboardButton.IsEnabled = true;
+        this.InspectionProgress.IsActive = false;
+        this.Formats.Clear();
+        this.StatusBar.IsOpen = false;
+        this.EmptyState.Visibility = Visibility.Collapsed;
+
+        var capture = item.Capture;
+        this.SourceSummaryText.Text = capture is null
+            ? $"Stored item · metadata unavailable · {item.CreatedAt.LocalDateTime:g}"
+            : $"{capture.Channel} capture · {capture.Formats.Count} format{(capture.Formats.Count == 1 ? string.Empty : "s")} · {capture.CapturedAt.LocalDateTime:g}";
+        this.PackagePropertiesText.Text = DescribeStoredItem(item);
+
+        var formats = capture?.Formats ?? CreateStoredFormatInventory(item);
+        for (var index = 0; index < formats.Count; index++)
+        {
+            var format = formats[index];
+            this.Formats.Add(new DataFormatInspectionEntry(
+                index + 1,
+                format.FormatId,
+                ClassifyFormat(format.FormatId),
+                format.Status.ToString(),
+                format.Detail ?? "No capture detail was recorded."));
+        }
+
+        foreach (var resource in item.HtmlResources)
+        {
+            this.Formats.Add(new DataFormatInspectionEntry(
+                this.Formats.Count + 1,
+                resource.ResourceKey,
+                "HTML resource",
+                "Managed snapshot",
+                $"{DataFormatInspectionText.FormatByteCount(resource.Size)} · {resource.ManagedRelativePath}"));
+        }
+
+        var classification = ContentMetadataPolicy.Classifiers.Classify(item);
+        foreach (var tag in classification.Tags)
+        {
+            this.Formats.Add(new DataFormatInspectionEntry(
+                this.Formats.Count + 1,
+                tag.Id,
+                "Classification",
+                tag.DisplayName,
+                $"Provider: {tag.ProviderId} · Confidence: {tag.Confidence:P0}"));
+        }
+
+        foreach (var failure in classification.Failures)
+        {
+            this.Formats.Add(new DataFormatInspectionEntry(
+                this.Formats.Count + 1,
+                failure.ProviderId,
+                "Classifier",
+                "Provider failed",
+                failure.Error));
+        }
+
+        var metadataComposition = ContentMetadataPolicy.Providers.Compose(item);
+        foreach (var failure in metadataComposition.Failures)
+        {
+            this.Formats.Add(new DataFormatInspectionEntry(
+                this.Formats.Count + 1,
+                failure.ProviderId,
+                "Metadata",
+                "Provider failed",
+                failure.Error));
+        }
+
+        _ = this.AppendThumbnailInspectionAsync(item, generation);
+
+        this.EmptyState.Visibility = this.Formats.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        this.ClearButton.IsEnabled = this.Formats.Count > 0;
+    }
 
     private async void OnInspectClipboardClick(object sender, RoutedEventArgs args)
     {
@@ -101,6 +179,7 @@ public sealed partial class DataFormatInspectorWindow : Window
         }
 
         this._isInspecting = true;
+        var generation = ++this._inspectionGeneration;
         this.InspectClipboardButton.IsEnabled = false;
         this.ClearButton.IsEnabled = false;
         this.InspectionProgress.IsActive = true;
@@ -132,6 +211,11 @@ public sealed partial class DataFormatInspectorWindow : Window
                 {
                     var value = await dataView.GetDataAsync(formatId);
                     var payload = await DescribePayloadAsync(value);
+                    if (generation != this._inspectionGeneration)
+                    {
+                        return;
+                    }
+
                     this.Formats[index] = new DataFormatInspectionEntry(
                         index + 1,
                         formatId,
@@ -141,6 +225,11 @@ public sealed partial class DataFormatInspectorWindow : Window
                 }
                 catch (Exception exception)
                 {
+                    if (generation != this._inspectionGeneration)
+                    {
+                        return;
+                    }
+
                     this.Formats[index] = new DataFormatInspectionEntry(
                         index + 1,
                         formatId,
@@ -148,6 +237,11 @@ public sealed partial class DataFormatInspectorWindow : Window
                         "Probe failed",
                         $"{exception.GetType().Name} (0x{exception.HResult:X8}): {exception.Message}");
                 }
+            }
+
+            if (generation != this._inspectionGeneration)
+            {
+                return;
             }
 
             if (this.Formats.Count == 0)
@@ -161,10 +255,13 @@ public sealed partial class DataFormatInspectorWindow : Window
         }
         finally
         {
-            this._isInspecting = false;
-            this.InspectClipboardButton.IsEnabled = true;
-            this.ClearButton.IsEnabled = this.Formats.Count > 0;
-            this.InspectionProgress.IsActive = false;
+            if (generation == this._inspectionGeneration)
+            {
+                this._isInspecting = false;
+                this.InspectClipboardButton.IsEnabled = true;
+                this.ClearButton.IsEnabled = this.Formats.Count > 0;
+                this.InspectionProgress.IsActive = false;
+            }
         }
     }
 
@@ -175,12 +272,68 @@ public sealed partial class DataFormatInspectorWindow : Window
             return;
         }
 
+        this._inspectionGeneration++;
         this.Formats.Clear();
         this.SourceSummaryText.Text = "Nothing inspected yet";
         this.PackagePropertiesText.Text = "Drop content above or inspect the clipboard.";
         this.StatusBar.IsOpen = false;
         this.ClearButton.IsEnabled = false;
         this.EmptyState.Visibility = Visibility.Visible;
+    }
+
+    private async Task AppendThumbnailInspectionAsync(DropItem item, int generation)
+    {
+        try
+        {
+            var resolution = await ContentThumbnailRegistry.Default.ResolveAsync(
+                item,
+                new ContentThumbnailRequest());
+            if (generation != this._inspectionGeneration)
+            {
+                return;
+            }
+
+            if (resolution.Thumbnail is { } thumbnail)
+            {
+                var fallback = thumbnail.IsFallback ? " · fallback" : string.Empty;
+                var cacheKey = string.IsNullOrWhiteSpace(thumbnail.CacheKey)
+                    ? string.Empty
+                    : $" · Cache key: {thumbnail.CacheKey}";
+                this.Formats.Add(new DataFormatInspectionEntry(
+                    this.Formats.Count + 1,
+                    thumbnail.ProviderId,
+                    "Thumbnail",
+                    thumbnail.Kind.ToString(),
+                    $"{thumbnail.AccessibleLabel}{fallback}{cacheKey}"));
+            }
+
+            foreach (var failure in resolution.Failures)
+            {
+                this.Formats.Add(new DataFormatInspectionEntry(
+                    this.Formats.Count + 1,
+                    failure.ProviderId,
+                    "Thumbnail",
+                    "Provider failed",
+                    failure.Error));
+            }
+
+            this.EmptyState.Visibility = this.Formats.Count == 0
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            this.ClearButton.IsEnabled = this.Formats.Count > 0;
+        }
+        catch (Exception exception)
+        {
+            if (generation == this._inspectionGeneration)
+            {
+                this.Formats.Add(new DataFormatInspectionEntry(
+                    this.Formats.Count + 1,
+                    "omnitray.thumbnail-resolution",
+                    "Thumbnail",
+                    "Resolution failed",
+                    $"{exception.GetType().Name}: {exception.Message}"));
+            }
+        }
     }
 
     private void ShowError(string title, Exception exception)
@@ -221,6 +374,98 @@ public sealed partial class DataFormatInspectorWindow : Window
         AddProperty(details, "Source URL", properties.ContentSourceWebLink?.AbsoluteUri);
         AddProperty(details, "Source app link", properties.ContentSourceApplicationLink?.AbsoluteUri);
         return string.Join(" · ", details);
+    }
+
+    private static string DescribeStoredItem(DropItem item)
+    {
+        var details = new List<string>();
+        if (item.Capture is { } capture)
+        {
+            details.Add($"Capture: {capture.CaptureId:D}");
+            details.Add($"Item: {capture.Ordinal + 1}");
+            details.Add($"Requested operation: {capture.RequestedOperation}");
+        }
+
+        AddProperty(details, "Application", item.SourceApplicationName);
+        AddProperty(details, "Package", item.SourcePackageFamilyName);
+        AddProperty(details, "Source URL", item.SourceUrl);
+        AddProperty(details, "Source app link", item.SourceApplicationLink);
+        details.Add($"Backing: {item.Backing.Kind}");
+        AddProperty(details, "Path", item.Backing.Path);
+        if (item.FileFacts is { } facts)
+        {
+            AddProperty(details, "Original name", facts.OriginalFileName);
+            AddProperty(details, "Content type", facts.ContentType);
+            if (facts.Size is { } size)
+            {
+                details.Add($"Size: {DataFormatInspectionText.FormatByteCount(size)}");
+            }
+
+            if (facts.ModifiedAt is { } modifiedAt)
+            {
+                details.Add($"Modified: {modifiedAt.LocalDateTime:g}");
+            }
+        }
+
+        return details.Count == 0 ? "No stored metadata is available." : string.Join(" · ", details);
+    }
+
+    private static IReadOnlyList<DataFormatInventoryEntry> CreateStoredFormatInventory(DropItem item)
+    {
+        var formats = new List<DataFormatInventoryEntry>();
+        var metadata = ContentMetadataPolicy.GetMetadata(item);
+        void Add(string formatId, string detail) => formats.Add(new DataFormatInventoryEntry
+        {
+            FormatId = formatId,
+            Status = DataFormatReadStatus.Succeeded,
+            Detail = detail
+        });
+
+        if (item.Text is not null)
+        {
+            Add(StandardDataFormats.Text, $"{item.Text.Length:N0} characters");
+        }
+
+        if (item.Html is not null)
+        {
+            Add(StandardDataFormats.Html, $"{item.Html.Length:N0} characters");
+        }
+
+        if (item.Rtf is not null)
+        {
+            Add(StandardDataFormats.Rtf, $"{item.Rtf.Length:N0} characters");
+        }
+
+        if (item.Kind == DropItemKind.Uri && item.Url is not null)
+        {
+            Add(StandardDataFormats.WebLink, item.Url);
+        }
+
+        if (item.ApplicationLink is not null)
+        {
+            Add(StandardDataFormats.ApplicationLink, item.ApplicationLink);
+        }
+
+        if (metadata.Representations.HasFlag(ContentRepresentations.StorageItem))
+        {
+            Add(StandardDataFormats.StorageItems, item.SourcePath ?? "Stored item");
+        }
+
+        if (metadata.Representations.HasFlag(ContentRepresentations.Bitmap))
+        {
+            Add(StandardDataFormats.Bitmap, item.SourcePath ?? "Stored bitmap");
+        }
+
+        foreach (var format in item.CustomFormats)
+        {
+            Add(
+                format.FormatId,
+                format.Kind == DropItemDataFormatKind.Text
+                    ? $"{format.Text?.Length ?? 0:N0} characters"
+                    : DataFormatInspectionText.FormatByteCount((ulong)format.GetBinaryData().Length));
+        }
+
+        return formats;
     }
 
     private static void AddProperty(ICollection<string> details, string name, string? value)
