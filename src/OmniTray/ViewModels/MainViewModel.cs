@@ -1049,6 +1049,9 @@ public sealed class DropStackViewModel : ObservableObject
     public StackCardLayoutMetrics HorizontalCardLayout =>
         StackCardLayoutMetrics.Resolve(this.HorizontalStackCardDisplayMode);
 
+    public StackCardLayoutMetrics ThumbnailCardLayout =>
+        StackCardLayoutMetrics.Resolve(StackCardDisplayMode.ThumbnailIcon);
+
     public string Name => this.Model.Name;
 
     public string CompactName => this.Name.Length <= 12 ? this.Name : $"{this.Name[..11]}…";

@@ -19,7 +19,6 @@ namespace OmniTray.Controls;
 public sealed partial class StackItemsOrganizer : UserControl
 {
     private static readonly TimeSpan CommandHoverDelay = TimeSpan.FromMilliseconds(400);
-    private const int ThumbnailColumnCount = 3;
 
     public static readonly DependencyProperty StackProperty = DependencyProperty.Register(
         nameof(Stack),
@@ -38,6 +37,12 @@ public sealed partial class StackItemsOrganizer : UserControl
         typeof(double),
         typeof(StackItemsOrganizer),
         new PropertyMetadata(154d, OnMaximumListHeightChanged));
+
+    public static readonly DependencyProperty ThumbnailItemWidthProperty = DependencyProperty.Register(
+        nameof(ThumbnailItemWidth),
+        typeof(double),
+        typeof(StackItemsOrganizer),
+        new PropertyMetadata(double.NaN, OnThumbnailItemWidthChanged));
 
     public static readonly DependencyProperty StackCardDisplayModeProperty = DependencyProperty.Register(
         nameof(StackCardDisplayMode),
@@ -91,6 +96,13 @@ public sealed partial class StackItemsOrganizer : UserControl
         set => this.SetValue(MaximumListHeightProperty, value);
     }
 
+    // A preferred width lets the wrap panel choose the column count. NaN preserves the compact three-column layout.
+    public double ThumbnailItemWidth
+    {
+        get => (double)this.GetValue(ThumbnailItemWidthProperty);
+        set => this.SetValue(ThumbnailItemWidthProperty, value);
+    }
+
     public OmniTray.Core.StackCardDisplayMode StackCardDisplayMode
     {
         get => (OmniTray.Core.StackCardDisplayMode)this.GetValue(StackCardDisplayModeProperty);
@@ -98,6 +110,37 @@ public sealed partial class StackItemsOrganizer : UserControl
     }
 
     internal Window? DialogOwner { get; set; }
+
+    internal DropItemViewModel? PrimarySelectedItem =>
+        this.ItemList.SelectedItems.OfType<DropItemViewModel>().FirstOrDefault();
+
+    internal int SelectedItemCount => this.ItemList.SelectedItems.Count;
+
+    internal event EventHandler? SelectedItemsChanged;
+
+    internal bool SelectItem(Guid itemId)
+    {
+        var stack = this.Stack;
+        var item = stack?.Items.FirstOrDefault(candidate => candidate.Model.Id == itemId);
+        if (item is null)
+        {
+            return false;
+        }
+
+        this.ItemList.SelectedItems.Clear();
+        this.ItemList.SelectedItem = item;
+        this.ItemList.ScrollIntoView(item);
+        _ = this.DispatcherQueue.TryEnqueue(() =>
+        {
+            if (this.IsLoaded && ReferenceEquals(this.Stack, stack) && ReferenceEquals(this.PrimarySelectedItem, item))
+            {
+                this.ItemList.UpdateLayout();
+                this.ItemList.ScrollIntoView(item);
+                (this.ItemList.ContainerFromItem(item) as Control)?.Focus(FocusState.Programmatic);
+            }
+        });
+        return true;
+    }
 
     internal void SetThumbnailView(bool useThumbnails)
     {
@@ -157,6 +200,16 @@ public sealed partial class StackItemsOrganizer : UserControl
         }
     }
 
+    private static void OnThumbnailItemWidthChanged(
+        DependencyObject sender,
+        DependencyPropertyChangedEventArgs args)
+    {
+        if (sender is StackItemsOrganizer organizer)
+        {
+            organizer.UpdateThumbnailItemWidth();
+        }
+    }
+
     private static void OnStackCardDisplayModeChanged(
         DependencyObject sender,
         DependencyPropertyChangedEventArgs args)
@@ -188,7 +241,11 @@ public sealed partial class StackItemsOrganizer : UserControl
             ownsScrolling ? ScrollMode.Enabled : ScrollMode.Disabled);
         ScrollViewer.SetVerticalScrollBarVisibility(this.ItemList,
             ownsScrolling ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled);
+        this.ItemsHostRow.Height = ownsScrolling
+            ? new GridLength(1, GridUnitType.Star)
+            : GridLength.Auto;
         this.ItemList.MaxHeight = ownsScrolling ? this.MaximumListHeight : double.PositiveInfinity;
+        this.UpdateEmptyState();
     }
 
     private void OnItemsChanged(object? sender, NotifyCollectionChangedEventArgs args)
@@ -216,7 +273,11 @@ public sealed partial class StackItemsOrganizer : UserControl
         var availableWidth = this.ItemList.ActualWidth -
                              this.ItemList.Padding.Left -
                              this.ItemList.Padding.Right;
-        itemsPanel.ItemWidth = Math.Max(96, Math.Floor(availableWidth / ThumbnailColumnCount));
+        var itemWidth = StackThumbnailLayout.GetItemWidth(availableWidth, this.ThumbnailItemWidth);
+        if (itemWidth > 0 && itemsPanel.ItemWidth != itemWidth)
+        {
+            itemsPanel.ItemWidth = itemWidth;
+        }
     }
 
     private void OnLoaded(object sender, RoutedEventArgs args)
@@ -496,8 +557,11 @@ public sealed partial class StackItemsOrganizer : UserControl
         this.UpdateSelectionCommands();
     }
 
-    private void OnItemSelectionChanged(object sender, SelectionChangedEventArgs args) =>
+    private void OnItemSelectionChanged(object sender, SelectionChangedEventArgs args)
+    {
         this.UpdateSelectionCommands();
+        this.SelectedItemsChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     private void OnMoveSelectionUpClick(object sender, RoutedEventArgs args) => this.MoveSelection(-1);
 
@@ -857,7 +921,9 @@ public sealed partial class StackItemsOrganizer : UserControl
     private void UpdateEmptyState()
     {
         var isEmpty = this.Stack is null || this.Stack.Items.Count == 0;
-        this.ItemList.Visibility = isEmpty ? Visibility.Collapsed : Visibility.Visible;
+        this.ItemList.Visibility = isEmpty && !this.OwnsScrolling
+            ? Visibility.Collapsed
+            : Visibility.Visible;
         this.EmptyMessage.Visibility = isEmpty ? Visibility.Visible : Visibility.Collapsed;
     }
 

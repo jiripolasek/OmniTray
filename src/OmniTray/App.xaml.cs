@@ -161,6 +161,9 @@ public partial class App : Application
 
     public void ShowSettings() => this.RunOnUiThread(() => this._windows?.ShowSettings());
 
+    public void ShowStackOrganizer(DropStackViewModel? stack = null) =>
+        this.RunOnUiThread(() => this._windows?.ShowStackOrganizer(stack));
+
     internal void ShowDataFormatInspector(DropItem? item = null) =>
         this.RunOnUiThread(() => this._windows?.ShowDataFormatInspector(item));
 
@@ -516,6 +519,7 @@ public partial class App : Application
     private void InitializeTrayIcon()
     {
         var showPopupCommand = this.CreateUiCommand(() => this._windows?.TogglePopup());
+        var showStackOrganizerCommand = this.CreateUiCommand(() => this._windows?.ShowStackOrganizer());
         var createStackCommand = this.CreateUiCommand(this.CreateAndOpenStack);
         var showSettingsCommand = this.CreateUiCommand(() => this._windows?.ShowSettings());
         var exitCommand = this.CreateUiCommand(this.ExitApplication);
@@ -524,6 +528,12 @@ public partial class App : Application
         contextMenu.Items.Add(new MenuFlyoutItem
         {
             Text = "Open OmniTray", Icon = new FontIcon { Glyph = "\uE7B8" }, Command = showPopupCommand
+        });
+        contextMenu.Items.Add(new MenuFlyoutItem
+        {
+            Text = "Open Stack organizer",
+            Icon = new FontIcon { Glyph = "\uE8A9" },
+            Command = showStackOrganizerCommand
         });
         contextMenu.Items.Add(new MenuFlyoutItem
         {

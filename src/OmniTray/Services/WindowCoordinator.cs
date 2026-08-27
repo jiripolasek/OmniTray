@@ -28,6 +28,7 @@ internal sealed partial class WindowCoordinator
     private DataFormatInspectorWindow? _dataFormatInspectorWindow;
     private OmniTrayPopupWindow? _popupWindow;
     private SettingsWindow? _settingsWindow;
+    private StackOrganizerWindow? _stackOrganizerWindow;
     private ToastWindow? _toastWindow;
 
     public WindowCoordinator(
@@ -254,6 +255,18 @@ internal sealed partial class WindowCoordinator
         this._settingsWindow.Activate();
     }
 
+    public void ShowStackOrganizer(DropStackViewModel? stack = null)
+    {
+        this.HidePopup();
+        if (this._stackOrganizerWindow is null)
+        {
+            this._stackOrganizerWindow = this.CreateStackOrganizerWindow();
+            CenterWindow(this._stackOrganizerWindow, 1180, 760);
+        }
+
+        this._stackOrganizerWindow.SelectStack(stack);
+    }
+
     public void ShowDataFormatInspector(DropItem? item = null)
     {
         this._dataFormatInspectorWindow ??= this.CreateDataFormatInspectorWindow();
@@ -319,6 +332,7 @@ internal sealed partial class WindowCoordinator
         this._edgeWindowController.Dispose();
         this._dataFormatInspectorWindow?.Close();
         this._settingsWindow?.Close();
+        this._stackOrganizerWindow?.Close();
         this._popupWindow?.Close();
         this._toastWindow?.Close();
         foreach (var session in this._trayWindows.Values)
@@ -333,6 +347,7 @@ internal sealed partial class WindowCoordinator
 
         this._dataFormatInspectorWindow = null;
         this._settingsWindow = null;
+        this._stackOrganizerWindow = null;
         this._popupWindow = null;
         this._toastWindow = null;
         this._trayWindows.Clear();
@@ -454,6 +469,29 @@ internal sealed partial class WindowCoordinator
     private DataFormatInspectorWindow CreateDataFormatInspectorWindow()
     {
         var window = new DataFormatInspectorWindow();
+        if (window.AppWindow.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.IsMaximizable = true;
+            presenter.IsMinimizable = true;
+            presenter.IsResizable = true;
+        }
+
+        window.AppWindow.Closing += (_, args) =>
+        {
+            if (this._isClosing)
+            {
+                return;
+            }
+
+            args.Cancel = true;
+            window.AppWindow.Hide();
+        };
+        return window;
+    }
+
+    private StackOrganizerWindow CreateStackOrganizerWindow()
+    {
+        var window = new StackOrganizerWindow();
         if (window.AppWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.IsMaximizable = true;

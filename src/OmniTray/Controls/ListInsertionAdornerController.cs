@@ -17,13 +17,13 @@ internal readonly record struct ListInsertionTarget(
 internal sealed class ListInsertionAdornerController
 {
     private readonly string _adornerName;
-    private readonly ListView _list;
+    private readonly ListViewBase _list;
     private InsertionAdorner? _activeAdorner;
     private Orientation _orientation;
     private bool _wraps;
 
     public ListInsertionAdornerController(
-        ListView list,
+        ListViewBase list,
         string adornerName,
         Orientation orientation)
     {
@@ -41,6 +41,12 @@ internal sealed class ListInsertionAdornerController
 
     public ListInsertionTarget? Resolve(Point position)
     {
+        if (this._list.Items.Count == 0)
+        {
+            // An empty collection has a valid insertion point, but no tile to host an adorner.
+            return new ListInsertionTarget(0, -1, InsertionPlacement.Before);
+        }
+
         var realized = Enumerable.Range(0, this._list.Items.Count)
             .Select(index => (Index: index, Container: this._list.ContainerFromIndex(index) as FrameworkElement))
             .Where(static value => value.Container is not null)
@@ -125,7 +131,7 @@ internal sealed class ListInsertionAdornerController
     }
 
     private InsertionAdorner? FindAdorner(int containerIndex) =>
-        this._list.ContainerFromIndex(containerIndex) is DependencyObject container
+        containerIndex >= 0 && this._list.ContainerFromIndex(containerIndex) is DependencyObject container
             ? this.FindDescendant(container)
             : null;
 

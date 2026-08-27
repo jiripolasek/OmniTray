@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\OmniTray.Core\OmniTray.Core.csproj" />
+    <Compile Include="..\..\src\OmniTray\Controls\StackThumbnailLayout.cs" Link="Controls\StackThumbnailLayout.cs" />
   </ItemGroup>
 
   <ItemGroup>

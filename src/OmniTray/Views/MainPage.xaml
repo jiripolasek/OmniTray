@@ -138,6 +138,14 @@
                                     <Grid.ContextFlyout>
                                         <MenuFlyout>
                                             <MenuFlyoutItem
+                                                Click="OnOpenStackOrganizerClick"
+                                                Tag="{x:Bind}"
+                                                Text="Open in Stack organizer">
+                                                <MenuFlyoutItem.Icon>
+                                                    <FontIcon Glyph="&#xE8A9;" />
+                                                </MenuFlyoutItem.Icon>
+                                            </MenuFlyoutItem>
+                                            <MenuFlyoutItem
                                                 Click="OnInspectStackClick"
                                                 Icon="View"
                                                 Tag="{x:Bind}"
@@ -575,6 +583,14 @@
                 Click="OnShowEdgeShelfClick"
                 Icon="DockRight"
                 Label="Edge shelf" />
+            <AppBarButton
+                AutomationProperties.Name="Open the Stack organizer window"
+                Click="OnOpenStackOrganizerClick"
+                Label="Organizer">
+                <AppBarButton.Icon>
+                    <FontIcon Glyph="&#xE8A9;" />
+                </AppBarButton.Icon>
+            </AppBarButton>
             <AppBarButton
                 AutomationProperties.Name="Open OmniTray settings"
                 Click="OnSettingsClick"

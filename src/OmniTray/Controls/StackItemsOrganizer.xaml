@@ -205,12 +205,17 @@
             </Grid>
         </DataTemplate>
     </UserControl.Resources>
-    <StackPanel Spacing="6">
+    <Grid RowSpacing="6">
+        <Grid.RowDefinitions>
+            <RowDefinition x:Name="ItemsHostRow" Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
         <ListView
             x:Name="ItemList"
             AllowDrop="True"
             AutomationProperties.HelpText="Hover with a mouse, or use the context menu, to show commands. Drag to reorder or move; hold Control while dragging to copy."
             AutomationProperties.Name="Items in expanded stack"
+            Background="Transparent"
             CanDragItems="True"
             CanReorderItems="False"
             DragItemsCompleted="OnItemDragItemsCompleted"
@@ -355,12 +360,17 @@
 
         <TextBlock
             x:Name="EmptyMessage"
+            Grid.Row="0"
             Margin="0,6"
             HorizontalAlignment="Center"
+            VerticalAlignment="Center"
             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            IsHitTestVisible="False"
             Style="{ThemeResource CaptionTextBlockStyle}"
-            Text="This stack is empty."
+            Text="This stack is empty. Drop items here or paste from the toolbar."
+            TextAlignment="Center"
+            TextWrapping="Wrap"
             Visibility="Collapsed" />
 
-    </StackPanel>
+    </Grid>
 </UserControl>

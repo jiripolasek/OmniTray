@@ -533,6 +533,9 @@ public sealed partial class MainPage : Page
         }
     }
 
+    private void OnOpenStackOrganizerClick(object sender, RoutedEventArgs args) =>
+        App.Current.ShowStackOrganizer(GetTaggedStack(sender));
+
     private static void SetStackExpansionVisual(FrameworkElement root, bool isExpanded)
     {
         if (root.FindName("ExpandedSurface") is Border surface)
