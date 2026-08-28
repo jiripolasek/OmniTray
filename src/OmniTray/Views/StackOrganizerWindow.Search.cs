@@ -4,11 +4,10 @@
 //
 // ------------------------------------------------------------
 
-using System.Collections.ObjectModel;
-using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using OmniTray.ViewModels.Organizer;
 
 namespace OmniTray.Views;
 
@@ -16,18 +15,6 @@ public sealed partial class StackOrganizerWindow
 {
     private readonly FrameworkElement _searchPopupFooter;
     private readonly TextBlock _searchPopupEmptyState;
-    private CancellationTokenSource? _searchCancellation;
-    private CancellationTokenSource? _suggestionCancellation;
-    private string _searchQuery = string.Empty;
-    private bool _isShowingSearch;
-    private bool _openedFromSearch;
-    private bool _searchOriginWasNotes;
-    private Guid? _searchOriginStackId;
-    private Guid? _searchOriginItemId;
-    private Guid? _lastSearchStackId;
-    private Guid? _lastSearchItemId;
-
-    public ObservableCollection<StackSearchResultViewModel> SearchResults { get; } = [];
 
     private void OnOrganizerTitleBarSizeChanged(object sender, SizeChangedEventArgs args)
     {
@@ -45,50 +32,16 @@ public sealed partial class StackOrganizerWindow
 
     private async void OnGlobalSearchTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
     {
-        if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput)
-        {
-            return;
-        }
-
+        if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) { return; }
         this.ClearSearchSuggestions();
         var query = sender.Text.Trim();
-        if (query.Length == 0)
-        {
-            return;
-        }
-
-        var cancellation = new CancellationTokenSource();
-        this._suggestionCancellation = cancellation;
-        var token = cancellation.Token;
-        try
-        {
-            await Task.Delay(150, token);
-            var snapshot = this._viewModel.Stacks.Select(stack => stack.Model).ToArray();
-            var matches = await Task.Run(() => StackCatalogSearch.Find(snapshot, query, token), token);
-            if (token.IsCancellationRequested || !ReferenceEquals(this._suggestionCancellation, cancellation) ||
-                sender.Text.Trim() != query || !this.IsSearchBoxFocused())
-            {
-                return;
-            }
-
-            var groups = StackSearchResultGroup.Create(this.CreateSearchResults(matches), stackLimit: 3, itemLimit: 4);
-            this.UpdateSearchPopupFooter(query, groups.Count > 0);
-            sender.ItemsSource = groups.Count == 0
-                ? null
-                : new CollectionViewSource { IsSourceGrouped = true, Source = groups }.View;
-            sender.IsSuggestionListOpen = true;
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
-        {
-        }
-        catch (Exception)
-        {
-            // Suggestions are optional; submitting the query still reports any search error on the results page.
-            if (ReferenceEquals(this._suggestionCancellation, cancellation))
-            {
-                sender.IsSuggestionListOpen = false;
-            }
-        }
+        if (query.Length == 0) { return; }
+        var groups = await this.ViewModel.Search.FindSuggestionsAsync(query);
+        if (groups is null || this._isOrganizerClosed || sender.Text.Trim() != query || !this.IsSearchBoxFocused()) { return; }
+        this.UpdateSearchPopupFooter(query, groups.Count > 0);
+        sender.ItemsSource = groups.Count == 0 ? null
+            : new CollectionViewSource { IsSourceGrouped = true, Source = groups }.View;
+        sender.IsSuggestionListOpen = true;
     }
 
     private bool IsSearchBoxFocused()
@@ -121,167 +74,35 @@ public sealed partial class StackOrganizerWindow
 
     private void SubmitSearch(string query, StackSearchResultViewModel? chosenResult)
     {
-        query = query.Trim();
-        if (query.Length == 0)
-        {
-            return;
-        }
-
-        if (!this._isShowingSearch && !this._openedFromSearch)
-        {
-            this._searchOriginWasNotes = this._isShowingNotes;
-            this._searchOriginStackId = this._editorStack?.Model.Id;
-            this._searchOriginItemId = this.ItemsOrganizer.PrimarySelectedItem?.Model.Id;
-        }
-
-        this._searchQuery = query;
-        this._lastSearchStackId = null;
-        this._lastSearchItemId = null;
+        if (!this.Navigation.BeginSearch(query, this.ViewModel.Stack.SelectedItem?.Model.Id)) { return; }
         this.ClearSearchSuggestions();
-        if (chosenResult is { } result)
-        {
-            this.OpenSearchResult(result);
-        }
-        else
-        {
-            this.ShowSearchResults();
-        }
+        if (chosenResult is { } result) { this.OpenSearchResult(result); }
+        else { this.ShowSearchResults(); }
     }
 
     private void ShowSearchResults()
     {
+        if (this._isOrganizerClosed) { return; }
         this.LeaveNotesPage();
         this.ClearSearchSuggestions();
-        this._isShowingSearch = true;
-        this._openedFromSearch = false;
-        this._editorStack = null;
-        this.UpdateDetailsItem(null);
-        this.ItemsOrganizer.Stack = null;
+        this.Navigation.ShowSearch();
+        this._stackPage.SetStack(null);
+        this.DetailsPane.ShowItem(null, null, 0);
+        this.PageHost.Content = null;
         this.BrowserContent.Visibility = Visibility.Collapsed;
-        this.SearchContent.Visibility = Visibility.Visible;
-        this.GlobalSearchBox.Text = this._searchQuery;
-        _ = this.RefreshSearchResultsAsync(focusResults: true);
+        this.SearchHost.Content = this._searchPage;
+        this.SearchHost.Visibility = Visibility.Visible;
+        this.GlobalSearchBox.Text = this.Navigation.SearchQuery;
+        _ = this._searchPage.RefreshAsync(this.Navigation, focusResults: true);
     }
 
-    private async Task RefreshSearchResultsAsync(bool focusResults = false)
-    {
-        CancelRequest(ref this._searchCancellation);
-        var cancellation = new CancellationTokenSource();
-        this._searchCancellation = cancellation;
-        var token = cancellation.Token;
-        var query = this._searchQuery;
-        this.SearchResults.Clear();
-        this.SearchResultsList.ItemsSource = null;
-        this.SearchEmptyState.Visibility = Visibility.Collapsed;
-        this.SearchProgressRing.Visibility = Visibility.Visible;
-        this.SearchProgressRing.IsActive = true;
-        this.SearchSummaryText.Text = $"Searching all stacks and items for “{query}”…";
-        try
-        {
-            var snapshot = this._viewModel.Stacks.Select(stack => stack.Model).ToArray();
-            var matches = await Task.Run(() => StackCatalogSearch.Find(snapshot, query, token), token);
-            if (token.IsCancellationRequested || !ReferenceEquals(this._searchCancellation, cancellation) || !this._isShowingSearch)
-            {
-                return;
-            }
-
-            foreach (var result in this.CreateSearchResults(matches))
-            {
-                this.SearchResults.Add(result);
-            }
-
-            this.SearchResultsList.ItemsSource = new CollectionViewSource
-            {
-                IsSourceGrouped = true,
-                Source = StackSearchResultGroup.Create(this.SearchResults)
-            }.View;
-
-            var stackCount = this.SearchResults.Count(result => result.Item is null && result.Note is null);
-            var noteCount = this.SearchResults.Count(result => result.Note is not null);
-            var itemCount = this.SearchResults.Count - stackCount - noteCount;
-            this.SearchSummaryText.Text = $"“{query}” · {stackCount} {(stackCount == 1 ? "stack" : "stacks")} · {itemCount} {(itemCount == 1 ? "item" : "items")} · {noteCount} {(noteCount == 1 ? "note" : "notes")} · All locations";
-            this.SearchEmptyTitleText.Text = "No results";
-            this.SearchEmptyDescriptionText.Text = "Try a stack name, item name, path, URL, or saved text.";
-            this.SearchEmptyState.Visibility = this.SearchResults.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-            var selected = this.SearchResults.FirstOrDefault(result =>
-                result.Stack.Model.Id == this._lastSearchStackId && result.Item?.Model.Id == this._lastSearchItemId);
-            this.SearchResultsList.SelectedItem = selected ?? this.SearchResults.FirstOrDefault();
-            if (selected is not null)
-            {
-                this.SearchResultsList.ScrollIntoView(selected);
-            }
-
-            if (focusResults && this.SearchResults.Count > 0)
-            {
-                this.SearchResultsList.Focus(FocusState.Programmatic);
-            }
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
-        {
-        }
-        catch (Exception exception)
-        {
-            if (ReferenceEquals(this._searchCancellation, cancellation) && this._isShowingSearch)
-            {
-                this.SearchEmptyTitleText.Text = "Search could not be completed";
-                this.SearchEmptyDescriptionText.Text = exception.Message;
-                this.SearchSummaryText.Text = $"“{query}” · All locations";
-                this.SearchEmptyState.Visibility = Visibility.Visible;
-            }
-        }
-        finally
-        {
-            if (ReferenceEquals(this._searchCancellation, cancellation))
-            {
-                this.SearchProgressRing.IsActive = false;
-                this.SearchProgressRing.Visibility = Visibility.Collapsed;
-            }
-        }
-    }
-
-    private List<StackSearchResultViewModel> CreateSearchResults(IReadOnlyList<StackSearchMatch> matches)
-    {
-        var stacks = this._viewModel.Stacks.ToDictionary(stack => stack.Model.Id);
-        var items = this._viewModel.Stacks.SelectMany(stack => stack.Items.Select(item =>
-            (Key: (stack.Model.Id, item.Model.Id), Item: item))).ToDictionary(pair => pair.Key, pair => pair.Item);
-        var results = new List<StackSearchResultViewModel>();
-        foreach (var match in matches)
-        {
-            if (!stacks.TryGetValue(match.StackId, out var stack))
-            {
-                continue;
-            }
-
-            DropItemViewModel? item = null;
-            if (match.ItemId is { } itemId && !items.TryGetValue((match.StackId, itemId), out item))
-            {
-                continue;
-            }
-
-            var note = match.NoteId is { } noteId ? this._viewModel.FindNote(noteId)?.Note : null;
-            if (match.NoteId is not null && note is null)
-            {
-                continue;
-            }
-            results.Add(new StackSearchResultViewModel(stack, item, match.Preview, note));
-        }
-
-        return results;
-    }
-
-    private void OnSearchResultClick(object sender, ItemClickEventArgs args)
-    {
-        if (args.ClickedItem is StackSearchResultViewModel result)
-        {
-            this.OpenSearchResult(result);
-        }
-    }
+    private void OnSearchResultOpened(object? sender, StackSearchResultViewModel result) => this.OpenSearchResult(result);
 
     private void OpenSearchResult(StackSearchResultViewModel result)
     {
         if (result.Note is { } note)
         {
-            if (this._viewModel.FindNote(note.Id) is null)
+            if (this.ViewModel.Catalog.FindNote(note.Id) is null)
             {
                 App.Current.ShowToast("That note is no longer available.", InfoBarSeverity.Warning);
                 return;
@@ -289,7 +110,7 @@ public sealed partial class StackOrganizerWindow
             App.Current.ShowNote(note.Id);
             return;
         }
-        var stack = this._viewModel.Stacks.FirstOrDefault(candidate => candidate.Model.Id == result.Stack.Model.Id);
+        var stack = this.ViewModel.Catalog.Stacks.FirstOrDefault(candidate => candidate.Model.Id == result.Stack.Model.Id);
         var itemId = result.Item?.Model.Id;
         if (stack is null || (itemId is { } id && stack.Items.All(item => item.Model.Id != id)))
         {
@@ -297,83 +118,41 @@ public sealed partial class StackOrganizerWindow
             this.ShowSearchResults();
             return;
         }
-
-        this._lastSearchStackId = stack.Model.Id;
-        this._lastSearchItemId = itemId;
+        this.Navigation.OpenSearchResult(stack.Model.Id, itemId);
         this.OpenStack(stack, fromSearch: true);
-        if (itemId is { } selectedItemId)
-        {
-            this.ItemsOrganizer.SelectItem(selectedItemId);
-        }
+        if (itemId is { } selectedItemId) { this._stackPage.RevealItem(selectedItemId); }
     }
 
-    private void OnBackFromSearchClick(object sender, RoutedEventArgs args)
+    private void OnSearchBackRequested(object? sender, EventArgs args)
     {
-        if (this._searchOriginWasNotes)
+        var origin = this.Navigation.SearchOrigin;
+        if (origin?.Page == StackOrganizerPage.Notes)
         {
             this.OrganizerNavigation.SelectedItem = this.NotesNavigationItem;
             this.ShowNotesPage();
             return;
         }
-        var stack = this._viewModel.Stacks.FirstOrDefault(candidate => candidate.Model.Id == this._searchOriginStackId);
-        var itemId = this._searchOriginItemId;
-        if (stack is null)
-        {
-            this.ShowOverview();
-            return;
-        }
-
+        var stack = this.ViewModel.Catalog.Stacks.FirstOrDefault(candidate => candidate.Model.Id == origin?.StackId);
+        if (stack is null) { this.ShowOverview(); return; }
         this.OpenStack(stack);
-        if (itemId is { } id)
-        {
-            this.ItemsOrganizer.SelectItem(id);
-        }
+        if (origin?.ItemId is { } id) { this._stackPage.RevealItem(id); }
     }
 
     private void LeaveSearchResults(bool retainSearchNavigation)
     {
-        this.CancelSearchRequests();
-        this._isShowingSearch = false;
-        this._openedFromSearch = retainSearchNavigation;
+        this.ViewModel.Search.CancelResults(clear: !retainSearchNavigation);
+        this.ClearSearchSuggestions();
+        this.SearchHost.Visibility = Visibility.Collapsed;
+        this.SearchHost.Content = null;
         this.BrowserContent.Visibility = Visibility.Visible;
-        this.SearchContent.Visibility = Visibility.Collapsed;
-        var backLabel = retainSearchNavigation ? "Back to search results" : "Back to stacks";
-        AutomationProperties.SetName(this.StackBackButton, backLabel);
-        ToolTipService.SetToolTip(this.StackBackButton, backLabel);
-        if (!retainSearchNavigation)
-        {
-            this._searchQuery = string.Empty;
-            this._searchOriginWasNotes = false;
-            this._searchOriginStackId = null;
-            this._searchOriginItemId = null;
-            this._lastSearchStackId = null;
-            this._lastSearchItemId = null;
-            this.SearchResults.Clear();
-            this.SearchResultsList.ItemsSource = null;
-        }
     }
 
     private void ClearSearchSuggestions()
     {
-        CancelRequest(ref this._suggestionCancellation);
+        this.ViewModel.Search.CancelSuggestions();
         this.GlobalSearchBox.IsSuggestionListOpen = false;
         this.GlobalSearchBox.ItemsSource = null;
         this._searchPopupFooter.Visibility = Visibility.Collapsed;
         this._searchPopupEmptyState.Visibility = Visibility.Collapsed;
-    }
-
-    private void CancelSearchRequests()
-    {
-        CancelRequest(ref this._searchCancellation);
-        this.ClearSearchSuggestions();
-        this.SearchProgressRing.IsActive = false;
-        this.SearchProgressRing.Visibility = Visibility.Collapsed;
-    }
-
-    private static void CancelRequest(ref CancellationTokenSource? cancellation)
-    {
-        cancellation?.Cancel();
-        cancellation?.Dispose();
-        cancellation = null;
     }
 }

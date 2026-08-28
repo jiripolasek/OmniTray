@@ -47,11 +47,11 @@
                 </Grid.ColumnDefinitions>
                 <Grid Width="38" Height="38">
                     <Border
-                        Visibility="{x:Bind NonNoteVisibility}"
                         Background="{ThemeResource LayerFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="{x:Bind ThumbnailBorderThickness, Mode=OneWay}"
-                        CornerRadius="6">
+                        CornerRadius="6"
+                        Visibility="{x:Bind NonNoteVisibility}">
                         <controls:ThumbnailImagePresenter
                             HasVideoFilmstrip="{x:Bind ThumbnailHasVideoFilmstrip, Mode=OneWay}"
                             IsShellIcon="{x:Bind ThumbnailIsShellIcon, Mode=OneWay}"
@@ -67,7 +67,7 @@
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Glyph="{x:Bind LeadingGlyph, Mode=OneWay}"
                         Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}" />
-                    <controls:NotePreview Note="{x:Bind Model.Note, Mode=OneWay}" Compact="True" />
+                    <controls:NotePreview Compact="True" Note="{x:Bind Model.Note, Mode=OneWay}" />
                 </Grid>
                 <StackPanel
                     Grid.Column="1"
@@ -81,9 +81,17 @@
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Style="{ThemeResource CaptionTextBlockStyle}"
                         Text="{x:Bind KindLabel, Mode=OneWay}" />
-                    <TextBlock Text="{x:Bind Model.Note.Text, Mode=OneWay}" Visibility="{x:Bind NoteVisibility}" MaxLines="1" TextTrimming="CharacterEllipsis" Style="{ThemeResource CaptionTextBlockStyle}" />
+                    <TextBlock
+                        MaxLines="1"
+                        Style="{ThemeResource CaptionTextBlockStyle}"
+                        Text="{x:Bind Model.Note.Text, Mode=OneWay}"
+                        TextTrimming="CharacterEllipsis"
+                        Visibility="{x:Bind NoteVisibility}" />
                 </StackPanel>
-                <controls:NoteIndicator Grid.Column="2" Item="{x:Bind}" VerticalAlignment="Center" />
+                <controls:NoteIndicator
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Item="{x:Bind}" />
                 <controls:InsertionAdorner x:Name="ItemInsertionAdorner" Grid.ColumnSpan="3" />
             </Grid>
         </DataTemplate>
@@ -107,11 +115,11 @@
                 </Grid.ColumnDefinitions>
                 <Grid Width="64" Height="64">
                     <Border
-                        Visibility="{x:Bind NonNoteVisibility}"
                         Background="{ThemeResource LayerFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="{x:Bind ThumbnailBorderThickness, Mode=OneWay}"
-                        CornerRadius="8">
+                        CornerRadius="8"
+                        Visibility="{x:Bind NonNoteVisibility}">
                         <controls:ThumbnailImagePresenter
                             HasVideoFilmstrip="{x:Bind ThumbnailHasVideoFilmstrip, Mode=OneWay}"
                             IsShellIcon="{x:Bind ThumbnailIsShellIcon, Mode=OneWay}"
@@ -141,9 +149,17 @@
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Style="{ThemeResource CaptionTextBlockStyle}"
                         Text="{x:Bind KindLabel, Mode=OneWay}" />
-                    <TextBlock Text="{x:Bind Model.Note.Text, Mode=OneWay}" Visibility="{x:Bind NoteVisibility}" MaxLines="1" TextTrimming="CharacterEllipsis" Style="{ThemeResource CaptionTextBlockStyle}" />
+                    <TextBlock
+                        MaxLines="1"
+                        Style="{ThemeResource CaptionTextBlockStyle}"
+                        Text="{x:Bind Model.Note.Text, Mode=OneWay}"
+                        TextTrimming="CharacterEllipsis"
+                        Visibility="{x:Bind NoteVisibility}" />
                 </StackPanel>
-                <controls:NoteIndicator Grid.Column="2" Item="{x:Bind}" VerticalAlignment="Center" />
+                <controls:NoteIndicator
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Item="{x:Bind}" />
                 <controls:InsertionAdorner x:Name="ItemInsertionAdorner" Grid.ColumnSpan="3" />
             </Grid>
         </DataTemplate>
@@ -164,11 +180,11 @@
                 </Grid.RowDefinitions>
                 <Grid Margin="2">
                     <Border
-                        Visibility="{x:Bind NonNoteVisibility}"
                         Background="{ThemeResource LayerFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="{x:Bind ThumbnailBorderThickness, Mode=OneWay}"
-                        CornerRadius="7">
+                        CornerRadius="7"
+                        Visibility="{x:Bind NonNoteVisibility}">
                         <controls:ThumbnailImagePresenter
                             HasVideoFilmstrip="{x:Bind ThumbnailHasVideoFilmstrip, Mode=OneWay}"
                             IsShellIcon="{x:Bind ThumbnailIsShellIcon, Mode=OneWay}"
@@ -185,7 +201,10 @@
                         Glyph="{x:Bind LeadingGlyph, Mode=OneWay}"
                         Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}" />
                     <controls:NotePreview Note="{x:Bind Model.Note, Mode=OneWay}" />
-                    <controls:NoteIndicator Item="{x:Bind}" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                    <controls:NoteIndicator
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Item="{x:Bind}" />
                 </Grid>
                 <TextBlock
                     Grid.Row="1"
@@ -212,12 +231,12 @@
             Background="Transparent"
             CanDragItems="True"
             CanReorderItems="False"
+            DoubleTapped="OnItemListDoubleTapped"
             DragItemsCompleted="OnItemDragItemsCompleted"
             DragItemsStarting="OnItemDragItemsStarting"
             DragLeave="OnItemListDragLeave"
             DragOver="OnItemListDragOver"
             Drop="OnItemListDrop"
-            DoubleTapped="OnItemListDoubleTapped"
             ItemContainerStyle="{StaticResource ListItemContainerStyle}"
             ItemTemplate="{StaticResource SmallListItemTemplate}"
             ItemsPanel="{StaticResource ListItemsPanel}"
@@ -233,8 +252,8 @@
                 <CommandBarFlyout
                     x:Name="SelectionCommandsFlyout"
                     AutomationProperties.Name="Selected item commands"
-                    Opening="OnSelectionCommandsFlyoutOpening"
-                    Closed="OnSelectionCommandsFlyoutClosed">
+                    Closed="OnSelectionCommandsFlyoutClosed"
+                    Opening="OnSelectionCommandsFlyoutOpening">
                     <CommandBarFlyout.PrimaryCommands>
                         <AppBarButton
                             x:Name="OpenSelectionButton"
@@ -292,7 +311,9 @@
                             Click="OnConvertToNoteClick"
                             Label="Convert to note"
                             Visibility="Collapsed">
-                            <AppBarButton.Icon><FontIcon Glyph="&#xE70B;" /></AppBarButton.Icon>
+                            <AppBarButton.Icon>
+                                <FontIcon Glyph="&#xE70B;" />
+                            </AppBarButton.Icon>
                         </AppBarButton>
                         <AppBarButton
                             x:Name="DuplicateAsNoteButton"
@@ -301,9 +322,14 @@
                             Icon="Copy"
                             Label="Duplicate as note"
                             Visibility="Collapsed" />
-                        <AppBarButton x:Name="ItemNotesButton" Label="Notes" Visibility="Collapsed"
-                                      AutomationProperties.Name="Attached notes">
-                            <AppBarButton.Icon><FontIcon Glyph="&#xE70B;" /></AppBarButton.Icon>
+                        <AppBarButton
+                            x:Name="ItemNotesButton"
+                            AutomationProperties.Name="Attached notes"
+                            Label="Notes"
+                            Visibility="Collapsed">
+                            <AppBarButton.Icon>
+                                <FontIcon Glyph="&#xE70B;" />
+                            </AppBarButton.Icon>
                             <AppBarButton.Flyout>
                                 <MenuFlyout x:Name="ItemNotesMenu" />
                             </AppBarButton.Flyout>

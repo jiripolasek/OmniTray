@@ -1,0 +1,98 @@
+<Page
+    x:Class="OmniTray.Views.Organizer.StackSearchPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:OmniTray.Controls"
+    xmlns:organizer="using:OmniTray.Views.Organizer"
+    xmlns:viewModels="using:OmniTray.ViewModels">
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <organizer:OrganizerTemplates />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Page.Resources>
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid Padding="20,18,20,14" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button
+                Width="36"
+                Height="36"
+                Padding="0"
+                VerticalAlignment="Center"
+                AutomationProperties.Name="Back from search"
+                Click="OnBackFromSearchClick"
+                Style="{StaticResource SubtleButtonStyle}"
+                ToolTipService.ToolTip="Back">
+                <SymbolIcon Symbol="Back" />
+            </Button>
+            <StackPanel Grid.Column="1" Spacing="3">
+                <TextBlock Style="{ThemeResource TitleTextBlockStyle}" Text="Search results" />
+                <TextBlock
+                    x:Name="SearchSummaryText"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="{x:Bind ViewModel.Summary, Mode=OneWay}"
+                    TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+            <ProgressRing
+                x:Name="SearchProgressRing"
+                Grid.Column="2"
+                Width="24"
+                Height="24"
+                IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
+                Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
+        </Grid>
+        <ListView
+            x:Name="SearchResultsList"
+            Grid.Row="1"
+            Padding="20,0,20,16"
+            AutomationProperties.Name="Search results across all stacks"
+            IsItemClickEnabled="True"
+            ItemClick="OnSearchResultClick"
+            ItemTemplate="{StaticResource SearchResultTemplate}"
+            ItemsSource="{x:Bind ResultsSource.View, Mode=OneWay}"
+            SelectionMode="Single">
+            <ListView.GroupStyle>
+                <GroupStyle
+                    HeaderContainerStyle="{StaticResource SearchPageGroupHeaderStyle}"
+                    HeaderTemplate="{StaticResource SearchGroupHeaderTemplate}"
+                    HidesIfEmpty="True" />
+            </ListView.GroupStyle>
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                </Style>
+            </ListView.ItemContainerStyle>
+        </ListView>
+        <StackPanel
+            x:Name="SearchEmptyState"
+            Grid.Row="1"
+            Margin="28"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Spacing="12"
+            Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay}">
+            <FontIcon FontSize="36" Glyph="&#xE721;" />
+            <TextBlock
+                x:Name="SearchEmptyTitleText"
+                FontWeight="SemiBold"
+                Text="{x:Bind ViewModel.EmptyTitle, Mode=OneWay}"
+                TextAlignment="Center" />
+            <TextBlock
+                x:Name="SearchEmptyDescriptionText"
+                MaxWidth="440"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="{x:Bind ViewModel.EmptyDescription, Mode=OneWay}"
+                TextAlignment="Center"
+                TextWrapping="Wrap" />
+        </StackPanel>
+    </Grid>
+</Page>

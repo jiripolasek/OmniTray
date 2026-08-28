@@ -11,7 +11,10 @@
     Background="Transparent"
     mc:Ignorable="d">
     <Page.KeyboardAccelerators>
-        <KeyboardAccelerator Key="N" Modifiers="Control" Invoked="OnNewNoteAcceleratorInvoked" />
+        <KeyboardAccelerator
+            Key="N"
+            Invoked="OnNewNoteAcceleratorInvoked"
+            Modifiers="Control" />
         <KeyboardAccelerator
             Key="F"
             Invoked="OnSearchAcceleratorInvoked"
@@ -363,7 +366,7 @@
                                                         Glyph="&#xE70D;" />
                                                 </Grid>
                                             </Button>
-                                            <!-- Overlay the preview without changing the expand/drag button's layout or hit target. -->
+                                            <!--  Overlay the preview without changing the expand/drag button's layout or hit target.  -->
                                             <Grid Margin="8,6" Canvas.ZIndex="1">
                                                 <Grid.RowDefinitions>
                                                     <RowDefinition Height="Auto" />
@@ -381,12 +384,21 @@
                                                     Height="{x:Bind CardLayout.PreviewContainerHeight, Mode=OneWay}"
                                                     Margin="{x:Bind CardLayout.PreviewMargin, Mode=OneWay}"
                                                     HorizontalAlignment="{x:Bind CardLayout.PreviewHorizontalAlignment, Mode=OneWay}">
-                                                    <controls:NoteIndicator Stack="{x:Bind}"
-                                                                            HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,0,0" />
+                                                    <controls:NoteIndicator
+                                                        Margin="0,-4,0,0"
+                                                        HorizontalAlignment="Right"
+                                                        VerticalAlignment="Top"
+                                                        Stack="{x:Bind}" />
                                                 </Grid>
-                                                <!-- Match the chevron column, including text scaling, without a runtime binding. -->
-                                                <FontIcon Grid.Column="3" Grid.RowSpan="2" FontSize="11" Glyph="&#xE70D;"
-                                                          Opacity="0" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw" />
+                                                <!--  Match the chevron column, including text scaling, without a runtime binding.  -->
+                                                <FontIcon
+                                                    Grid.RowSpan="2"
+                                                    Grid.Column="3"
+                                                    AutomationProperties.AccessibilityView="Raw"
+                                                    FontSize="11"
+                                                    Glyph="&#xE70D;"
+                                                    IsHitTestVisible="False"
+                                                    Opacity="0" />
                                             </Grid>
                                             <Button
                                                 x:Name="InspectorButton"
@@ -594,11 +606,18 @@
             AutomationProperties.Name="OmniTray commands"
             DefaultLabelPosition="Collapsed"
             IsOpen="False">
-            <AppBarButton Label="New note" Click="OnNewNoteClick" ToolTipService.ToolTip="New note (Ctrl+N)">
-                <AppBarButton.Icon><FontIcon Glyph="&#xE70B;" /></AppBarButton.Icon>
+            <AppBarButton
+                Click="OnNewNoteClick"
+                Label="New note"
+                ToolTipService.ToolTip="New note (Ctrl+N)">
+                <AppBarButton.Icon>
+                    <FontIcon Glyph="&#xE70B;" />
+                </AppBarButton.Icon>
             </AppBarButton>
-            <AppBarButton Label="Browse notes" Click="OnBrowseNotesClick">
-                <AppBarButton.Icon><FontIcon Glyph="&#xE70B;" /></AppBarButton.Icon>
+            <AppBarButton Click="OnBrowseNotesClick" Label="Browse notes">
+                <AppBarButton.Icon>
+                    <FontIcon Glyph="&#xE70B;" />
+                </AppBarButton.Icon>
             </AppBarButton>
             <AppBarButton
                 AutomationProperties.Name="Create a new empty stack"

@@ -1,0 +1,110 @@
+<UserControl
+    x:Class="OmniTray.Controls.OrganizerDetailsPane"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:OmniTray.Controls"
+    xmlns:viewModels="using:OmniTray.ViewModels">
+    <Grid x:Name="RootGrid" Padding="24,20,20,20">
+        <controls:NoteEditorPane x:Name="InlineNoteEditor" Visibility="Collapsed" />
+        <StackPanel
+            x:Name="DetailsEmptyState"
+            VerticalAlignment="Center"
+            Spacing="10">
+            <FontIcon
+                HorizontalAlignment="Center"
+                FontSize="36"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Glyph="&#xE946;" />
+            <TextBlock
+                x:Name="DetailsEmptyTitleText"
+                HorizontalAlignment="Center"
+                Style="{ThemeResource BodyStrongTextBlockStyle}"
+                Text="{x:Bind ViewModel.EmptyTitle, Mode=OneWay}" />
+            <TextBlock
+                x:Name="DetailsEmptyDescriptionText"
+                HorizontalAlignment="Center"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="{x:Bind ViewModel.EmptyDescription, Mode=OneWay}"
+                TextAlignment="Center"
+                TextWrapping="Wrap" />
+        </StackPanel>
+
+        <ScrollViewer
+            x:Name="DetailsScrollViewer"
+            HorizontalScrollBarVisibility="Disabled"
+            Visibility="Collapsed">
+            <StackPanel Spacing="18">
+                <Grid Height="190">
+                    <Border
+                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8">
+                        <controls:ThumbnailImagePresenter
+                            x:Name="DetailsThumbnail"
+                            HasVideoFilmstrip="{x:Bind ViewModel.Item.ThumbnailHasVideoFilmstrip, Mode=OneWay}"
+                            IsShellIcon="{x:Bind ViewModel.Item.ThumbnailIsShellIcon, Mode=OneWay}"
+                            ShellIconSize="96"
+                            Source="{x:Bind ViewModel.Item.ThumbnailSource, Mode=OneWay}"
+                            Stretch="Uniform" />
+                    </Border>
+                    <FontIcon
+                        x:Name="DetailsPlaceholderIcon"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="44"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Glyph="{x:Bind ViewModel.Item.LeadingGlyph, Mode=OneWay}"
+                        Visibility="{x:Bind ViewModel.Item.PlaceholderVisibility, Mode=OneWay}" />
+                </Grid>
+                <StackPanel Spacing="4">
+                    <TextBlock
+                        x:Name="DetailsNameText"
+                        Style="{ThemeResource SubtitleTextBlockStyle}"
+                        Text="{x:Bind ViewModel.Item.DisplayName, Mode=OneWay}"
+                        TextWrapping="Wrap" />
+                    <TextBlock
+                        x:Name="DetailsKindText"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind ViewModel.Item.KindLabel, Mode=OneWay}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel Spacing="4">
+                    <TextBlock Style="{ThemeResource BodyStrongTextBlockStyle}" Text="Added" />
+                    <TextBlock
+                        x:Name="DetailsAddedText"
+                        Text="{x:Bind ViewModel.Added, Mode=OneWay}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel Spacing="4">
+                    <TextBlock Style="{ThemeResource BodyStrongTextBlockStyle}" Text="Stack" />
+                    <TextBlock
+                        x:Name="DetailsStackText"
+                        Text="{x:Bind ViewModel.StackName, Mode=OneWay}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel
+                    x:Name="DetailsSizeSection"
+                    Spacing="4"
+                    Visibility="{x:Bind ViewModel.HasSize, Mode=OneWay}">
+                    <TextBlock Style="{ThemeResource BodyStrongTextBlockStyle}" Text="Size" />
+                    <TextBlock
+                        x:Name="DetailsSizeText"
+                        Text="{x:Bind ViewModel.Size, Mode=OneWay}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel Spacing="4">
+                    <TextBlock
+                        x:Name="DetailsLocationLabel"
+                        Style="{ThemeResource BodyStrongTextBlockStyle}"
+                        Text="{x:Bind ViewModel.LocationLabel, Mode=OneWay}" />
+                    <TextBlock
+                        x:Name="DetailsLocationText"
+                        IsTextSelectionEnabled="True"
+                        Text="{x:Bind ViewModel.Location, Mode=OneWay}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

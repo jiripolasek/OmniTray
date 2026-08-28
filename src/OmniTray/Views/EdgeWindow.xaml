@@ -370,7 +370,7 @@
                                                                 Glyph="&#xE70D;" />
                                                         </Grid>
                                                     </Button>
-                                                    <!-- Overlay the preview without changing the expand/drag button's layout or hit target. -->
+                                                    <!--  Overlay the preview without changing the expand/drag button's layout or hit target.  -->
                                                     <Grid Margin="7,5" Canvas.ZIndex="1">
                                                         <Grid.RowDefinitions>
                                                             <RowDefinition Height="Auto" />
@@ -388,12 +388,21 @@
                                                             Height="{x:Bind CardLayout.PreviewContainerHeight, Mode=OneWay}"
                                                             Margin="{x:Bind CardLayout.PreviewMargin, Mode=OneWay}"
                                                             HorizontalAlignment="{x:Bind CardLayout.PreviewHorizontalAlignment, Mode=OneWay}">
-                                                            <controls:NoteIndicator Stack="{x:Bind}"
-                                                                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,0,0" />
+                                                            <controls:NoteIndicator
+                                                                Margin="0,-4,0,0"
+                                                                HorizontalAlignment="Right"
+                                                                VerticalAlignment="Top"
+                                                                Stack="{x:Bind}" />
                                                         </Grid>
-                                                        <!-- Match the chevron column, including text scaling, without a runtime binding. -->
-                                                        <FontIcon Grid.Column="3" Grid.RowSpan="2" FontSize="11" Glyph="&#xE70D;"
-                                                                  Opacity="0" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw" />
+                                                        <!--  Match the chevron column, including text scaling, without a runtime binding.  -->
+                                                        <FontIcon
+                                                            Grid.RowSpan="2"
+                                                            Grid.Column="3"
+                                                            AutomationProperties.AccessibilityView="Raw"
+                                                            FontSize="11"
+                                                            Glyph="&#xE70D;"
+                                                            IsHitTestVisible="False"
+                                                            Opacity="0" />
                                                     </Grid>
                                                     <Button
                                                         x:Name="InspectorButton"
@@ -767,7 +776,11 @@
                                                                         Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
                                                                         Text="{x:Bind TileCountBadgeText, Mode=OneWay}" />
                                                                 </Border>
-                                                                <controls:NoteIndicator Stack="{x:Bind}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,-4,0,0" />
+                                                                <controls:NoteIndicator
+                                                                    Margin="0,-4,0,0"
+                                                                    HorizontalAlignment="Left"
+                                                                    VerticalAlignment="Top"
+                                                                    Stack="{x:Bind}" />
                                                                 <Button
                                                                     x:Name="InspectorButton"
                                                                     Width="25"

@@ -1,0 +1,197 @@
+<Page
+    x:Class="OmniTray.Views.Organizer.StackContentsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:OmniTray.Controls"
+    xmlns:viewModels="using:OmniTray.ViewModels">
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Padding="20,18,20,10" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button
+                x:Name="StackBackButton"
+                Width="36"
+                Height="36"
+                Padding="0"
+                VerticalAlignment="Center"
+                AutomationProperties.Name="{x:Bind ViewModel.BackLabel, Mode=OneWay}"
+                Click="OnBackToOverviewClick"
+                Style="{StaticResource SubtleButtonStyle}"
+                ToolTipService.ToolTip="{x:Bind ViewModel.BackLabel, Mode=OneWay}">
+                <SymbolIcon Symbol="Back" />
+            </Button>
+            <StackPanel
+                Grid.Column="1"
+                VerticalAlignment="Center"
+                Spacing="2">
+                <Button
+                    x:Name="RenameTitleButton"
+                    MinHeight="0"
+                    Padding="4,2"
+                    HorizontalAlignment="Left"
+                    AutomationProperties.Name="Rename selected stack"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Click="OnRenameSelectedStackClick"
+                    GotFocus="OnRenameTitleFocusChanged"
+                    LostFocus="OnRenameTitleFocusChanged"
+                    PointerEntered="OnRenameTitlePointerChanged"
+                    PointerExited="OnRenameTitlePointerChanged"
+                    ToolTipService.ToolTip="Rename stack">
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock
+                            x:Name="StackTitleText"
+                            MaxWidth="520"
+                            Style="{ThemeResource TitleTextBlockStyle}"
+                            Text="{x:Bind ViewModel.Title, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis" />
+                        <FontIcon
+                            x:Name="RenameEditIcon"
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            FontSize="13"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Glyph="&#xE70F;"
+                            IsHitTestVisible="False"
+                            Opacity="0" />
+                    </Grid>
+                </Button>
+                <TextBlock
+                    x:Name="StackSummaryText"
+                    Margin="4,0,0,0"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="{x:Bind ViewModel.Summary, Mode=OneWay}"
+                    TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+        </Grid>
+
+        <CommandBar
+            Grid.Row="1"
+            Margin="16,0,12,8"
+            AutomationProperties.Name="Selected stack commands"
+            Background="Transparent"
+            DefaultLabelPosition="Right"
+            IsDynamicOverflowEnabled="True">
+            <CommandBar.PrimaryCommands>
+                <AppBarButton
+                    AutomationProperties.Name="Paste clipboard content into selected stack"
+                    Click="OnPasteIntoStackClick"
+                    Icon="Paste"
+                    Label="Paste" />
+                <AppBarButton AutomationProperties.Name="Stack notes" Label="Notes">
+                    <AppBarButton.Icon>
+                        <FontIcon Glyph="&#xE70B;" />
+                    </AppBarButton.Icon>
+                    <AppBarButton.Flyout>
+                        <MenuFlyout x:Name="EditorNotesMenu" controls:NoteMenu.ShowAsSubmenu="False" />
+                    </AppBarButton.Flyout>
+                </AppBarButton>
+                <AppBarButton
+                    AutomationProperties.Name="Pop out selected stack as a tray"
+                    Click="OnPopOutSelectedStackClick"
+                    Label="Pop out">
+                    <AppBarButton.Icon>
+                        <FontIcon Glyph="&#xE8A7;" />
+                    </AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarButton
+                    x:Name="EdgeAssignmentButton"
+                    AutomationProperties.Name="Choose an edge window for the selected stack"
+                    Label="Move to edge">
+                    <AppBarButton.Icon>
+                        <FontIcon Glyph="&#xE90C;" />
+                    </AppBarButton.Icon>
+                    <AppBarButton.Flyout>
+                        <MenuFlyout Opening="OnEdgeAssignmentFlyoutOpening">
+                            <RadioMenuFlyoutItem
+                                x:Name="NoEdgeAssignmentItem"
+                                Click="OnRemoveEdgeAssignmentClick"
+                                GroupName="OrganizerEdge"
+                                Text="None" />
+                            <MenuFlyoutSeparator />
+                            <RadioMenuFlyoutItem
+                                x:Name="LeftEdgeAssignmentItem"
+                                Click="OnAssignLeftEdgeClick"
+                                GroupName="OrganizerEdge"
+                                Text="Left" />
+                            <RadioMenuFlyoutItem
+                                x:Name="RightEdgeAssignmentItem"
+                                Click="OnAssignRightEdgeClick"
+                                GroupName="OrganizerEdge"
+                                Text="Right" />
+                            <RadioMenuFlyoutItem
+                                x:Name="TopEdgeAssignmentItem"
+                                Click="OnAssignTopEdgeClick"
+                                GroupName="OrganizerEdge"
+                                Text="Top" />
+                            <RadioMenuFlyoutItem
+                                x:Name="BottomEdgeAssignmentItem"
+                                Click="OnAssignBottomEdgeClick"
+                                GroupName="OrganizerEdge"
+                                Text="Bottom" />
+                        </MenuFlyout>
+                    </AppBarButton.Flyout>
+                </AppBarButton>
+                <AppBarSeparator />
+                <AppBarButton
+                    x:Name="StackViewButton"
+                    AutomationProperties.Name="Choose stack item layout"
+                    ToolTipService.ToolTip="Item layout">
+                    <AppBarButton.Icon>
+                        <FontIcon x:Name="StackViewIcon" Glyph="&#xEA37;" />
+                    </AppBarButton.Icon>
+                    <AppBarButton.Flyout>
+                        <MenuFlyout>
+                            <RadioMenuFlyoutItem
+                                x:Name="StackListViewItem"
+                                Click="OnListViewClick"
+                                GroupName="OrganizerItemLayout"
+                                Text="List" />
+                            <RadioMenuFlyoutItem
+                                x:Name="StackGridViewItem"
+                                Click="OnThumbnailViewClick"
+                                GroupName="OrganizerItemLayout"
+                                Text="Grid" />
+                        </MenuFlyout>
+                    </AppBarButton.Flyout>
+                </AppBarButton>
+            </CommandBar.PrimaryCommands>
+            <CommandBar.SecondaryCommands>
+                <AppBarButton
+                    AutomationProperties.Name="Delete selected stack"
+                    Click="OnDeleteSelectedStackClick"
+                    Icon="Delete"
+                    Label="Delete stack" />
+            </CommandBar.SecondaryCommands>
+        </CommandBar>
+
+        <controls:StackItemsOrganizer
+            x:Name="ItemsOrganizer"
+            Grid.Row="2"
+            Margin="20,0,16,8"
+            MaximumListHeight="10000"
+            OwnsScrolling="True"
+            ThumbnailItemWidth="160" />
+
+        <TextBlock
+            x:Name="SelectionSummaryText"
+            Grid.Row="3"
+            Margin="24,0,20,14"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            Style="{ThemeResource CaptionTextBlockStyle}"
+            Text="{x:Bind ViewModel.SelectionSummary, Mode=OneWay}" />
+    </Grid>
+</Page>

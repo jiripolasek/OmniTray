@@ -6,7 +6,7 @@
 
 using System.Collections.ObjectModel;
 
-namespace OmniTray.ViewModels;
+namespace OmniTray.ViewModels.Organizer;
 
 [WinRT.GeneratedBindableCustomProperty]
 public sealed partial class StackSearchResultViewModel(DropStackViewModel stack, DropItemViewModel? item, string preview,

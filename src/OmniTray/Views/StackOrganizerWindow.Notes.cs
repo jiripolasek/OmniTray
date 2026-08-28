@@ -6,16 +6,43 @@
 
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml.Input;
+using OmniTray.Views.Organizer;
 
 namespace OmniTray.Views;
 
 public sealed partial class StackOrganizerWindow
 {
     private NoteLibraryPage? _notesPage;
-    private bool _isShowingNotes;
     private bool _isOrganizerClosed;
     private bool _isClosingWithNoteChanges;
     private bool _allowOrganizerClose;
+
+    private void ShowNotesPage()
+    {
+        if (this._isOrganizerClosed || this.IsShowingNotes) { return; }
+        this.ShowOverview();
+        this.Navigation.ShowNotes();
+        if (this._notesPage is null)
+        {
+            this._notesPage = new NoteLibraryPage(this.ViewModel.Catalog, this);
+            this._notesPage.SelectedNoteChanged += this.OnLibraryNoteSelected;
+        }
+        this.DetailsPane.ShowEmpty("Select a note", "Edit it here or open it in a window. Restore deleted notes before editing.");
+        this.PageHost.Content = this._notesPage;
+        this._notesPage.SetActive(true);
+        this.RefreshDetailsPane();
+    }
+
+    private void LeaveNotesPage()
+    {
+        this._notesPage?.SetActive(false);
+        this.InlineNoteEditor.SetNote(null);
+    }
+
+    private void OnLibraryNoteSelected(object? sender, EventArgs args)
+    {
+        if (this.IsShowingNotes) { this.RefreshDetailsPane(); }
+    }
 
     internal void SelectNotes(bool deleted)
     {
@@ -27,46 +54,6 @@ public sealed partial class StackOrganizerWindow
             presenter.Restore();
         }
         this.Activate();
-    }
-
-    private void ShowNotesPage()
-    {
-        if (this._isShowingNotes) { return; }
-        // Clear the outgoing stack and details immediately, just as the search page does.
-        this.ShowOverview();
-        this._scopeSide = null;
-        this._isShowingNotes = true;
-        if (this._notesPage is null)
-        {
-            this._notesPage = new NoteLibraryPage(this._viewModel, this);
-            this._notesPage.SelectedNoteChanged += this.OnLibraryNoteSelected;
-        }
-        this.NotesContent.Content = this._notesPage;
-        this.OverviewContent.Visibility = Visibility.Collapsed;
-        this.StackContent.Visibility = Visibility.Collapsed;
-        this.BrowserContent.Visibility = Visibility.Visible;
-        this.DetailsEmptyTitleText.Text = "Select a note";
-        this.DetailsEmptyDescriptionText.Text = "Edit it here or open it in a window. Restore deleted notes before editing.";
-        this.NotesContent.Visibility = Visibility.Visible;
-        this._notesPage.SetActive(true);
-        this.RefreshDetailsPane();
-    }
-
-    private void LeaveNotesPage()
-    {
-        this._isShowingNotes = false;
-        this._notesPage?.SetActive(false);
-        this.NotesContent.Visibility = Visibility.Collapsed;
-        // Keep the page instance (filter, mode, selection), but detach its visual tree
-        // and catalog subscription while another organizer page is showing.
-        this.NotesContent.Content = null;
-        this.InlineNoteEditor.SetNote(null);
-        this.InlineNoteEditor.Visibility = Visibility.Collapsed;
-    }
-
-    private void OnLibraryNoteSelected(object? sender, EventArgs args)
-    {
-        if (this._isShowingNotes) { this.RefreshDetailsPane(); }
     }
 
     private void OnNoteSaveStateChanged(object? sender, EventArgs args)
@@ -92,8 +79,8 @@ public sealed partial class StackOrganizerWindow
             || this.InlineNoteEditor.NoteId is null) { return; }
         if (this.InlineNoteEditor.HasEditingFocus)
         {
-            if (this._isShowingNotes) { this._notesPage?.FocusList(); }
-            else { this.ItemsOrganizer.FocusItemList(); }
+            if (this.IsShowingNotes) { this._notesPage?.FocusList(); }
+            else { this._stackPage.FocusList(); }
         }
         else { this.InlineNoteEditor.FocusText(); }
         args.Handled = true;
@@ -126,4 +113,5 @@ public sealed partial class StackOrganizerWindow
             this.SetNoteEditingEnabled(true);
         }
     }
+
 }

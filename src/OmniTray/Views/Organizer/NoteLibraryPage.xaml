@@ -1,0 +1,140 @@
+<Page
+    x:Class="OmniTray.Views.Organizer.NoteLibraryPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:OmniTray.Controls"
+    xmlns:viewModels="using:OmniTray.ViewModels.Organizer">
+    <Grid
+        x:Name="RootGrid"
+        Padding="20"
+        RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <TextBlock Style="{ThemeResource TitleTextBlockStyle}" Text="Notes" />
+        <Grid Grid.Row="1" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <ComboBox
+                x:Name="ModeBox"
+                AutomationProperties.Name="Notes view"
+                SelectedIndex="0"
+                SelectionChanged="OnModeChanged">
+                <ComboBoxItem Content="Recently edited" />
+                <ComboBoxItem Content="Recently deleted" />
+            </ComboBox>
+            <TextBox
+                x:Name="SearchBox"
+                Grid.Column="1"
+                AutomationProperties.Name="Search notes"
+                PlaceholderText="Search notes and their locations"
+                TextChanged="OnSearchChanged" />
+        </Grid>
+        <CommandBar
+            x:Name="Commands"
+            Grid.Row="2"
+            Background="Transparent"
+            DefaultLabelPosition="Right"
+            IsEnabled="{x:Bind ViewModel.CanUseCommands, Mode=OneWay}">
+            <AppBarButton Click="OnNewClick" Label="New note">
+                <AppBarButton.Icon>
+                    <FontIcon Glyph="&#xE70B;" />
+                </AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarButton
+                Click="OnClipboardClick"
+                Icon="Paste"
+                Label="Clipboard → note" />
+            <AppBarButton
+                x:Name="OpenButton"
+                Click="OnOpenClick"
+                IsEnabled="{x:Bind ViewModel.CanOpenSelection, Mode=OneWay}"
+                Label="{x:Bind ViewModel.OpenLabel, Mode=OneWay}">
+                <AppBarButton.Icon>
+                    <FontIcon Glyph="&#xE70B;" />
+                </AppBarButton.Icon>
+            </AppBarButton>
+            <CommandBar.SecondaryCommands>
+                <AppBarButton
+                    x:Name="DeleteButton"
+                    Click="OnPurgeClick"
+                    Icon="Delete"
+                    IsEnabled="{x:Bind ViewModel.CanOpenSelection, Mode=OneWay}"
+                    Label="Delete permanently"
+                    Visibility="{x:Bind ViewModel.ShowDeleted, Mode=OneWay}" />
+            </CommandBar.SecondaryCommands>
+        </CommandBar>
+        <ListView
+            x:Name="NotesList"
+            Grid.Row="3"
+            AutomationProperties.Name="Notes"
+            DoubleTapped="OnNotesDoubleTapped"
+            ItemsSource="{x:Bind ViewModel.Entries}"
+            KeyDown="OnNotesKeyDown"
+            SelectedItem="{x:Bind ViewModel.SelectedEntry, Mode=OneWay}"
+            SelectionChanged="OnSelectionChanged"
+            SelectionMode="Single">
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                </Style>
+            </ListView.ItemContainerStyle>
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="viewModels:NoteLibraryEntry">
+                    <Grid Padding="4,8" ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="40" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <controls:NotePreview
+                            Width="40"
+                            Height="40"
+                            VerticalAlignment="Top"
+                            Compact="True"
+                            Note="{x:Bind Note}" />
+                        <StackPanel Grid.Column="1" Spacing="3">
+                            <TextBlock
+                                FontWeight="SemiBold"
+                                Text="{x:Bind Note.DisplayName}"
+                                TextTrimming="CharacterEllipsis" />
+                            <TextBlock
+                                MaxLines="2"
+                                Text="{x:Bind Preview}"
+                                TextTrimming="CharacterEllipsis"
+                                TextWrapping="Wrap" />
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                Text="{x:Bind Location}"
+                                TextTrimming="CharacterEllipsis" />
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                Text="{x:Bind TimeText}" />
+                        </StackPanel>
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+        <TextBlock
+            x:Name="SummaryText"
+            Grid.Row="4"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            Text="{x:Bind ViewModel.Summary, Mode=OneWay}"
+            TextWrapping="Wrap" />
+        <InfoBar
+            x:Name="ErrorBar"
+            Grid.Row="5"
+            IsClosable="True"
+            IsOpen="{x:Bind ViewModel.IsErrorOpen, Mode=TwoWay}"
+            Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+            Severity="Error" />
+    </Grid>
+</Page>
