@@ -12,13 +12,15 @@ public enum OmniTrayActivationKind
     Settings,
     NewStack,
     Stack,
-    EdgeShelf
+    EdgeShelf,
+    Note
 }
 
 public sealed record OmniTrayActivationRequest(
     OmniTrayActivationKind Kind,
     Guid? StackId = null,
-    string? Edge = null);
+    string? Edge = null,
+    Guid? NoteId = null);
 
 public static class OmniTrayActivation
 {
@@ -50,6 +52,16 @@ public static class OmniTrayActivation
         }
 
         return new Uri($"{Scheme}://edge/{normalizedEdge}");
+    }
+
+    public static Uri NoteUri(Guid noteId)
+    {
+        if (noteId == Guid.Empty)
+        {
+            throw new ArgumentException("A note ID is required.", nameof(noteId));
+        }
+
+        return new Uri($"{Scheme}://note/{noteId:D}");
     }
 
     public static bool TryParse(Uri? uri, out OmniTrayActivationRequest? request)
@@ -87,6 +99,10 @@ public static class OmniTrayActivation
             case "edge" when IsKnownEdge(path):
                 request = new OmniTrayActivationRequest(OmniTrayActivationKind.EdgeShelf,
                     Edge: path.ToLowerInvariant());
+                return true;
+
+            case "note" when Guid.TryParse(path, out var noteId) && noteId != Guid.Empty:
+                request = new OmniTrayActivationRequest(OmniTrayActivationKind.Note, NoteId: noteId);
                 return true;
 
             default:

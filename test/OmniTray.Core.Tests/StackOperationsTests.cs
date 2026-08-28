@@ -10,6 +10,36 @@ namespace OmniTray.Core.Tests;
 public sealed class StackOperationsTests
 {
     [TestMethod]
+    public void ItemAttachmentsFollowMovesAndSplitsAndSurviveParentRemoval()
+    {
+        var note = StickyNote.Create("Remember this");
+        var parent = DropItem.CreateText("Parent").WithAttachedNotes([note]);
+        var source = DropStack.Create([parent, DropItem.CreateText("Other")]);
+        var target = DropStack.CreateEmpty();
+        var moved = StackOperations.MoveItems(source, target, [parent.Id], 0);
+        Assert.AreSame(note, moved.Target.Items[0].AttachedNotes[0]);
+        Assert.HasCount(0, NoteOperations.Enumerate([moved.Source]).ToArray());
+        var split = StackOperations.Split(source, [parent.Id]);
+        Assert.AreSame(note, split.Extracted.Items[0].AttachedNotes[0]);
+        Assert.HasCount(0, NoteOperations.Enumerate([split.Remaining]).ToArray());
+        var removed = moved.Target.RemoveItems([parent.Id]);
+        Assert.AreSame(note, removed.Items.Single().Note);
+    }
+
+    [TestMethod]
+    public void NoteItemsSurviveStackEditsAndCombining()
+    {
+        var firstNote = StickyNote.Create("First");
+        var secondNote = StickyNote.Create("Second");
+        var first = DropStack.Create([DropItem.CreateNote(firstNote)]);
+        var second = DropStack.Create([DropItem.CreateNote(secondNote)]);
+        var combined = StackOperations.CombineInto(first, [second])
+            .Rename("Combined").ChangeTint("Mint").ChangeInspectorViewMode(StackInspectorViewMode.Grid);
+        CollectionAssert.AreEqual(new[] { firstNote, secondNote }, NoteOperations.GetStackNotes(combined).ToArray());
+        Assert.HasCount(2, NoteOperations.GetStackNotes(StackOperations.Combine([first, second])));
+    }
+
+    [TestMethod]
     [DataRow(true, false, false, false, false)]
     [DataRow(true, true, false, false, true)]
     [DataRow(true, false, true, false, true)]

@@ -88,10 +88,12 @@
                                     Opacity="0" />
                             </Grid>
                         </Button>
-                        <TextBlock
-                            Margin="4,0,0,0"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Text="{x:Bind ViewModel.ItemCountText, Mode=OneWay}" />
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Margin="4,0,0,0" VerticalAlignment="Center"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="{x:Bind ViewModel.ItemCountText, Mode=OneWay}" />
+                            <controls:NoteIndicator Stack="{x:Bind ViewModel}" />
+                        </StackPanel>
                     </StackPanel>
                     <toolkit:Segmented
                         x:Name="InspectorViewSelector"
@@ -123,7 +125,7 @@
                         BorderThickness="0"
                         ToolTipService.ToolTip="More">
                         <Button.Flyout>
-                            <MenuFlyout Placement="BottomEdgeAlignedRight">
+                            <MenuFlyout Placement="BottomEdgeAlignedRight" controls:NoteMenu.Stack="{x:Bind ViewModel}">
                                 <MenuFlyoutItem
                                     Click="OnCustomizeClick"
                                     Text="Customize stack">

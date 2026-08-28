@@ -35,6 +35,13 @@ public sealed partial class MinimalTrayWindow : TransparentWindow
         this._trayContent = contentFactory(this, true);
         this.ContentHost.Content = this._trayContent.View;
         this.AddContentActions();
+        if (viewModel is StackTrayContentViewModel stackContent)
+        {
+            NoteMenu.SetStack(this.TrayContextFlyout, stackContent.Stack);
+            this.RootGrid.Children.Add(new NoteIndicator { Stack = stackContent.Stack,
+                HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(0, 0, 8, 8) });
+        }
         // TransparentWindow starts hidden, so initialize every x:Bind before the
         // HWND can render its first visible frame.
         this.Bindings.Update();

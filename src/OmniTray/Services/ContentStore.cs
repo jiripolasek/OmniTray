@@ -148,11 +148,17 @@ internal static class ContentStore
         }
     }
 
-    public static async Task DeleteOwnedAsync(IEnumerable<DropItem> items)
+    public static async Task DeleteOwnedAsync(IEnumerable<DropItem> items, IEnumerable<DropItem>? retainedItems = null)
     {
         ArgumentNullException.ThrowIfNull(items);
 
-        foreach (var item in items.Where(static item => item.IsOwned && !string.IsNullOrWhiteSpace(item.SourcePath)))
+        var retained = retainedItems?.ToArray() ?? [];
+        var retainedPaths = retained.Select(item => item.SourcePath).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var retainedResources = retained.SelectMany(item => item.HtmlResources)
+            .Select(resource => resource.ManagedRelativePath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var item in items.Where(item => item.IsOwned && !string.IsNullOrWhiteSpace(item.SourcePath)
+                     && !retainedPaths.Contains(item.SourcePath)))
         {
             try
             {
@@ -165,7 +171,8 @@ internal static class ContentStore
             }
         }
 
-        await DeleteHtmlResourcesAsync(items.SelectMany(static item => item.HtmlResources));
+        await DeleteHtmlResourcesAsync(items.SelectMany(static item => item.HtmlResources)
+            .Where(resource => !retainedResources.Contains(resource.ManagedRelativePath)));
     }
 
     public static async Task DeleteHtmlResourcesAsync(IEnumerable<DropItemHtmlResource> resources)
@@ -302,6 +309,11 @@ internal static class ContentStore
 
     private static async Task<DropItem> CopyItemAsync(DropItem item)
     {
+        if (item.Note is { } note)
+        {
+            return DropItem.CreateNote(note.Duplicate());
+        }
+
         DropItem copy;
         if (item.Kind == DropItemKind.Text)
         {
@@ -422,6 +434,7 @@ internal static class ContentStore
             }
 
             return copy
+                .WithAttachedNotes(source.AttachedNotes.Select(static note => note.Duplicate()))
                 .WithCustomFormats(source.CustomFormats)
                 .WithMetadata(
                     source.Provenance,

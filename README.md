@@ -14,6 +14,7 @@ Temporarily shelf files, folders, text, and images while you work. OmniTray keep
 - **Drag in and drag out.** Capture files, folders, text, bitmap data, and virtual images from other applications, then drag a whole stack or an individual item back out when it is needed.
 - **Create a tray with a shake.** Optionally shake the mouse while dragging to open a new tray under the pointer, then release to capture the dragged content.
 - **Organize content into stacks.** Create, rename, recolor, reorder, split, combine, and delete stacks without losing their stable identity.
+- **Keep editable sticky notes.** Add notes to a stack or attach them to an item. Browse active and recently deleted notes on the Stack organizer’s Notes page. Edit rich text in a small window, pick a pastel color, and move or reattach notes without losing their history. See [Notes](doc/notes.md).
 - **Keep important stacks close.** Pop the stack out as a small always available floating window.
 - **Act on dropped content.** Configure in-process commands to open items in a desktop or packaged app, copy or move them to a folder, recycle originals, or copy content to the clipboard. Place the same command on the popup or individual edge layouts, group commands into folders, and pop commands out as dedicated drop targets.
 - **Use the screen edges you choose.** Enable left, right, top, and bottom shelves independently, or synchronize content across side pairs or every edge. Enabled same-side shelves are available on every connected display and include drag-scroll support for overflow.

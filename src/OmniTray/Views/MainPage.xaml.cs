@@ -68,6 +68,17 @@ public sealed partial class MainPage : Page
 
     public MainViewModel ViewModel => App.Current.StackCatalogViewModel;
 
+    private void OnNewNoteClick(object sender, RoutedEventArgs args) =>
+        App.Current.CreateQuickNote((this._expandedStackOrganizer?.Tag as DropStackViewModel)?.Model.Id);
+
+    private void OnBrowseNotesClick(object sender, RoutedEventArgs args) => App.Current.ShowNotes();
+
+    private void OnNewNoteAcceleratorInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        this.OnNewNoteClick(this, new RoutedEventArgs());
+        args.Handled = true;
+    }
+
     private void OnDragOver(object sender, DragEventArgs args)
     {
         this._isDragOverPopup = true;

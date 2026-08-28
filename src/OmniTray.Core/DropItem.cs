@@ -12,7 +12,8 @@ public enum DropItemKind
     Folder,
     Text,
     Image,
-    Uri
+    Uri,
+    Note
 }
 
 public sealed record DropItem
@@ -37,21 +38,23 @@ public sealed record DropItem
         DropCaptureMetadata? capture = null,
         ContentBacking? backing = null,
         DropFileFacts? fileFacts = null,
-        IReadOnlyList<DropItemHtmlResource>? htmlResources = null)
+        IReadOnlyList<DropItemHtmlResource>? htmlResources = null,
+        StickyNote? note = null,
+        IReadOnlyList<StickyNote>? attachedNotes = null)
     {
         this.Id = id;
         this.Kind = kind;
-        this.DisplayName = displayName;
+        this.DisplayName = note?.DisplayName ?? displayName;
         this.SourcePath = sourcePath;
-        this.Text = text;
+        this.Text = note is null ? text : note.Text;
         this.Html = html;
-        this.Rtf = rtf;
+        this.Rtf = note is null ? rtf : note.Rtf;
         this.Url = url;
         this.SourceUrl = sourceUrl;
         this.SourceApplicationName = sourceApplicationName;
         this.CustomFormats = NormalizeCustomFormats(customFormats);
         this.IsOwned = isOwned;
-        this.CreatedAt = createdAt;
+        this.CreatedAt = note?.CreatedAt ?? createdAt;
         this.ApplicationLink = NormalizeOptionalAbsoluteUri(applicationLink);
         this.Provenance = new ContentProvenance
         {
@@ -64,6 +67,17 @@ public sealed record DropItem
         this.Backing = NormalizeBacking(backing, kind, sourcePath, isOwned);
         this.FileFacts = NormalizeFileFacts(fileFacts);
         this.HtmlResources = NormalizeHtmlResources(htmlResources);
+        if ((kind == DropItemKind.Note) != (note is not null) || (note is not null && note.Id != id))
+        {
+            throw new ArgumentException("A note item must contain a note with the same identity.", nameof(note));
+        }
+
+        this.Note = note;
+        this.AttachedNotes = attachedNotes?.ToArray() ?? [];
+        if (kind == DropItemKind.Note && this.AttachedNotes.Count > 0)
+        {
+            throw new ArgumentException("Notes cannot have attached notes.", nameof(attachedNotes));
+        }
     }
 
     public Guid Id { get; }
@@ -107,6 +121,29 @@ public sealed record DropItem
     public bool IsOwned { get; }
 
     public DateTimeOffset CreatedAt { get; }
+
+    public StickyNote? Note { get; }
+
+    public IReadOnlyList<StickyNote> AttachedNotes { get; private init; }
+
+    public static DropItem CreateNote(StickyNote note)
+    {
+        ArgumentNullException.ThrowIfNull(note);
+        return new DropItem(note.Id, DropItemKind.Note, note.DisplayName, null,
+            note.Text, null, note.Rtf, null, null, null, null, false, note.CreatedAt, note: note);
+    }
+
+    public DropItem WithAttachedNotes(IEnumerable<StickyNote> notes)
+    {
+        ArgumentNullException.ThrowIfNull(notes);
+        var snapshot = notes.ToArray();
+        if (this.Kind == DropItemKind.Note && snapshot.Length > 0)
+        {
+            throw new ArgumentException("Notes cannot have attached notes.", nameof(notes));
+        }
+
+        return this with { AttachedNotes = snapshot };
+    }
 
     public static DropItem CreateStorageItem(
         string displayName,
@@ -295,7 +332,9 @@ public sealed record DropItem
             this.Capture,
             this.Backing,
             this.FileFacts,
-            this.HtmlResources);
+            this.HtmlResources,
+            this.Note,
+            this.AttachedNotes);
     }
 
     public DropItem WithCustomFormats(IReadOnlyList<DropItemDataFormat>? customFormats)
@@ -320,7 +359,9 @@ public sealed record DropItem
             this.Capture,
             this.Backing,
             this.FileFacts,
-            this.HtmlResources);
+            this.HtmlResources,
+            this.Note,
+            this.AttachedNotes);
     }
 
     public DropItem WithMetadata(
@@ -351,7 +392,9 @@ public sealed record DropItem
             capture ?? this.Capture,
             backing ?? this.Backing,
             fileFacts ?? this.FileFacts,
-            htmlResources ?? this.HtmlResources);
+            htmlResources ?? this.HtmlResources,
+            this.Note,
+            this.AttachedNotes);
     }
 
     public static DropItem Restore(
@@ -374,7 +417,9 @@ public sealed record DropItem
         DropCaptureMetadata? capture = null,
         ContentBacking? backing = null,
         DropFileFacts? fileFacts = null,
-        IReadOnlyList<DropItemHtmlResource>? htmlResources = null)
+        IReadOnlyList<DropItemHtmlResource>? htmlResources = null,
+        StickyNote? note = null,
+        IReadOnlyList<StickyNote>? attachedNotes = null)
     {
         if (id == Guid.Empty)
         {
@@ -420,7 +465,9 @@ public sealed record DropItem
             capture,
             backing,
             fileFacts,
-            htmlResources);
+            htmlResources,
+            note,
+            attachedNotes);
     }
 
     public static DropItem Restore(

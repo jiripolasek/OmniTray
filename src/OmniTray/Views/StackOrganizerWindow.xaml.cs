@@ -64,6 +64,10 @@ public sealed partial class StackOrganizerWindow : Window
             this.AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
         }
 
+        this.InlineNoteEditor.Initialize(this._viewModel);
+        this.InlineNoteEditor.SaveStateChanged += this.OnNoteSaveStateChanged;
+        this.AppWindow.Closing += this.OnOrganizerClosing;
+        this.Activated += this.OnOrganizerActivated;
         this.ItemsOrganizer.DialogOwner = this;
         this.ItemsOrganizer.SelectedItemsChanged += this.OnSelectedItemsChanged;
         this._viewModel.CatalogChanged += this.OnCatalogChanged;
@@ -108,10 +112,36 @@ public sealed partial class StackOrganizerWindow : Window
         this.Activate();
     }
 
+    internal void RevealItem(Guid itemId) => this.ItemsOrganizer.SelectItem(itemId);
+
+    private void OnBrowserContentSizeChanged(object sender, SizeChangedEventArgs args)
+    {
+        // Clamp layout, not the preferred Width, so widening the window restores the
+        // user's last split. The narrow visual states temporarily hide the whole pane.
+        this.DetailsColumn.MaxWidth = Math.Max(240, args.NewSize.Width - 360 - 8);
+    }
+
+    private void OnNewNoteClick(object sender, RoutedEventArgs args) =>
+        App.Current.CreateQuickNote(this._editorStack?.Model.Id ?? (this._isShowingSearch || this._isShowingNotes
+            ? null : (this.StackGrid.SelectedItem as DropStackViewModel)?.Model.Id));
+
+    private void OnBrowseNotesClick(object sender, RoutedEventArgs args) => App.Current.ShowNotes();
+
+    private void OnNewNoteAcceleratorInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        this.OnNewNoteClick(this, new RoutedEventArgs());
+        args.Handled = true;
+    }
+
     private DropStackViewModel? SelectedStack => this._editorStack;
 
     private void OnScopeSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
+        if ((args.SelectedItem as NavigationViewItem)?.Tag is "notes")
+        {
+            this.ShowNotesPage();
+            return;
+        }
         if ((args.SelectedItem as NavigationViewItem)?.Tag is not StackOrganizerScopeViewModel scope)
         {
             return;
@@ -130,6 +160,9 @@ public sealed partial class StackOrganizerWindow : Window
                 this._scopeSide = scope.Side;
                 this.ShowOverview();
                 this.RefreshVisibleStacks();
+                break;
+            case "notes":
+                this.ShowNotesPage();
                 break;
             case "new-stack":
                 this.CreateNewStack();
@@ -602,6 +635,11 @@ public sealed partial class StackOrganizerWindow : Window
             return;
         }
 
+        if (this._isShowingNotes && !fromSearch)
+        {
+            this.OrganizerNavigation.SelectedItem = this.AllStacksNavigationItem;
+        }
+        this.LeaveNotesPage();
         this.LeaveSearchResults(fromSearch);
         this.UpdateDetailsItem(null);
         this._editorStack = stack;
@@ -610,6 +648,7 @@ public sealed partial class StackOrganizerWindow : Window
         this.DetailsEmptyTitleText.Text = "Select an item";
         this.DetailsEmptyDescriptionText.Text = "Item details appear here.";
         this.ItemsOrganizer.Stack = stack;
+        NoteMenu.SetStack(this.EditorNotesMenu, stack);
         this.UpdateStackHeader(stack);
         this.ApplyStackViewMode(stack.InspectorViewMode);
         this.UpdateSelectionSummary();
@@ -629,11 +668,13 @@ public sealed partial class StackOrganizerWindow : Window
 
     private void ShowOverview()
     {
+        this.LeaveNotesPage();
         this.LeaveSearchResults(false);
         var previousStack = this._editorStack;
         this._editorStack = null;
         this.UpdateDetailsItem(null);
         this.ItemsOrganizer.Stack = null;
+        NoteMenu.SetStack(this.EditorNotesMenu, null);
         this.StackContent.Visibility = Visibility.Collapsed;
         this.OverviewContent.Visibility = Visibility.Visible;
         this.DetailsEmptyTitleText.Text = "Open a stack";
@@ -713,6 +754,7 @@ public sealed partial class StackOrganizerWindow : Window
     {
         if (ReferenceEquals(this._detailsItem, item))
         {
+            this.RefreshDetailsPane();
             return;
         }
 
@@ -743,7 +785,19 @@ public sealed partial class StackOrganizerWindow : Window
 
     private void RefreshDetailsPane()
     {
+        if (this._isOrganizerClosed) { return; }
         var item = this._detailsItem;
+        var noteId = this._isShowingNotes ? this._notesPage?.SelectedNoteId
+            : this.ItemsOrganizer.SelectedItemCount == 1 ? item?.Model.Note?.Id : null;
+        this.InlineNoteEditor.SetNote(noteId);
+        this.InlineNoteEditor.Visibility = this.InlineNoteEditor.NoteId is null ? Visibility.Collapsed : Visibility.Visible;
+        if (this.InlineNoteEditor.NoteId is not null)
+        {
+            this.DetailsEmptyState.Visibility = Visibility.Collapsed;
+            this.DetailsScrollViewer.Visibility = Visibility.Collapsed;
+            this.DetailsThumbnail.Source = null;
+            return;
+        }
         this.DetailsEmptyState.Visibility = item is null ? Visibility.Visible : Visibility.Collapsed;
         this.DetailsScrollViewer.Visibility = item is null ? Visibility.Collapsed : Visibility.Visible;
         if (item is null)
@@ -1273,6 +1327,13 @@ public sealed partial class StackOrganizerWindow : Window
 
     private void OnClosed(object sender, WindowEventArgs args)
     {
+        this._isOrganizerClosed = true;
+        this.AppWindow.Closing -= this.OnOrganizerClosing;
+        this.Activated -= this.OnOrganizerActivated;
+        this.InlineNoteEditor.SaveStateChanged -= this.OnNoteSaveStateChanged;
+        this.InlineNoteEditor.Dispose();
+        if (this._notesPage is not null) { this._notesPage.SelectedNoteChanged -= this.OnLibraryNoteSelected; }
+        this.LeaveNotesPage();
         this.CancelSearchRequests();
         this.Closed -= this.OnClosed;
         this.ItemsOrganizer.SelectedItemsChanged -= this.OnSelectedItemsChanged;

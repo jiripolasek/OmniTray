@@ -18,6 +18,12 @@ internal static class ItemManipulationService
     public static async Task OpenAsync(DropItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
+        if (item.Note is { } note)
+        {
+            App.Current.ShowNote(note.Id);
+            return;
+        }
+
         bool launched;
         if (item.Kind == DropItemKind.Uri &&
             ContentDetection.TryNormalizeWebUrl(item.Url, out var url))

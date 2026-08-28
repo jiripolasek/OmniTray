@@ -7,6 +7,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:viewModels="using:OmniTray.ViewModels"
     xmlns:views="using:OmniTray.Views"
+    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
     Title="OmniTray Stack organizer"
     mc:Ignorable="d">
     <Window.SystemBackdrop>
@@ -15,7 +16,10 @@
 
     <Grid x:Name="RootGrid">
         <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Key="N" Modifiers="Control" Invoked="OnNewNoteAcceleratorInvoked" />
             <KeyboardAccelerator Key="F" Modifiers="Control" Invoked="OnSearchAcceleratorInvoked" />
+            <KeyboardAccelerator Key="F6" Invoked="OnSwitchNotePreviewInvoked" />
+            <KeyboardAccelerator Key="S" Modifiers="Control" Invoked="OnSaveNoteInvoked" />
         </Grid.KeyboardAccelerators>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -133,6 +137,7 @@
             </DataTemplate>
             <DataTemplate x:Key="SearchResultIconTemplate" x:DataType="viewModels:StackSearchResultViewModel">
                 <Grid Width="52" Height="52" IsHitTestVisible="False">
+                    <controls:NotePreview Note="{x:Bind Note}" Compact="True" Canvas.ZIndex="1" />
                     <ContentPresenter Content="{x:Bind Stack}" ContentTemplate="{StaticResource OrganizerStackPreviewTemplate}" Visibility="{x:Bind StackVisibility}" />
                     <Grid Visibility="{x:Bind ItemVisibility}">
                         <controls:ThumbnailImagePresenter
@@ -240,8 +245,9 @@
                         <AdaptiveTrigger MinWindowWidth="0" />
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
-                        <Setter Target="DetailsSeparator.Visibility" Value="Collapsed" />
+                        <Setter Target="DetailsSplitter.Visibility" Value="Collapsed" />
                         <Setter Target="DetailsColumn.Width" Value="0" />
+                        <Setter Target="DetailsColumn.MinWidth" Value="0" />
                         <Setter Target="DetailsPane.Visibility" Value="Collapsed" />
                     </VisualState.Setters>
                 </VisualState>
@@ -250,8 +256,9 @@
                         <AdaptiveTrigger MinWindowWidth="760" />
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
-                        <Setter Target="DetailsSeparator.Visibility" Value="Collapsed" />
+                        <Setter Target="DetailsSplitter.Visibility" Value="Collapsed" />
                         <Setter Target="DetailsColumn.Width" Value="0" />
+                        <Setter Target="DetailsColumn.MinWidth" Value="0" />
                         <Setter Target="DetailsPane.Visibility" Value="Collapsed" />
                     </VisualState.Setters>
                 </VisualState>
@@ -260,8 +267,7 @@
                         <AdaptiveTrigger MinWindowWidth="1080" />
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
-                        <Setter Target="DetailsSeparator.Visibility" Value="Visible" />
-                        <Setter Target="DetailsColumn.Width" Value="288" />
+                        <Setter Target="DetailsSplitter.Visibility" Value="Visible" />
                         <Setter Target="DetailsPane.Visibility" Value="Visible" />
                     </VisualState.Setters>
                 </VisualState>
@@ -334,6 +340,10 @@
                     <ContentPresenter
                         Content="{x:Bind AllStacksScope}"
                         ContentTemplate="{StaticResource OrganizerScopeItemTemplate}" />
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="NotesNavigationItem" Content="Notes" Tag="notes"
+                                    AutomationProperties.Name="Browse notes">
+                    <NavigationViewItem.Icon><FontIcon Glyph="&#xE70B;" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItemSeparator />
                 <NavigationViewItemHeader Content="Edge windows" />
@@ -451,11 +461,15 @@
             </NavigationView.FooterMenuItems>
 
             <Grid Background="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}">
-            <Grid x:Name="BrowserContent">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+            <Grid x:Name="BrowserContent" SizeChanged="OnBrowserContentSizeChanged">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="1" />
-                    <ColumnDefinition x:Name="DetailsColumn" Width="288" />
+                    <ColumnDefinition x:Name="ItemsColumn" Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition x:Name="DetailsColumn" Width="288" MinWidth="240" />
                 </Grid.ColumnDefinitions>
 
             <Grid x:Name="OverviewContent">
@@ -497,6 +511,12 @@
                     DefaultLabelPosition="Right"
                     IsDynamicOverflowEnabled="True">
                     <CommandBar.PrimaryCommands>
+                        <AppBarButton Label="New note" Click="OnNewNoteClick" ToolTipService.ToolTip="New note (Ctrl+N)">
+                            <AppBarButton.Icon><FontIcon Glyph="&#xE70B;" /></AppBarButton.Icon>
+                        </AppBarButton>
+                        <AppBarButton Label="Browse notes" Click="OnBrowseNotesClick">
+                            <AppBarButton.Icon><FontIcon Glyph="&#xE70B;" /></AppBarButton.Icon>
+                        </AppBarButton>
                         <AppBarButton
                             AutomationProperties.Name="Create a new stack in this location"
                             Click="OnNewStackClick"
@@ -639,7 +659,7 @@
                                 Tag="{x:Bind}"
                                 Unloaded="OnStackDragSurfaceUnloaded">
                                 <Grid.ContextFlyout>
-                                    <MenuFlyout>
+                                    <MenuFlyout controls:NoteMenu.Stack="{x:Bind}">
                                         <MenuFlyoutItem
                                             Click="OnOpenTaggedStackClick"
                                             Tag="{x:Bind}"
@@ -674,6 +694,7 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
                                 <ContentPresenter Margin="8,2,8,8" Content="{x:Bind}" ContentTemplate="{StaticResource OrganizerStackPreviewTemplate}" IsHitTestVisible="False" />
+                                <controls:NoteIndicator Stack="{x:Bind}" HorizontalAlignment="Right" VerticalAlignment="Top" />
                                 <StackPanel Grid.Row="1" Spacing="1">
                                     <TextBlock
                                         FontWeight="SemiBold"
@@ -823,6 +844,12 @@
                             Click="OnPasteIntoStackClick"
                             Icon="Paste"
                             Label="Paste" />
+                        <AppBarButton Label="Notes" AutomationProperties.Name="Stack notes">
+                            <AppBarButton.Icon><FontIcon Glyph="&#xE70B;" /></AppBarButton.Icon>
+                            <AppBarButton.Flyout>
+                                <MenuFlyout x:Name="EditorNotesMenu" controls:NoteMenu.ShowAsSubmenu="False" />
+                            </AppBarButton.Flyout>
+                        </AppBarButton>
                         <AppBarButton
                             AutomationProperties.Name="Pop out selected stack as a tray"
                             Click="OnPopOutSelectedStackClick"
@@ -918,15 +945,25 @@
                     Style="{ThemeResource CaptionTextBlockStyle}" />
             </Grid>
 
-            <Rectangle
-                x:Name="DetailsSeparator"
+            <ContentControl x:Name="NotesContent" Visibility="Collapsed" IsTabStop="False"
+                            HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
+
+            <toolkit:GridSplitter
+                x:Name="DetailsSplitter"
                 Grid.Column="1"
-                Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                Width="8"
+                HorizontalAlignment="Stretch"
+                ResizeDirection="Columns"
+                ResizeBehavior="PreviousAndNext"
+                KeyboardIncrement="16"
+                AutomationProperties.Name="Resize Preview pane"
+                ToolTipService.ToolTip="Resize Preview pane (Left/Right arrow keys when focused)" />
 
             <Grid
                 x:Name="DetailsPane"
                 Grid.Column="2"
                 Padding="24,20,20,20">
+                <controls:NoteEditorPane x:Name="InlineNoteEditor" Visibility="Collapsed" />
                 <StackPanel x:Name="DetailsEmptyState" VerticalAlignment="Center" Spacing="10">
                     <FontIcon
                         HorizontalAlignment="Center"
@@ -1050,6 +1087,12 @@
                     <TextBlock x:Name="SearchEmptyDescriptionText" MaxWidth="440" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Try a stack name, item name, path, URL, or saved text." TextAlignment="Center" TextWrapping="Wrap" />
                 </StackPanel>
             </Grid>
+                <InfoBar x:Name="NoteSaveErrorBar" Grid.Row="1" IsOpen="False" IsClosable="False"
+                         Severity="Error" Title="Could not save note changes">
+                    <InfoBar.ActionButton>
+                        <Button Content="Retry" Click="OnRetryNoteSaveClick" />
+                    </InfoBar.ActionButton>
+                </InfoBar>
             </Grid>
         </NavigationView>
     </Grid>

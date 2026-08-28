@@ -21,6 +21,7 @@ public sealed partial class StackOrganizerWindow
     private string _searchQuery = string.Empty;
     private bool _isShowingSearch;
     private bool _openedFromSearch;
+    private bool _searchOriginWasNotes;
     private Guid? _searchOriginStackId;
     private Guid? _searchOriginItemId;
     private Guid? _lastSearchStackId;
@@ -128,6 +129,7 @@ public sealed partial class StackOrganizerWindow
 
         if (!this._isShowingSearch && !this._openedFromSearch)
         {
+            this._searchOriginWasNotes = this._isShowingNotes;
             this._searchOriginStackId = this._editorStack?.Model.Id;
             this._searchOriginItemId = this.ItemsOrganizer.PrimarySelectedItem?.Model.Id;
         }
@@ -148,6 +150,7 @@ public sealed partial class StackOrganizerWindow
 
     private void ShowSearchResults()
     {
+        this.LeaveNotesPage();
         this.ClearSearchSuggestions();
         this._isShowingSearch = true;
         this._openedFromSearch = false;
@@ -193,9 +196,10 @@ public sealed partial class StackOrganizerWindow
                 Source = StackSearchResultGroup.Create(this.SearchResults)
             }.View;
 
-            var stackCount = this.SearchResults.Count(result => result.Item is null);
-            var itemCount = this.SearchResults.Count - stackCount;
-            this.SearchSummaryText.Text = $"“{query}” · {stackCount} {(stackCount == 1 ? "stack" : "stacks")} · {itemCount} {(itemCount == 1 ? "item" : "items")} · All locations";
+            var stackCount = this.SearchResults.Count(result => result.Item is null && result.Note is null);
+            var noteCount = this.SearchResults.Count(result => result.Note is not null);
+            var itemCount = this.SearchResults.Count - stackCount - noteCount;
+            this.SearchSummaryText.Text = $"“{query}” · {stackCount} {(stackCount == 1 ? "stack" : "stacks")} · {itemCount} {(itemCount == 1 ? "item" : "items")} · {noteCount} {(noteCount == 1 ? "note" : "notes")} · All locations";
             this.SearchEmptyTitleText.Text = "No results";
             this.SearchEmptyDescriptionText.Text = "Try a stack name, item name, path, URL, or saved text.";
             this.SearchEmptyState.Visibility = this.SearchResults.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -254,7 +258,12 @@ public sealed partial class StackOrganizerWindow
                 continue;
             }
 
-            results.Add(new StackSearchResultViewModel(stack, item, match.Preview));
+            var note = match.NoteId is { } noteId ? this._viewModel.FindNote(noteId)?.Note : null;
+            if (match.NoteId is not null && note is null)
+            {
+                continue;
+            }
+            results.Add(new StackSearchResultViewModel(stack, item, match.Preview, note));
         }
 
         return results;
@@ -270,6 +279,16 @@ public sealed partial class StackOrganizerWindow
 
     private void OpenSearchResult(StackSearchResultViewModel result)
     {
+        if (result.Note is { } note)
+        {
+            if (this._viewModel.FindNote(note.Id) is null)
+            {
+                App.Current.ShowToast("That note is no longer available.", InfoBarSeverity.Warning);
+                return;
+            }
+            App.Current.ShowNote(note.Id);
+            return;
+        }
         var stack = this._viewModel.Stacks.FirstOrDefault(candidate => candidate.Model.Id == result.Stack.Model.Id);
         var itemId = result.Item?.Model.Id;
         if (stack is null || (itemId is { } id && stack.Items.All(item => item.Model.Id != id)))
@@ -290,6 +309,12 @@ public sealed partial class StackOrganizerWindow
 
     private void OnBackFromSearchClick(object sender, RoutedEventArgs args)
     {
+        if (this._searchOriginWasNotes)
+        {
+            this.OrganizerNavigation.SelectedItem = this.NotesNavigationItem;
+            this.ShowNotesPage();
+            return;
+        }
         var stack = this._viewModel.Stacks.FirstOrDefault(candidate => candidate.Model.Id == this._searchOriginStackId);
         var itemId = this._searchOriginItemId;
         if (stack is null)
@@ -318,6 +343,7 @@ public sealed partial class StackOrganizerWindow
         if (!retainSearchNavigation)
         {
             this._searchQuery = string.Empty;
+            this._searchOriginWasNotes = false;
             this._searchOriginStackId = null;
             this._searchOriginItemId = null;
             this._lastSearchStackId = null;

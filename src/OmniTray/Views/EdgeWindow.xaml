@@ -168,7 +168,7 @@
                                             Drop="OnStackDrop"
                                             Tag="{x:Bind}">
                                             <Grid.ContextFlyout>
-                                                <MenuFlyout>
+                                                <MenuFlyout controls:NoteMenu.Stack="{x:Bind}">
                                                     <MenuFlyoutItem
                                                         Click="OnInspectStackClick"
                                                         Icon="View"
@@ -370,6 +370,31 @@
                                                                 Glyph="&#xE70D;" />
                                                         </Grid>
                                                     </Button>
+                                                    <!-- Overlay the preview without changing the expand/drag button's layout or hit target. -->
+                                                    <Grid Margin="7,5" Canvas.ZIndex="1">
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto" />
+                                                            <RowDefinition Height="Auto" />
+                                                        </Grid.RowDefinitions>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="34" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Grid
+                                                            Grid.ColumnSpan="{x:Bind CardLayout.PreviewColumnSpan, Mode=OneWay}"
+                                                            Width="{x:Bind CardLayout.PreviewContainerWidth, Mode=OneWay}"
+                                                            Height="{x:Bind CardLayout.PreviewContainerHeight, Mode=OneWay}"
+                                                            Margin="{x:Bind CardLayout.PreviewMargin, Mode=OneWay}"
+                                                            HorizontalAlignment="{x:Bind CardLayout.PreviewHorizontalAlignment, Mode=OneWay}">
+                                                            <controls:NoteIndicator Stack="{x:Bind}"
+                                                                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,0,0" />
+                                                        </Grid>
+                                                        <!-- Match the chevron column, including text scaling, without a runtime binding. -->
+                                                        <FontIcon Grid.Column="3" Grid.RowSpan="2" FontSize="11" Glyph="&#xE70D;"
+                                                                  Opacity="0" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw" />
+                                                    </Grid>
                                                     <Button
                                                         x:Name="InspectorButton"
                                                         Width="30"
@@ -592,7 +617,7 @@
                                                         Tag="{x:Bind}"
                                                         Unloaded="OnStackDragSurfaceUnloaded">
                                                         <Grid.ContextFlyout>
-                                                            <MenuFlyout>
+                                                            <MenuFlyout controls:NoteMenu.Stack="{x:Bind}">
                                                                 <MenuFlyoutItem
                                                                     Click="OnInspectStackClick"
                                                                     Icon="View"
@@ -742,6 +767,7 @@
                                                                         Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
                                                                         Text="{x:Bind TileCountBadgeText, Mode=OneWay}" />
                                                                 </Border>
+                                                                <controls:NoteIndicator Stack="{x:Bind}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,-4,0,0" />
                                                                 <Button
                                                                     x:Name="InspectorButton"
                                                                     Width="25"

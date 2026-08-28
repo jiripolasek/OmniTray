@@ -101,7 +101,9 @@ public sealed record DropStack
             this.Id,
             this.Name,
             this.Tint,
-            this.Items.Where(item => !removals.Contains(item.Id)).ToArray(),
+            this.Items.Where(item => !removals.Contains(item.Id))
+                .Concat(this.Items.Where(item => removals.Contains(item.Id))
+                    .SelectMany(static item => item.AttachedNotes).Select(DropItem.CreateNote)).ToArray(),
             this.InspectorViewMode);
     }
 
@@ -171,7 +173,8 @@ public sealed record DropStack
         string name,
         string tint,
         IEnumerable<DropItem> items,
-        StackInspectorViewMode inspectorViewMode = StackInspectorViewMode.List)
+        StackInspectorViewMode inspectorViewMode = StackInspectorViewMode.List,
+        IReadOnlyList<StickyNote>? attachedNotes = null)
     {
         if (id == Guid.Empty)
         {
@@ -182,6 +185,9 @@ public sealed record DropStack
         ArgumentException.ThrowIfNullOrWhiteSpace(tint);
         ArgumentNullException.ThrowIfNull(items);
 
-        return new DropStack(id, name.Trim(), tint.Trim(), items.ToArray(), inspectorViewMode);
+        // Older catalogs kept stack notes outside Items. Promote them once at the
+        // restore boundary; subsequent saves write only ordinary note items.
+        var restoredItems = items.Concat((attachedNotes ?? []).Select(DropItem.CreateNote)).ToArray();
+        return new DropStack(id, name.Trim(), tint.Trim(), restoredItems, inspectorViewMode);
     }
 }

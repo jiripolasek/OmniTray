@@ -26,6 +26,7 @@ public static class StackFilter
         var searchableText = new List<string> { stack.Name, stack.Tint, $"{stack.Items.Count} items" };
         foreach (var item in stack.Items)
         {
+            searchableText.AddRange(item.AttachedNotes.Select(note => note.Text));
             searchableText.Add(item.DisplayName);
             searchableText.Add(item.Kind.ToString());
             if (!string.IsNullOrWhiteSpace(item.SourcePath))

@@ -152,6 +152,7 @@ public static class ContentThumbnailFallback
             DropItemKind.Text => ("\uE8D2", "Text"),
             DropItemKind.Image => ("\uEB9F", "Image"),
             DropItemKind.Uri => ("\uE71B", "Link"),
+            DropItemKind.Note => ("\uE70B", "Note"),
             _ => ("\uE7B8", "Content")
         };
         return ContentThumbnailDescriptor.CreateGlyph(glyph, label, kind.ToString()) with

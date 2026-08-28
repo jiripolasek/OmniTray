@@ -29,7 +29,7 @@
 
     <ItemGroup>
         <Content Include="Assets\SplashScreen.scale-200.png" />
-        <Content Include="Assets\OmniTray.ico" />
+        <Content Include="Assets\OmniTray.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
         <Content Include="Assets\LockScreenLogo.scale-200.png" />
         <Content Include="Assets\Square150x150Logo.scale-200.png" />
         <Content Include="Assets\Square44x44Logo.scale-200.png" />
@@ -41,6 +41,8 @@
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
         <PackageReference Include="CommunityToolkit.WinUI.Controls.Segmented" Version="8.2.251219" />
         <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
+        <!-- WinUI has no built-in GridSplitter; Sizers supplies pointer and keyboard resizing. -->
+        <PackageReference Include="CommunityToolkit.WinUI.Controls.Sizers" Version="8.2.251219" />
         <PackageReference Include="H.NotifyIcon.WinUI" Version="2.4.1" />
         <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2526" />
         <PackageReference Include="Microsoft.Windows.SDK.BuildTools.WinApp" Version="0.6.1" />

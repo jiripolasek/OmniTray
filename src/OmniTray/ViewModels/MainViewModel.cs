@@ -954,7 +954,7 @@ public partial class MainViewModel : BaseViewModel
         if (this._catalogMutationDepth == 0 && this._catalogChangePending)
         {
             this._catalogChangePending = false;
-            this.CatalogChanged?.Invoke(this, EventArgs.Empty);
+            this.PublishNoteCatalogChange();
         }
     }
 
@@ -971,7 +971,7 @@ public partial class MainViewModel : BaseViewModel
             return;
         }
 
-        this.CatalogChanged?.Invoke(this, EventArgs.Empty);
+        this.PublishNoteCatalogChange();
     }
 
     internal void SetGameModeStatus(bool isSuppressing, string statusText)
@@ -1294,12 +1294,33 @@ public sealed class DropStackViewModel : ObservableObject
         this._isSynchronizingItems = true;
         try
         {
-            this.Items.Clear();
-            foreach (var item in model.Items)
+            if (this.Items.Select(static item => item.Model.Id).SequenceEqual(model.Items.Select(static item => item.Id)))
             {
-                this.Items.Add(existingItems.TryGetValue(item.Id, out var existing)
-                    ? existing
-                    : new DropItemViewModel(item));
+                // Note edits must not reset every list and its selection on each keystroke.
+                for (var index = 0; index < model.Items.Count; index++)
+                {
+                    if (!ReferenceEquals(this.Items[index].Model, model.Items[index]))
+                    {
+                        if (this.Items[index].Model.Note is not null && model.Items[index].Note is not null)
+                        {
+                            this.Items[index].UpdateNoteModel(model.Items[index]);
+                        }
+                        else
+                        {
+                            this.Items[index] = new DropItemViewModel(model.Items[index]);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                this.Items.Clear();
+                foreach (var item in model.Items)
+                {
+                    this.Items.Add(existingItems.TryGetValue(item.Id, out var existing) && ReferenceEquals(existing.Model, item)
+                        ? existing
+                        : new DropItemViewModel(item));
+                }
             }
         }
         finally
@@ -1795,7 +1816,24 @@ public sealed class DropItemViewModel : ObservableObject
         _ = this.LoadThumbnailAsync();
     }
 
-    public DropItem Model { get; }
+    public DropItem Model { get; private set; }
+
+    internal void UpdateNoteModel(DropItem model)
+    {
+        if (model.Id != this.Model.Id || model.Note is null || this.Model.Note is null)
+        {
+            throw new ArgumentException("Only an existing note item can be updated in place.", nameof(model));
+        }
+        this.Model = model;
+        this.OnPropertyChanged(nameof(this.Model));
+        this.OnPropertyChanged(nameof(this.DisplayName));
+        this.OnPropertyChanged(nameof(this.KindLabel));
+        this.OnPropertyChanged(nameof(this.AccessibleName));
+    }
+
+    public Visibility NoteVisibility => this.Model.Note is null ? Visibility.Collapsed : Visibility.Visible;
+
+    public Visibility NonNoteVisibility => this.Model.Note is null ? Visibility.Visible : Visibility.Collapsed;
 
     public string DisplayName => this.Model.DisplayName;
 
@@ -1920,7 +1958,7 @@ public sealed class DropItemViewModel : ObservableObject
             : Visibility.Visible;
 
     public Visibility PlaceholderVisibility =>
-        this.ThumbnailSource is null
+        this.Model.Note is null && this.ThumbnailSource is null
             ? Visibility.Visible
             : Visibility.Collapsed;
 

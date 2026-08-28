@@ -20,6 +20,7 @@ public static class StackCatalogReader
                           StackCatalogReadJsonContext.Default.StackCatalogReadDocument) ??
                       throw new JsonException("The stack catalog was empty.");
         var stacks = catalog.Stacks.Select(RestoreStack).ToArray();
+        NoteOperations.Validate(stacks);
         if (stacks.Select(static stack => stack.Id).Distinct().Count() != stacks.Length)
         {
             throw new JsonException("Stack IDs must be unique in the catalog.");
@@ -52,8 +53,11 @@ public static class StackCatalogReader
             item.Capture,
             item.Backing,
             item.FileFacts,
-            item.HtmlResources)),
-        stack.InspectorViewMode);
+            item.HtmlResources,
+            item.Note,
+            item.AttachedNotes)),
+        stack.InspectorViewMode,
+        stack.AttachedNotes);
 
     private static IReadOnlyList<DropItemDataFormat> RestoreCustomFormats(
         IEnumerable<ItemDataFormatReadDocument> documents)
@@ -100,10 +104,16 @@ internal sealed class StackReadDocument
     public StackInspectorViewMode InspectorViewMode { get; set; } = StackInspectorViewMode.List;
 
     public List<ItemReadDocument> Items { get; set; } = [];
+
+    public List<StickyNote> AttachedNotes { get; set; } = [];
 }
 
 internal sealed class ItemReadDocument
 {
+    public StickyNote? Note { get; set; }
+
+    public List<StickyNote> AttachedNotes { get; set; } = [];
+
     public Guid Id { get; set; }
 
     public DropItemKind Kind { get; set; }

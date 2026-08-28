@@ -38,6 +38,14 @@ public sealed partial class TrayWindow : WindowEx
         this._trayContent = contentFactory(this, false);
         this.ContentHost.Content = this._trayContent.View;
         this.AddContentActions();
+        if (viewModel is StackTrayContentViewModel stackContent)
+        {
+            NoteMenu.SetStack(this.TrayContextFlyout, stackContent.Stack);
+            var notes = new NoteIndicator { Stack = stackContent.Stack, HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 8, 8) };
+            Grid.SetRow(notes, 1);
+            this.RootGrid.Children.Add(notes);
+        }
         this._appearance = new TrayWindowAppearanceController(this, this.RootGrid, viewModel);
 
         this.IsShownInSwitchers = false;

@@ -1,0 +1,138 @@
+<Window
+    x:Class="OmniTray.Views.NoteWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:OmniTray.Controls"
+    Title="OmniTray Note">
+    <Grid x:Name="RootGrid" ActualThemeChanged="OnThemeChanged" Loaded="OnLoaded"
+          GotFocus="OnChromeFocusChanged" LostFocus="OnChromeFocusChanged">
+        <Grid.Resources>
+            <Style x:Key="NoteHeaderButtonStyle" TargetType="Button">
+                <Setter Property="Width" Value="32" />
+                <Setter Property="Height" Value="32" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Style>
+        </Grid.Resources>
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Key="F6" Invoked="OnSwitchPaneInvoked" />
+        </Grid.KeyboardAccelerators>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="36" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid x:Name="AppTitleBar" Background="Transparent" SizeChanged="OnTitleBarSizeChanged"
+              PointerEntered="OnHeaderPointerEntered" PointerExited="OnHeaderPointerExited">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Border x:Name="DragHandle" Grid.ColumnSpan="2" Width="32" Height="3" CornerRadius="2"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Background="{ThemeResource TextFillColorSecondaryBrush}"
+                    IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw" />
+            <StackPanel x:Name="HeaderActions" Grid.Column="1" Orientation="Horizontal" Margin="0,0,4,0"
+                        VerticalAlignment="Center" Opacity="0" SizeChanged="OnTitleBarSizeChanged">
+                <Button x:Name="NoteDetailsButton" Style="{StaticResource NoteHeaderButtonStyle}"
+                        AutomationProperties.Name="Note details">
+                    <FontIcon Glyph="&#xE946;" FontSize="14" />
+                    <Button.Flyout>
+                        <Flyout Placement="BottomEdgeAlignedRight"
+                                Opened="OnHeaderFlyoutOpened" Closed="OnHeaderFlyoutClosed">
+                            <StackPanel MaxWidth="260" Spacing="8">
+                                <TextBlock x:Name="UpdatedText" FontSize="12" TextWrapping="Wrap" />
+                                <TextBlock x:Name="CreatedText" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           TextWrapping="Wrap" />
+                                <HyperlinkButton Padding="0" HorizontalAlignment="Left" Click="OnLocationClick"
+                                                 AutomationProperties.Name="Go to note location">
+                                    <TextBlock x:Name="LocationText" FontSize="12" TextWrapping="Wrap" />
+                                </HyperlinkButton>
+                                <TextBlock x:Name="SaveStatusText" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           Text="Changes save automatically" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+                <Button x:Name="NoteActionsButton" Style="{StaticResource NoteHeaderButtonStyle}" Margin="0,0,8,0"
+                        AutomationProperties.Name="Note actions" ToolTipService.ToolTip="Note actions">
+                    <FontIcon Glyph="&#xE712;" FontSize="14" />
+                    <Button.Flyout>
+                        <MenuFlyout Placement="BottomEdgeAlignedRight" Opening="OnColorMenuOpening"
+                                    Opened="OnHeaderFlyoutOpened" Closed="OnHeaderFlyoutClosed">
+                            <MenuFlyoutSubItem x:Name="ColorMenu" Text="Note color">
+                                <MenuFlyoutSubItem.Icon><SymbolIcon Symbol="Highlight" /></MenuFlyoutSubItem.Icon>
+                            </MenuFlyoutSubItem>
+                            <ToggleMenuFlyoutItem x:Name="KeepOnTopButton" Text="Keep on top" Click="OnKeepOnTopClick">
+                                <ToggleMenuFlyoutItem.Icon><SymbolIcon Symbol="Pin" /></ToggleMenuFlyoutItem.Icon>
+                            </ToggleMenuFlyoutItem>
+                            <MenuFlyoutSeparator />
+                            <MenuFlyoutItem Text="Append clipboard" Click="OnAppendClipboardClick">
+                                <MenuFlyoutItem.Icon><SymbolIcon Symbol="Paste" /></MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem Text="Append clipboard with timestamp" Click="OnAppendClipboardWithTimeClick" />
+                            <MenuFlyoutItem x:Name="ShowSourceButton" Text="Go to source item" Click="OnShowSourceClick" Visibility="Collapsed">
+                                <MenuFlyoutItem.Icon><SymbolIcon Symbol="Go" /></MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem x:Name="InspectSourceButton" Text="View original capture" Click="OnInspectSourceClick" Visibility="Collapsed">
+                                <MenuFlyoutItem.Icon><SymbolIcon Symbol="View" /></MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem x:Name="UndoConversionButton" Text="Undo conversion" Click="OnUndoConversionClick" Visibility="Collapsed">
+                                <MenuFlyoutItem.Icon><SymbolIcon Symbol="Undo" /></MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem Text="Move or attach…" Click="OnMoveClick">
+                                <MenuFlyoutItem.Icon><SymbolIcon Symbol="MoveToFolder" /></MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem x:Name="DetachButton" Text="Detach to stack item" Click="OnDetachClick">
+                                <MenuFlyoutItem.Icon><SymbolIcon Symbol="UnPin" /></MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem Text="Save now" Click="OnSaveClick">
+                                <MenuFlyoutItem.Icon><SymbolIcon Symbol="Save" /></MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutSeparator />
+                            <MenuFlyoutItem Text="Delete note" Click="OnDeleteClick">
+                                <MenuFlyoutItem.Icon><SymbolIcon Symbol="Delete" /></MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
+                <Button x:Name="MinimizeButton" Style="{StaticResource NoteHeaderButtonStyle}"
+                        AutomationProperties.Name="Minimize note" ToolTipService.ToolTip="Minimize" Click="OnMinimizeClick">
+                    <FontIcon Glyph="&#xE921;" FontSize="10" />
+                </Button>
+                <Button x:Name="CloseButton" Style="{StaticResource NoteHeaderButtonStyle}"
+                        AutomationProperties.Name="Close note" ToolTipService.ToolTip="Close (Alt+F4)" Click="OnCloseClick">
+                    <Button.Resources>
+                        <ResourceDictionary>
+                            <ResourceDictionary.ThemeDictionaries>
+                                <ResourceDictionary x:Key="Default">
+                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="{ThemeResource SystemFillColorCritical}" />
+                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="{ThemeResource SystemFillColorCritical}" />
+                                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="{ThemeResource TextOnAccentFillColorPrimary}" />
+                                    <SolidColorBrush x:Key="ButtonForegroundPressed" Color="{ThemeResource TextOnAccentFillColorPrimary}" />
+                                </ResourceDictionary>
+                                <ResourceDictionary x:Key="HighContrast">
+                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="{ThemeResource SystemColorHighlightColor}" />
+                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="{ThemeResource SystemColorHighlightColor}" />
+                                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                    <SolidColorBrush x:Key="ButtonForegroundPressed" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                </ResourceDictionary>
+                            </ResourceDictionary.ThemeDictionaries>
+                        </ResourceDictionary>
+                    </Button.Resources>
+                    <FontIcon Glyph="&#xE8BB;" FontSize="10" />
+                </Button>
+            </StackPanel>
+        </Grid>
+        <controls:NoteTextEditor x:Name="Editor" Grid.Row="1" Grid.RowSpan="2" TextChanged="OnTextChanged" />
+        <InfoBar x:Name="ErrorBar" Grid.Row="3" IsOpen="False" Severity="Error" IsClosable="True"
+                 Title="Could not save note">
+            <InfoBar.ActionButton>
+                <Button Content="Retry" Click="OnSaveClick" />
+            </InfoBar.ActionButton>
+        </InfoBar>
+    </Grid>
+</Window>

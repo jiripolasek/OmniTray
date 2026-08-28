@@ -12,6 +12,25 @@ namespace OmniTray.Core.Tests;
 public sealed class StackCatalogReaderTests
 {
     [TestMethod]
+    public void ReadStacks_RoundTripsAllNotePlacementsAndEmptyRtf()
+    {
+        var note = StickyNote.Create("Formatted Ω", @"{\rtf1\b Formatted \u937?}", NoteColor.Peach);
+        var attached = StickyNote.Create("Attached");
+        var empty = StickyNote.Create();
+        var stack = DropStack.Create([DropItem.CreateNote(note),
+            DropItem.CreateText("Parent").WithAttachedNotes([attached])]).Append([DropItem.CreateNote(empty)]);
+        var json = JsonSerializer.Serialize(new { stacks = new[] { stack } },
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        var restored = StackCatalogReader.ReadStacks(json);
+        foreach (var expected in NoteOperations.Enumerate([stack]))
+        {
+            Assert.AreEqual(expected, NoteOperations.Find(restored, expected.Note.Id));
+        }
+        Assert.AreEqual(note.Text, restored[0].Items[0].Text);
+        Assert.AreEqual(note.Rtf, restored[0].Items[0].Rtf);
+    }
+
+    [TestMethod]
     public void ReadStacks_RestoresSearchableStackContent()
     {
         var stackId = Guid.NewGuid();

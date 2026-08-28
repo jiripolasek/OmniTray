@@ -21,7 +21,7 @@ internal sealed partial class StackDialogWindow : TransparentWindow
     private bool _isClosed;
     private bool _isOwnerDisabled;
 
-    private StackDialogWindow(Window owner, string title)
+    private StackDialogWindow(Window owner, string title, int heightInDips = DefaultHeightInDips)
         : base(false)
     {
         ArgumentNullException.ThrowIfNull(owner);
@@ -39,7 +39,7 @@ internal sealed partial class StackDialogWindow : TransparentWindow
         this._ownerHandle = WindowNative.GetWindowHandle(owner);
         var dialogHandle = WindowNative.GetWindowHandle(this);
         _ = SetWindowLongPtr(dialogHandle, GwlpHwndParent, this._ownerHandle);
-        this.CenterOnOwnerDisplay(owner);
+        this.CenterOnOwnerDisplay(owner, heightInDips);
         this.Closed += this.OnClosed;
     }
 
@@ -58,10 +58,19 @@ internal sealed partial class StackDialogWindow : TransparentWindow
         return await window.ShowCoreAsync(title, content, primaryButtonText);
     }
 
+    internal static Task<bool> ShowContentAsync(
+        Window owner, string title, UIElement content, string primaryButtonText,
+        int heightInDips, Func<bool> onPrimary)
+    {
+        var window = new StackDialogWindow(owner, title, heightInDips);
+        return window.ShowCoreAsync(title, content, primaryButtonText, onPrimary);
+    }
+
     private async Task<bool> ShowCoreAsync(
         string title,
-        string content,
-        string primaryButtonText)
+        object content,
+        string primaryButtonText,
+        Func<bool>? onPrimary = null)
     {
         var loaded = new TaskCompletionSource<XamlRoot>();
         void OnLoaded(object sender, RoutedEventArgs args)
@@ -92,6 +101,11 @@ internal sealed partial class StackDialogWindow : TransparentWindow
                 DefaultButton = ContentDialogButton.Close
             };
 
+            if (onPrimary is not null)
+            {
+                dialog.PrimaryButtonClick += (_, args) => args.Cancel = !onPrimary();
+            }
+
             return await dialog.ShowAsync() == ContentDialogResult.Primary;
         }
         catch (Exception) when (this._isClosed)
@@ -111,10 +125,10 @@ internal sealed partial class StackDialogWindow : TransparentWindow
         }
     }
 
-    private void CenterOnOwnerDisplay(Window owner)
+    private void CenterOnOwnerDisplay(Window owner, int heightInDips)
     {
         var width = WindowCoordinator.DipsToPixels(this, DefaultWidthInDips);
-        var height = WindowCoordinator.DipsToPixels(this, DefaultHeightInDips);
+        var height = WindowCoordinator.DipsToPixels(this, heightInDips);
         var workArea = DisplayArea.GetFromWindowId(owner.AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
         this.AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(
             workArea.X + ((workArea.Width - width) / 2),

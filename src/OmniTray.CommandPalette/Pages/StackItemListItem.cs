@@ -36,6 +36,11 @@ internal sealed partial class StackItemListItem : ListItem
 
     private static ICommand CreatePrimaryCommand(Guid stackId, DropItem item)
     {
+        if (item.Note is { } note)
+        {
+            return new OpenOmniTrayCommand(OmniTrayActivation.NoteUri(note.Id), "Edit note", Icons.Open);
+        }
+
         if (item.Kind == DropItemKind.Uri && !string.IsNullOrWhiteSpace(item.Url))
         {
             return new LaunchUrlCommand(item.Url);
@@ -147,6 +152,7 @@ internal sealed partial class StackItemListItem : ListItem
         DropItemKind.Text => "Text",
         DropItemKind.Image => "Image",
         DropItemKind.Uri => "URL",
+        DropItemKind.Note => "Note",
         _ => "Item"
     };
 

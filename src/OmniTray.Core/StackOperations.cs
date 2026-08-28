@@ -112,7 +112,8 @@ public static class StackOperations
             throw new ArgumentException("At least one stack is required.", nameof(stacks));
         }
 
-        return DropStack.Create(snapshot.SelectMany(static stack => stack.Items));
+        var items = snapshot.SelectMany(static stack => stack.Items).ToArray();
+        return items.Length == 0 ? DropStack.CreateEmpty() : DropStack.Create(items);
     }
 
     public static DropStack CombineInto(

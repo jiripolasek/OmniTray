@@ -6,12 +6,14 @@
 
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Windows.ApplicationModel.Activation;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.UI.ViewManagement;
 using H.NotifyIcon;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.Win32;
 using Microsoft.Windows.AppLifecycle;
 using WinRT.Interop;
 using LaunchActivatedEventArgs = Microsoft.UI.Xaml.LaunchActivatedEventArgs;
@@ -22,6 +24,7 @@ public partial class App : Application
 {
     private readonly object _activationSync = new();
     private readonly AppSettingsService _appSettingsService;
+    private readonly AccessibilitySettings _accessibilitySettings = new();
     private readonly DispatcherQueue _dispatcherQueue;
     private readonly DropCommandExecutionService _dropCommandExecutionService = new();
     private readonly DropCommandRepository _dropCommandRepository = new();
@@ -29,7 +32,6 @@ public partial class App : Application
     private readonly Queue<AppActivationArguments> _pendingActivations = new();
     private readonly HashSet<Guid> _runningDropCommands = [];
     private readonly StackRepository _stackRepository = new();
-    private readonly UISettings _systemUiSettings = new();
     private CancellationTokenSource? _catalogSaveDebounce;
     private CancellationTokenSource? _dropCommandSaveDebounce;
     private MenuFlyoutSubItem? _edgeShelfMenu;
@@ -81,10 +83,17 @@ public partial class App : Application
             this.RunOnUiThread(() => this._windows?.ReconcileDropCommandWindows(
                 this.DropCommandCatalogViewModel.Commands.Select(static command => command.Id).ToHashSet()));
         };
-        this._systemUiSettings.ColorValuesChanged += this.OnSystemColorValuesChanged;
+        this.IsHighContrast = this.ReadHighContrast();
+        // These desktop notifications are backed by window messages. The WinRT
+        // HighContrastChanged and ColorValuesChanged events are unsupported here.
+        SystemEvents.UserPreferenceChanged += this.OnSystemUserPreferenceChanged;
     }
 
     public static new App Current => (App)Application.Current;
+
+    internal event EventHandler? SystemColorsChanged;
+
+    internal bool IsHighContrast { get; private set; }
 
     public MainViewModel StackCatalogViewModel { get; } = new();
 
@@ -139,6 +148,7 @@ public partial class App : Application
         var catalog = await catalogTask;
         var commandCatalog = await commandCatalogTask;
         this.StackCatalogViewModel.RestoreStacks(catalog.Stacks);
+        this.StackCatalogViewModel.RestoreNoteHistory(catalog.DeletedNotes, catalog.NoteHistory);
         this.StackCatalogViewModel.RestoreEdgeShelves(catalog.EdgeShelves);
         this.DropCommandCatalogViewModel.Restore(commandCatalog);
         this._windows = new WindowCoordinator(
@@ -323,7 +333,7 @@ public partial class App : Application
         var ownedItems = stack.Model.Items.ToArray();
         if (this.StackCatalogViewModel.RemoveStack(stack))
         {
-            await ContentStore.DeleteOwnedAsync(ownedItems);
+            await this.DeleteUnreferencedCapturesAsync(ownedItems);
         }
     }
 
@@ -333,7 +343,7 @@ public partial class App : Application
             .SelectMany(static stack => stack.Model.Items)
             .ToArray();
         this.StackCatalogViewModel.ClearStacks();
-        await ContentStore.DeleteOwnedAsync(ownedItems);
+        await this.DeleteUnreferencedCapturesAsync(ownedItems);
     }
 
     public int SweepEmptyStacks() => this.StackCatalogViewModel.RemoveEmptyStacks();
@@ -344,7 +354,7 @@ public partial class App : Application
         ArgumentNullException.ThrowIfNull(itemIds);
 
         var removedItems = stack.RemoveItems(itemIds);
-        await ContentStore.DeleteOwnedAsync(removedItems);
+        await this.DeleteUnreferencedCapturesAsync(removedItems);
     }
 
     internal async Task InsertClipboardContentAsync(DropStackViewModel stack)
@@ -539,6 +549,19 @@ public partial class App : Application
         {
             Text = "New stack", Icon = new FontIcon { Glyph = "\uE710" }, Command = createStackCommand
         });
+        contextMenu.Items.Add(new MenuFlyoutItem
+        {
+            Text = "New note", Icon = new FontIcon { Glyph = "\uE70B" }, Command = this.CreateUiCommand(() => this.CreateQuickNote())
+        });
+        contextMenu.Items.Add(new MenuFlyoutItem
+        {
+            Text = "Clipboard → note", Icon = new SymbolIcon(Symbol.Paste),
+            Command = this.CreateUiCommand(() => _ = this.CreateClipboardNoteAsync())
+        });
+        contextMenu.Items.Add(new MenuFlyoutItem
+        {
+            Text = "Browse notes", Icon = new FontIcon { Glyph = "\uE70B" }, Command = this.CreateUiCommand(() => this.ShowNotes())
+        });
         this._edgeShelfMenu = new MenuFlyoutSubItem
         {
             Text = "Open edge shelf", Icon = new FontIcon { Glyph = "\uE90C" }
@@ -657,6 +680,19 @@ public partial class App : Application
                 {
                     this._windows?.ShowPopup();
                     this.ShowToast("That stack is no longer available.", InfoBarSeverity.Warning);
+                }
+
+                break;
+
+            case OmniTrayActivationKind.Note when request.NoteId is { } noteId:
+                if (this.StackCatalogViewModel.FindNote(noteId) is not null)
+                {
+                    this._windows?.ShowNote(noteId);
+                }
+                else
+                {
+                    this._windows?.ShowPopup();
+                    this.ShowToast("That note is no longer available.", InfoBarSeverity.Warning);
                 }
 
                 break;
@@ -792,12 +828,29 @@ public partial class App : Application
         }
     }
 
-    private void OnSystemColorValuesChanged(UISettings sender, object args) =>
+    private void OnSystemUserPreferenceChanged(object? sender, UserPreferenceChangedEventArgs args) =>
         this.RunOnUiThread(() =>
         {
+            this.IsHighContrast = this.ReadHighContrast();
             this.StackCatalogViewModel.RefreshSystemColors();
             this.DropCommandCatalogViewModel.RefreshSystemColors();
+            this.SystemColorsChanged?.Invoke(this, EventArgs.Empty);
         });
+
+    private bool ReadHighContrast()
+    {
+        try
+        {
+            return this._accessibilitySettings.HighContrast;
+        }
+        catch (COMException exception)
+        {
+            // AccessibilitySettings is advisory UI state. If its WinRT service is
+            // unavailable, keep the app usable and refresh on the next color event.
+            Debug.WriteLine($"OmniTray could not read high-contrast state: {exception}");
+            return false;
+        }
+    }
 
     private void QueueCatalogSave()
     {
@@ -861,7 +914,8 @@ public partial class App : Application
 
     private StackCatalogState CreateCatalogSnapshot() => new(
         this.StackCatalogViewModel.Stacks.Select(static stack => stack.Model).ToArray(),
-        this._windows?.GetOpenTrayWindowStates() ?? [], this.StackCatalogViewModel.GetEdgeShelfStates());
+        this._windows?.GetOpenTrayWindowStates() ?? [], this.StackCatalogViewModel.GetEdgeShelfStates(),
+        this.StackCatalogViewModel.DeletedNotes.ToArray(), this.StackCatalogViewModel.NoteHistory.ToArray());
 
     private async Task PersistDropCommandCatalogAfterDelayAsync(
         DropCommandCatalogState snapshot,
@@ -924,6 +978,7 @@ public partial class App : Application
 
     private async void ExitApplication()
     {
+        this._windows?.SetNoteEditingEnabled(false);
         try
         {
             await Task.WhenAll(this.SaveCatalogNowAsync(), this.SaveDropCommandCatalogNowAsync());
@@ -931,13 +986,14 @@ public partial class App : Application
         catch (Exception exception)
         {
             Debug.WriteLine($"OmniTray could not flush the stack catalogue during exit: {exception}");
+            this._windows?.SetNoteEditingEnabled(true);
+            this.ShowToast("Could not save your stacks and notes. OmniTray is still open; try exiting again.", InfoBarSeverity.Error);
+            return;
         }
-        finally
-        {
-            this._trayIcon?.Dispose();
-            this._trayIcon = null;
-            // this._windows?.CloseAll();
-            Environment.Exit(0);
-        }
+
+        SystemEvents.UserPreferenceChanged -= this.OnSystemUserPreferenceChanged;
+        this._trayIcon?.Dispose();
+        this._trayIcon = null;
+        Environment.Exit(0);
     }
 }

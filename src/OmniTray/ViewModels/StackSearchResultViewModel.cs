@@ -9,23 +9,29 @@ using System.Collections.ObjectModel;
 namespace OmniTray.ViewModels;
 
 [WinRT.GeneratedBindableCustomProperty]
-public sealed partial class StackSearchResultViewModel(DropStackViewModel stack, DropItemViewModel? item, string preview)
+public sealed partial class StackSearchResultViewModel(DropStackViewModel stack, DropItemViewModel? item, string preview,
+    StickyNote? note = null)
 {
     public DropStackViewModel Stack { get; } = stack;
 
     public DropItemViewModel? Item { get; } = item;
 
-    public string Title => this.Item?.DisplayName ?? this.Stack.Name;
+    public StickyNote? Note { get; } = note;
 
-    public string Location => this.Item is null
+    public string Title => this.Note?.DisplayName ?? this.Item?.DisplayName ?? this.Stack.Name;
+
+    public string Location => this.Note is not null
+        ? $"Note · {this.Stack.Name}" + (this.Item is not null && this.Item.Model.Kind != DropItemKind.Note
+            ? $" · {this.Item.DisplayName}" : "")
+        : this.Item is null
         ? $"Stack · {this.Stack.ItemCountText} · {this.Stack.EdgePlacementText}"
         : $"{this.Item.KindLabel} · {this.Stack.Name} · {this.Stack.EdgePlacementText}";
 
     public string Preview { get; } = preview;
 
-    public Visibility StackVisibility => this.Item is null ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility StackVisibility => this.Item is null && this.Note is null ? Visibility.Visible : Visibility.Collapsed;
 
-    public Visibility ItemVisibility => this.Item is null ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility ItemVisibility => this.Item is null || this.Note is not null ? Visibility.Collapsed : Visibility.Visible;
 
     public Visibility PreviewVisibility => string.IsNullOrWhiteSpace(this.Preview) ? Visibility.Collapsed : Visibility.Visible;
 
@@ -46,8 +52,9 @@ public sealed partial class StackSearchResultGroup(string title, IEnumerable<Sta
     {
         var snapshot = results.ToArray();
         var groups = new List<StackSearchResultGroup>();
-        var stacks = snapshot.Where(result => result.Item is null).Take(stackLimit).ToArray();
-        var items = snapshot.Where(result => result.Item is not null).Take(itemLimit).ToArray();
+        var stacks = snapshot.Where(result => result.Item is null && result.Note is null).Take(stackLimit).ToArray();
+        var items = snapshot.Where(result => result.Item is not null && result.Note is null).Take(itemLimit).ToArray();
+        var notes = snapshot.Where(result => result.Note is not null).Take(itemLimit).ToArray();
         if (stacks.Length > 0)
         {
             groups.Add(new StackSearchResultGroup("Stacks", stacks));
@@ -56,6 +63,11 @@ public sealed partial class StackSearchResultGroup(string title, IEnumerable<Sta
         if (items.Length > 0)
         {
             groups.Add(new StackSearchResultGroup("Items", items));
+        }
+
+        if (notes.Length > 0)
+        {
+            groups.Add(new StackSearchResultGroup("Notes", notes));
         }
 
         return groups;

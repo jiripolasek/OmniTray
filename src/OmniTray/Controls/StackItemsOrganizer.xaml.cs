@@ -163,6 +163,7 @@ public sealed partial class StackItemsOrganizer : UserControl
             if (args.OldValue is DropStackViewModel oldStack)
             {
                 oldStack.Items.CollectionChanged -= organizer.OnItemsChanged;
+                oldStack.ModelChanged -= organizer.OnStackModelChangedForNotes;
             }
 
             var newStack = args.NewValue as DropStackViewModel;
@@ -173,6 +174,7 @@ public sealed partial class StackItemsOrganizer : UserControl
             if (newStack is not null && organizer.IsLoaded)
             {
                 newStack.Items.CollectionChanged += organizer.OnItemsChanged;
+                newStack.ModelChanged += organizer.OnStackModelChangedForNotes;
             }
 
             organizer.UpdateEmptyState();
@@ -286,6 +288,8 @@ public sealed partial class StackItemsOrganizer : UserControl
         {
             this.Stack.Items.CollectionChanged -= this.OnItemsChanged;
             this.Stack.Items.CollectionChanged += this.OnItemsChanged;
+            this.Stack.ModelChanged -= this.OnStackModelChangedForNotes;
+            this.Stack.ModelChanged += this.OnStackModelChangedForNotes;
         }
 
         this.UpdateEmptyState();
@@ -303,6 +307,7 @@ public sealed partial class StackItemsOrganizer : UserControl
         if (this.Stack is not null)
         {
             this.Stack.Items.CollectionChanged -= this.OnItemsChanged;
+            this.Stack.ModelChanged -= this.OnStackModelChangedForNotes;
         }
     }
 
@@ -557,6 +562,8 @@ public sealed partial class StackItemsOrganizer : UserControl
         this.UpdateSelectionCommands();
     }
 
+    internal void FocusItemList() => this.ItemList.Focus(FocusState.Keyboard);
+
     private void OnItemSelectionChanged(object sender, SelectionChangedEventArgs args)
     {
         this.UpdateSelectionCommands();
@@ -633,6 +640,53 @@ public sealed partial class StackItemsOrganizer : UserControl
         }
     }
 
+    private async void OnConvertToNoteClick(object sender, RoutedEventArgs args) =>
+        await this.ConvertTextToNoteAsync(false);
+
+    private async void OnDuplicateAsNoteClick(object sender, RoutedEventArgs args) =>
+        await this.ConvertTextToNoteAsync(true);
+
+    private async Task ConvertTextToNoteAsync(bool duplicate)
+    {
+        var source = this.Stack;
+        var items = this.GetCommandItems();
+        var dialogOwner = this.DialogOwner;
+        var xamlRoot = this.XamlRoot;
+        if (source is null || items is not [{ Kind: DropItemKind.Text } item] || this._isRemovalDialogOpen)
+        {
+            return;
+        }
+
+        this._isRemovalDialogOpen = true;
+        this.UpdateSelectionCommands();
+        try
+        {
+            // Capture the command target before closing a hover/context flyout clears it.
+            await this.CloseSelectionCommandsFlyoutAsync();
+            if (!duplicate)
+            {
+                var confirmed = dialogOwner is not null
+                    ? await StackDialogService.ConfirmConvertTextToNoteAsync(dialogOwner, item)
+                    : xamlRoot is not null && await StackDialogService.ConfirmConvertTextToNoteAsync(xamlRoot, item);
+                if (!confirmed)
+                {
+                    return;
+                }
+            }
+
+            await App.Current.ConvertTextToNoteAsync(source.Model.Id, item.Id, duplicate);
+        }
+        catch (Exception exception)
+        {
+            ShowStatus($"The text item could not be converted to a note: {exception.Message}", InfoBarSeverity.Error);
+        }
+        finally
+        {
+            this._isRemovalDialogOpen = false;
+            this.UpdateSelectionCommands();
+        }
+    }
+
     private async void OnOpenSelectionClick(object sender, RoutedEventArgs args)
     {
         var item = this.GetCommandItems().SingleOrDefault();
@@ -648,6 +702,32 @@ public sealed partial class StackItemsOrganizer : UserControl
         catch (Exception exception)
         {
             ShowStatus(exception.Message, InfoBarSeverity.Error);
+        }
+    }
+
+    private void OnSelectionCommandsFlyoutOpening(object sender, object args)
+    {
+        // Capture the hovered item's identity before a child menu can dismiss the parent flyout.
+        if (this.Stack is { } stack && this.GetCommandItems() is [var item])
+        {
+            NoteMenu.PopulateItemMenu(this.ItemNotesMenu, stack, item);
+        }
+    }
+
+    private void OnItemListDoubleTapped(object sender, DoubleTappedRoutedEventArgs args)
+    {
+        var element = args.OriginalSource as DependencyObject;
+        while (element is not null && element != this.ItemList)
+        {
+            if (element is FrameworkElement { Tag: DropItemViewModel { Model.Note: { } note } })
+            {
+                args.Handled = true;
+                this.SelectionCommandsFlyout.Hide();
+                App.Current.ShowNote(note.Id);
+                return;
+            }
+
+            element = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(element);
         }
     }
 
@@ -828,6 +908,14 @@ public sealed partial class StackItemsOrganizer : UserControl
 
     private async void OnItemListKeyDown(object sender, KeyRoutedEventArgs args)
     {
+        if (args.Key == VirtualKey.Enter && this.GetCommandItems() is [{ Note: { } note }])
+        {
+            args.Handled = true;
+            this.SelectionCommandsFlyout.Hide();
+            App.Current.ShowNote(note.Id);
+            return;
+        }
+
         if (args.Key != VirtualKey.Delete || this.Stack is null)
         {
             return;
@@ -927,6 +1015,8 @@ public sealed partial class StackItemsOrganizer : UserControl
         this.EmptyMessage.Visibility = isEmpty ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    private void OnStackModelChangedForNotes(object? sender, EventArgs args) => this.UpdateEmptyState();
+
     private Guid[] GetSelectedItemIds() =>
         this.ItemList.SelectedItems
             .OfType<DropItemViewModel>()
@@ -972,6 +1062,14 @@ public sealed partial class StackItemsOrganizer : UserControl
         var selectedItems = this.GetCommandItems();
         var hasSelection = this.Stack is not null && selectedIds.Length > 0;
         var singleItem = selectedItems.Length == 1 ? selectedItems[0] : null;
+        this.ConvertToNoteButton.Visibility = this.DuplicateAsNoteButton.Visibility = singleItem?.Kind == DropItemKind.Text
+            ? Visibility.Visible : Visibility.Collapsed;
+        this.ConvertToNoteButton.IsEnabled = this.DuplicateAsNoteButton.IsEnabled = !this._isRemovalDialogOpen;
+        this.ItemNotesButton.Visibility = singleItem is not null && singleItem.Kind != DropItemKind.Note
+            ? Visibility.Visible : Visibility.Collapsed;
+        this.ItemNotesButton.Label = singleItem?.AttachedNotes.Count > 0
+            ? $"Notes ({singleItem.AttachedNotes.Count})" : "Notes";
+        this.OpenSelectionButton.Label = singleItem?.Kind == DropItemKind.Note ? "Edit note" : "Open";
         var singleActions = singleItem is null
             ? ContentActions.None
             : ContentMetadataPolicy.GetMetadata(singleItem).Actions;

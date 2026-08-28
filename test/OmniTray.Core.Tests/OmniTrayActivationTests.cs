@@ -10,6 +10,19 @@ namespace OmniTray.Core.Tests;
 public sealed class OmniTrayActivationTests
 {
     [TestMethod]
+    public void NoteActivationRoundTripsAndRejectsMissingIdentity()
+    {
+        var id = Guid.NewGuid();
+        Assert.IsTrue(OmniTrayActivation.TryParse(OmniTrayActivation.NoteUri(id), out var request));
+        Assert.AreEqual(OmniTrayActivationKind.Note, request!.Kind);
+        Assert.AreEqual(id, request.NoteId);
+        Assert.IsNull(request.StackId);
+        Assert.Throws<ArgumentException>(() => OmniTrayActivation.NoteUri(Guid.Empty));
+        Assert.IsFalse(OmniTrayActivation.TryParse(new Uri("omnitray://note/invalid"), out _));
+        Assert.IsFalse(OmniTrayActivation.TryParse(new Uri("omnitray://note/00000000-0000-0000-0000-000000000000"), out _));
+    }
+
+    [TestMethod]
     public void StandardUris_RoundTrip()
     {
         AssertActivation(OmniTrayActivation.OpenUri, OmniTrayActivationKind.Open);

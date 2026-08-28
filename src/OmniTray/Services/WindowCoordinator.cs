@@ -258,13 +258,17 @@ internal sealed partial class WindowCoordinator
     public void ShowStackOrganizer(DropStackViewModel? stack = null)
     {
         this.HidePopup();
+        this.GetStackOrganizerWindow().SelectStack(stack);
+    }
+
+    private StackOrganizerWindow GetStackOrganizerWindow()
+    {
         if (this._stackOrganizerWindow is null)
         {
             this._stackOrganizerWindow = this.CreateStackOrganizerWindow();
             CenterWindow(this._stackOrganizerWindow, 1180, 760);
         }
-
-        this._stackOrganizerWindow.SelectStack(stack);
+        return this._stackOrganizerWindow;
     }
 
     public void ShowDataFormatInspector(DropItem? item = null)
@@ -329,6 +333,11 @@ internal sealed partial class WindowCoordinator
     public void CloseAll()
     {
         this._isClosing = true;
+        foreach (var window in this._noteWindows.Values.ToArray())
+        {
+            window.CloseDeleted();
+        }
+
         this._edgeWindowController.Dispose();
         this._dataFormatInspectorWindow?.Close();
         this._settingsWindow?.Close();

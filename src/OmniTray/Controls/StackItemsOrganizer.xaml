@@ -33,7 +33,7 @@
                 MinHeight="48"
                 Padding="32,8,8,8"
                 AllowDrop="True"
-                AutomationProperties.Name="{x:Bind AccessibleName}"
+                AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"
                 Background="{ThemeResource SubtleFillColorTransparentBrush}"
                 ColumnSpacing="9"
                 ContextRequested="OnItemRowContextRequested"
@@ -43,10 +43,11 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="40" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="0" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Grid Width="38" Height="38">
                     <Border
+                        Visibility="{x:Bind NonNoteVisibility}"
                         Background="{ThemeResource LayerFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="{x:Bind ThumbnailBorderThickness, Mode=OneWay}"
@@ -66,6 +67,7 @@
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Glyph="{x:Bind LeadingGlyph, Mode=OneWay}"
                         Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}" />
+                    <controls:NotePreview Note="{x:Bind Model.Note, Mode=OneWay}" Compact="True" />
                 </Grid>
                 <StackPanel
                     Grid.Column="1"
@@ -73,21 +75,15 @@
                     Spacing="1">
                     <TextBlock
                         MaxLines="1"
-                        Text="{x:Bind DisplayName}"
+                        Text="{x:Bind DisplayName, Mode=OneWay}"
                         TextTrimming="CharacterEllipsis" />
                     <TextBlock
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Style="{ThemeResource CaptionTextBlockStyle}"
-                        Text="{x:Bind KindLabel}" />
+                        Text="{x:Bind KindLabel, Mode=OneWay}" />
+                    <TextBlock Text="{x:Bind Model.Note.Text, Mode=OneWay}" Visibility="{x:Bind NoteVisibility}" MaxLines="1" TextTrimming="CharacterEllipsis" Style="{ThemeResource CaptionTextBlockStyle}" />
                 </StackPanel>
-                <FontIcon
-                    Grid.Column="2"
-                    VerticalAlignment="Center"
-                    AutomationProperties.Name="Drag item"
-                    FontSize="12"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Glyph="&#xE700;"
-                    Opacity="0.62" />
+                <controls:NoteIndicator Grid.Column="2" Item="{x:Bind}" VerticalAlignment="Center" />
                 <controls:InsertionAdorner x:Name="ItemInsertionAdorner" Grid.ColumnSpan="3" />
             </Grid>
         </DataTemplate>
@@ -97,7 +93,7 @@
                 MinHeight="80"
                 Padding="32,8,8,8"
                 AllowDrop="True"
-                AutomationProperties.Name="{x:Bind AccessibleName}"
+                AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"
                 Background="{ThemeResource SubtleFillColorTransparentBrush}"
                 ColumnSpacing="12"
                 ContextRequested="OnItemRowContextRequested"
@@ -107,10 +103,11 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="68" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="0" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Grid Width="64" Height="64">
                     <Border
+                        Visibility="{x:Bind NonNoteVisibility}"
                         Background="{ThemeResource LayerFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="{x:Bind ThumbnailBorderThickness, Mode=OneWay}"
@@ -130,6 +127,7 @@
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Glyph="{x:Bind LeadingGlyph, Mode=OneWay}"
                         Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}" />
+                    <controls:NotePreview Note="{x:Bind Model.Note, Mode=OneWay}" />
                 </Grid>
                 <StackPanel
                     Grid.Column="1"
@@ -137,21 +135,15 @@
                     Spacing="1">
                     <TextBlock
                         MaxLines="1"
-                        Text="{x:Bind DisplayName}"
+                        Text="{x:Bind DisplayName, Mode=OneWay}"
                         TextTrimming="CharacterEllipsis" />
                     <TextBlock
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Style="{ThemeResource CaptionTextBlockStyle}"
-                        Text="{x:Bind KindLabel}" />
+                        Text="{x:Bind KindLabel, Mode=OneWay}" />
+                    <TextBlock Text="{x:Bind Model.Note.Text, Mode=OneWay}" Visibility="{x:Bind NoteVisibility}" MaxLines="1" TextTrimming="CharacterEllipsis" Style="{ThemeResource CaptionTextBlockStyle}" />
                 </StackPanel>
-                <FontIcon
-                    Grid.Column="2"
-                    VerticalAlignment="Center"
-                    AutomationProperties.Name="Drag item"
-                    FontSize="12"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Glyph="&#xE700;"
-                    Opacity="0.62" />
+                <controls:NoteIndicator Grid.Column="2" Item="{x:Bind}" VerticalAlignment="Center" />
                 <controls:InsertionAdorner x:Name="ItemInsertionAdorner" Grid.ColumnSpan="3" />
             </Grid>
         </DataTemplate>
@@ -160,7 +152,7 @@
             <Grid
                 Padding="4"
                 AllowDrop="True"
-                AutomationProperties.Name="{x:Bind AccessibleName}"
+                AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"
                 Background="{ThemeResource SubtleFillColorTransparentBrush}"
                 ContextRequested="OnItemRowContextRequested"
                 PointerEntered="OnItemRowPointerEntered"
@@ -172,6 +164,7 @@
                 </Grid.RowDefinitions>
                 <Grid Margin="2">
                     <Border
+                        Visibility="{x:Bind NonNoteVisibility}"
                         Background="{ThemeResource LayerFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="{x:Bind ThumbnailBorderThickness, Mode=OneWay}"
@@ -191,6 +184,8 @@
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Glyph="{x:Bind LeadingGlyph, Mode=OneWay}"
                         Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}" />
+                    <controls:NotePreview Note="{x:Bind Model.Note, Mode=OneWay}" />
+                    <controls:NoteIndicator Item="{x:Bind}" HorizontalAlignment="Right" VerticalAlignment="Top" />
                 </Grid>
                 <TextBlock
                     Grid.Row="1"
@@ -198,17 +193,16 @@
                     HorizontalAlignment="Stretch"
                     MaxLines="1"
                     Style="{ThemeResource CaptionTextBlockStyle}"
-                    Text="{x:Bind DisplayName}"
+                    Text="{x:Bind DisplayName, Mode=OneWay}"
                     TextAlignment="Center"
                     TextTrimming="CharacterEllipsis" />
                 <controls:InsertionAdorner x:Name="ItemInsertionAdorner" Grid.RowSpan="2" />
             </Grid>
         </DataTemplate>
     </UserControl.Resources>
-    <Grid RowSpacing="6">
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition x:Name="ItemsHostRow" Height="Auto" />
-            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <ListView
             x:Name="ItemList"
@@ -223,6 +217,7 @@
             DragLeave="OnItemListDragLeave"
             DragOver="OnItemListDragOver"
             Drop="OnItemListDrop"
+            DoubleTapped="OnItemListDoubleTapped"
             ItemContainerStyle="{StaticResource ListItemContainerStyle}"
             ItemTemplate="{StaticResource SmallListItemTemplate}"
             ItemsPanel="{StaticResource ListItemsPanel}"
@@ -238,6 +233,7 @@
                 <CommandBarFlyout
                     x:Name="SelectionCommandsFlyout"
                     AutomationProperties.Name="Selected item commands"
+                    Opening="OnSelectionCommandsFlyoutOpening"
                     Closed="OnSelectionCommandsFlyoutClosed">
                     <CommandBarFlyout.PrimaryCommands>
                         <AppBarButton
@@ -290,6 +286,28 @@
                             ToolTipService.ToolTip="Remove from stack" />
                     </CommandBarFlyout.PrimaryCommands>
                     <CommandBarFlyout.SecondaryCommands>
+                        <AppBarButton
+                            x:Name="ConvertToNoteButton"
+                            AutomationProperties.Name="Convert text item to an editable note"
+                            Click="OnConvertToNoteClick"
+                            Label="Convert to note"
+                            Visibility="Collapsed">
+                            <AppBarButton.Icon><FontIcon Glyph="&#xE70B;" /></AppBarButton.Icon>
+                        </AppBarButton>
+                        <AppBarButton
+                            x:Name="DuplicateAsNoteButton"
+                            AutomationProperties.Name="Duplicate text item as an editable note"
+                            Click="OnDuplicateAsNoteClick"
+                            Icon="Copy"
+                            Label="Duplicate as note"
+                            Visibility="Collapsed" />
+                        <AppBarButton x:Name="ItemNotesButton" Label="Notes" Visibility="Collapsed"
+                                      AutomationProperties.Name="Attached notes">
+                            <AppBarButton.Icon><FontIcon Glyph="&#xE70B;" /></AppBarButton.Icon>
+                            <AppBarButton.Flyout>
+                                <MenuFlyout x:Name="ItemNotesMenu" />
+                            </AppBarButton.Flyout>
+                        </AppBarButton>
                         <AppBarButton
                             x:Name="OpenContainingFolderButton"
                             AutomationProperties.Name="Open containing folder"
@@ -360,7 +378,6 @@
 
         <TextBlock
             x:Name="EmptyMessage"
-            Grid.Row="0"
             Margin="0,6"
             HorizontalAlignment="Center"
             VerticalAlignment="Center"

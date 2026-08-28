@@ -6,7 +6,7 @@
 
 namespace OmniTray.Core;
 
-public sealed record StackSearchMatch(Guid StackId, Guid? ItemId, string Preview);
+public sealed record StackSearchMatch(Guid StackId, Guid? ItemId, string Preview, Guid? NoteId = null);
 
 public static class StackCatalogSearch
 {
@@ -42,6 +42,13 @@ public static class StackCatalogSearch
             foreach (var item in stack.Items)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                foreach (var note in item.AttachedNotes)
+                {
+                    if (Matches(terms, [note.Text, item.DisplayName, stack.Name]))
+                    {
+                        itemMatches.Add(new StackSearchMatch(stack.Id, item.Id, CreatePreview(note.Text, terms), note.Id));
+                    }
+                }
                 var text = !string.IsNullOrWhiteSpace(item.Text)
                     ? item.Text
                     : !string.IsNullOrWhiteSpace(item.Html)
@@ -57,7 +64,7 @@ public static class StackCatalogSearch
                 var preview = fields.Skip(1).FirstOrDefault(field =>
                     !string.IsNullOrWhiteSpace(field) && terms.Any(term => field.Contains(term, StringComparison.OrdinalIgnoreCase)))
                     ?? text ?? item.SourcePath ?? item.Url ?? string.Empty;
-                itemMatches.Add(new StackSearchMatch(stack.Id, item.Id, CreatePreview(preview, terms)));
+                itemMatches.Add(new StackSearchMatch(stack.Id, item.Id, CreatePreview(preview, terms), item.Note?.Id));
             }
         }
 

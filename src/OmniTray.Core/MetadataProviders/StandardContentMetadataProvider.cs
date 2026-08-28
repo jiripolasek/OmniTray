@@ -118,7 +118,8 @@ internal sealed class StandardContentMetadataProvider : IContentMetadataProvider
                        ContentActions.ShowProperties;
         }
 
-        if (representations.HasFlag(ContentRepresentations.WebLink) ||
+        if (item.Kind == DropItemKind.Note ||
+            representations.HasFlag(ContentRepresentations.WebLink) ||
             representations.HasFlag(ContentRepresentations.ApplicationLink))
         {
             actions |= ContentActions.Open;
