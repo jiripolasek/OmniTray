@@ -89,7 +89,7 @@ public sealed partial class StackOrganizerWindow : Window
     {
         // Clamp layout, not the preferred Width, so widening the window restores the
         // user's last split. The narrow visual states temporarily hide the whole pane.
-        this.DetailsColumn.MaxWidth = Math.Max(240, args.NewSize.Width - 360 - 8);
+        this.DetailsColumn.MaxWidth = Math.Max(240, args.NewSize.Width - 360 - this.DetailsSplitter.Width);
     }
 
     private void OnNewNoteAcceleratorInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)

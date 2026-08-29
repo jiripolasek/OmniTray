@@ -289,9 +289,11 @@
                     <toolkit:GridSplitter
                         x:Name="DetailsSplitter"
                         Grid.Column="1"
-                        Width="8"
+                        Width="16"
+                        Padding="4,0"
                         HorizontalAlignment="Stretch"
                         AutomationProperties.Name="Resize Preview pane"
+                        IsThumbVisible="True"
                         KeyboardIncrement="16"
                         ResizeBehavior="PreviousAndNext"
                         ResizeDirection="Columns"

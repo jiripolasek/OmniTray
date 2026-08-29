@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:OmniTray.Controls"
     xmlns:viewModels="using:OmniTray.ViewModels">
-    <Grid x:Name="RootGrid" Padding="24,20,20,20">
+    <Grid x:Name="RootGrid" Padding="12,20,20,20">
         <controls:NoteEditorPane x:Name="InlineNoteEditor" Visibility="Collapsed" />
         <StackPanel
             x:Name="DetailsEmptyState"
