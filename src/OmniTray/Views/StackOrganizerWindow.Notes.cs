@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using Microsoft.UI.Windowing;
@@ -12,14 +12,15 @@ namespace OmniTray.Views;
 
 public sealed partial class StackOrganizerWindow
 {
-    private NoteLibraryPage? _notesPage;
-    private bool _isOrganizerClosed;
-    private bool _isClosingWithNoteChanges;
     private bool _allowOrganizerClose;
+    private bool _isClosingWithNoteChanges;
+    private bool _isOrganizerClosed;
+    private NoteLibraryPage? _notesPage;
 
     private void ShowNotesPage()
     {
         if (this._isOrganizerClosed || this.IsShowingNotes) { return; }
+
         this.ShowOverview();
         this.Navigation.ShowNotes();
         if (this._notesPage is null)
@@ -27,7 +28,9 @@ public sealed partial class StackOrganizerWindow
             this._notesPage = new NoteLibraryPage(this.ViewModel.Catalog, this);
             this._notesPage.SelectedNoteChanged += this.OnLibraryNoteSelected;
         }
-        this.DetailsPane.ShowEmpty("Select a note", "Edit it here or open it in a window. Restore deleted notes before editing.");
+
+        this.DetailsPane.ShowEmpty("Select a note",
+            "Edit it here or open it in a window. Restore deleted notes before editing.");
         this.PageHost.Content = this._notesPage;
         this._notesPage.SetActive(true);
         this.RefreshDetailsPane();
@@ -53,22 +56,27 @@ public sealed partial class StackOrganizerWindow
         {
             presenter.Restore();
         }
+
         this.Activate();
     }
 
     private void OnNoteSaveStateChanged(object? sender, EventArgs args)
     {
         if (this._isOrganizerClosed) { return; }
+
         this.NoteSaveErrorBar.IsOpen = this.InlineNoteEditor.LastSaveError is not null;
         this.NoteSaveErrorBar.Message = this.InlineNoteEditor.LastSaveError is { } error
-            ? $"Changes are still in memory. Retry before closing. {error.Message}" : string.Empty;
+            ? $"Changes are still in memory. Retry before closing. {error.Message}"
+            : string.Empty;
     }
 
-    private async void OnRetryNoteSaveClick(object sender, RoutedEventArgs args) => await this.InlineNoteEditor.SaveAsync();
+    private async void OnRetryNoteSaveClick(object sender, RoutedEventArgs args) =>
+        await this.InlineNoteEditor.SaveAsync();
 
     private async void OnSaveNoteInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         if (this.InlineNoteEditor.NoteId is null && !this.InlineNoteEditor.HasUnsavedChanges) { return; }
+
         args.Handled = true;
         await this.InlineNoteEditor.SaveAsync();
     }
@@ -76,13 +84,15 @@ public sealed partial class StackOrganizerWindow
     private void OnSwitchNotePreviewInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         if (this.BrowserContent.Visibility != Visibility.Visible || this.DetailsPane.Visibility != Visibility.Visible
-            || this.InlineNoteEditor.NoteId is null) { return; }
+                                                                 || this.InlineNoteEditor.NoteId is null) { return; }
+
         if (this.InlineNoteEditor.HasEditingFocus)
         {
             if (this.IsShowingNotes) { this._notesPage?.FocusList(); }
             else { this._stackPage.FocusList(); }
         }
         else { this.InlineNoteEditor.FocusText(); }
+
         args.Handled = true;
     }
 
@@ -95,8 +105,10 @@ public sealed partial class StackOrganizerWindow
     private async void OnOrganizerClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
         if (this._allowOrganizerClose || !this.InlineNoteEditor.HasUnsavedChanges) { return; }
+
         args.Cancel = true;
         if (this._isClosingWithNoteChanges) { return; }
+
         this._isClosingWithNoteChanges = true;
         this.SetNoteEditingEnabled(false);
         if (await this.InlineNoteEditor.SaveAsync())
@@ -113,5 +125,4 @@ public sealed partial class StackOrganizerWindow
             this.SetNoteEditingEnabled(true);
         }
     }
-
 }

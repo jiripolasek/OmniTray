@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.Core;
@@ -60,6 +60,18 @@ public static class DropCommandSurfaceIds
 
 public sealed record DropCommandInstance
 {
+    public Guid Id { get; }
+
+    public string TemplateId { get; }
+
+    public string DisplayName { get; }
+
+    public IReadOnlyDictionary<string, string> Parameters { get; }
+
+    public bool IsEnabled { get; }
+
+    public string Tint { get; }
+
     private DropCommandInstance(
         Guid id,
         string templateId,
@@ -92,18 +104,6 @@ public sealed record DropCommandInstance
         this.IsEnabled = isEnabled;
         this.Tint = tint.Trim();
     }
-
-    public Guid Id { get; }
-
-    public string TemplateId { get; }
-
-    public string DisplayName { get; }
-
-    public IReadOnlyDictionary<string, string> Parameters { get; }
-
-    public bool IsEnabled { get; }
-
-    public string Tint { get; }
 
     public static DropCommandInstance Create(
         string templateId,
@@ -148,6 +148,12 @@ public sealed record DropCommandInstance
 
 public abstract record DropCommandPlacementNode
 {
+    public Guid Id { get; }
+
+    public Guid? ParentId { get; }
+
+    public int Order { get; }
+
     protected DropCommandPlacementNode(Guid id, Guid? parentId, int order)
     {
         if (id == Guid.Empty)
@@ -164,24 +170,18 @@ public abstract record DropCommandPlacementNode
         this.ParentId = parentId;
         this.Order = order;
     }
-
-    public Guid Id { get; }
-
-    public Guid? ParentId { get; }
-
-    public int Order { get; }
 }
 
 public sealed record DropCommandFolderNode : DropCommandPlacementNode
 {
+    public string Name { get; }
+
     private DropCommandFolderNode(Guid id, Guid? parentId, int order, string name)
         : base(id, parentId, order)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         this.Name = name.Trim();
     }
-
-    public string Name { get; }
 
     public static DropCommandFolderNode Create(Guid? parentId, int order, string name) =>
         new(Guid.NewGuid(), parentId, order, name);
@@ -192,6 +192,8 @@ public sealed record DropCommandFolderNode : DropCommandPlacementNode
 
 public sealed record DropCommandLeafNode : DropCommandPlacementNode
 {
+    public Guid CommandInstanceId { get; }
+
     private DropCommandLeafNode(Guid id, Guid? parentId, int order, Guid commandInstanceId)
         : base(id, parentId, order)
     {
@@ -202,8 +204,6 @@ public sealed record DropCommandLeafNode : DropCommandPlacementNode
 
         this.CommandInstanceId = commandInstanceId;
     }
-
-    public Guid CommandInstanceId { get; }
 
     public static DropCommandLeafNode Create(Guid? parentId, int order, Guid commandInstanceId) =>
         new(Guid.NewGuid(), parentId, order, commandInstanceId);
@@ -218,6 +218,10 @@ public sealed record DropCommandLeafNode : DropCommandPlacementNode
 
 public sealed record DropCommandSurfaceLayout
 {
+    public string SurfaceId { get; }
+
+    public IReadOnlyList<DropCommandPlacementNode> Nodes { get; }
+
     private DropCommandSurfaceLayout(string surfaceId, IReadOnlyList<DropCommandPlacementNode> nodes)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(surfaceId);
@@ -227,10 +231,6 @@ public sealed record DropCommandSurfaceLayout
         this.SurfaceId = surfaceId.Trim();
         this.Nodes = nodes.ToArray();
     }
-
-    public string SurfaceId { get; }
-
-    public IReadOnlyList<DropCommandPlacementNode> Nodes { get; }
 
     public static DropCommandSurfaceLayout CreateEmpty(string surfaceId) => new(surfaceId, []);
 

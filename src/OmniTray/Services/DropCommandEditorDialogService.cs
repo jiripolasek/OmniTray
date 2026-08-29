@@ -1,10 +1,11 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using Windows.Storage.Pickers;
+using Microsoft.UI.Xaml.Media;
 using WinRT.Interop;
 
 namespace OmniTray.Services;
@@ -43,14 +44,11 @@ internal static class DropCommandEditorDialogService
         };
         var enabledSwitch = new ToggleSwitch
         {
-            Header = "Availability",
-            OnContent = "Enabled",
-            OffContent = "Disabled",
-            IsOn = initial.IsEnabled
+            Header = "Availability", OnContent = "Enabled", OffContent = "Disabled", IsOn = initial.IsEnabled
         };
         var errorText = new TextBlock
         {
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCriticalBrush"],
+            Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"],
             TextWrapping = TextWrapping.Wrap,
             Visibility = Visibility.Collapsed
         };
@@ -64,7 +62,8 @@ internal static class DropCommandEditorDialogService
                 IsClosable = false,
                 Severity = InfoBarSeverity.Warning,
                 Title = "Template unavailable",
-                Message = $"The template “{initial.TemplateId}” is not installed. Its ID and parameters will be preserved."
+                Message
+                    = $"The template “{initial.TemplateId}” is not installed. Its ID and parameters will be preserved."
             });
         }
         else
@@ -72,7 +71,7 @@ internal static class DropCommandEditorDialogService
             content.Children.Add(new TextBlock
             {
                 Text = template.Description,
-                Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources[
+                Foreground = (Brush)Application.Current.Resources[
                     "TextFillColorSecondaryBrush"],
                 TextWrapping = TextWrapping.Wrap
             });
@@ -92,18 +91,15 @@ internal static class DropCommandEditorDialogService
         {
             applicationTargetBox = new ComboBox
             {
-                Header = "Application type",
-                HorizontalAlignment = HorizontalAlignment.Stretch
+                Header = "Application type", HorizontalAlignment = HorizontalAlignment.Stretch
             };
             var desktopTarget = new ComboBoxItem
             {
-                Content = "Desktop application",
-                Tag = DropCommandApplicationTargetIds.DesktopExecutable
+                Content = "Desktop application", Tag = DropCommandApplicationTargetIds.DesktopExecutable
             };
             var packagedTarget = new ComboBoxItem
             {
-                Content = "Packaged application",
-                Tag = DropCommandApplicationTargetIds.PackagedApp
+                Content = "Packaged application", Tag = DropCommandApplicationTargetIds.PackagedApp
             };
             applicationTargetBox.Items.Add(desktopTarget);
             applicationTargetBox.Items.Add(packagedTarget);
@@ -125,15 +121,11 @@ internal static class DropCommandEditorDialogService
             };
             var executableBrowseButton = new Button
             {
-                Content = "Browse…",
-                HorizontalAlignment = HorizontalAlignment.Left
+                Content = "Browse…", HorizontalAlignment = HorizontalAlignment.Left
             };
             executableBrowseButton.Click += async (_, _) =>
             {
-                var picker = new FileOpenPicker
-                {
-                    SuggestedStartLocation = PickerLocationId.ComputerFolder
-                };
+                var picker = new FileOpenPicker { SuggestedStartLocation = PickerLocationId.ComputerFolder };
                 picker.FileTypeFilter.Add(".exe");
                 InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(owner));
                 if (await picker.PickSingleFileAsync() is { } file)
@@ -245,8 +237,9 @@ internal static class DropCommandEditorDialogService
             packagedApplicationPanel.Children.Add(packagedAppBox);
             packagedApplicationPanel.Children.Add(new TextBlock
             {
-                Text = "The app must be registered to handle the dropped file type. Packaged targets use Windows file activation and do not receive extra arguments.",
-                Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources[
+                Text
+                    = "The app must be registered to handle the dropped file type. Packaged targets use Windows file activation and do not receive extra arguments.",
+                Foreground = (Brush)Application.Current.Resources[
                     "TextFillColorSecondaryBrush"],
                 TextWrapping = TextWrapping.Wrap
             });
@@ -263,17 +256,10 @@ internal static class DropCommandEditorDialogService
                 PlaceholderText = "Choose a folder",
                 Text = parameters.GetValueOrDefault(DropCommandParameterNames.DestinationFolder, string.Empty)
             };
-            var browseButton = new Button
-            {
-                Content = "Browse…",
-                HorizontalAlignment = HorizontalAlignment.Left
-            };
+            var browseButton = new Button { Content = "Browse…", HorizontalAlignment = HorizontalAlignment.Left };
             browseButton.Click += async (_, _) =>
             {
-                var picker = new FolderPicker
-                {
-                    SuggestedStartLocation = PickerLocationId.ComputerFolder
-                };
+                var picker = new FolderPicker { SuggestedStartLocation = PickerLocationId.ComputerFolder };
                 picker.FileTypeFilter.Add("*");
                 InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(owner));
                 if (await picker.PickSingleFolderAsync() is { } folder)
@@ -288,15 +274,14 @@ internal static class DropCommandEditorDialogService
         var acceptedKindsText = new TextBlock
         {
             Text = DropCommandTemplates.GetAcceptanceText(initial),
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources[
+            Foreground = (Brush)Application.Current.Resources[
                 "TextFillColorSecondaryBrush"],
             TextWrapping = TextWrapping.Wrap
         };
         var acceptedKindsPanel = new StackPanel { Spacing = 6 };
         acceptedKindsPanel.Children.Add(new TextBlock
         {
-            Text = "Accepted content",
-            Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"]
+            Text = "Accepted content", Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"]
         });
         acceptedKindsPanel.Children.Add(acceptedKindsText);
         content.Children.Add(acceptedKindsPanel);
@@ -328,8 +313,7 @@ internal static class DropCommandEditorDialogService
         var surfacesPanel = new StackPanel { Spacing = 6 };
         surfacesPanel.Children.Add(new TextBlock
         {
-            Text = "Show on",
-            Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"]
+            Text = "Show on", Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"]
         });
         var surfaceChecks = settings.GetCommandSurfaceIds().Select(surfaceId => new KeyValuePair<string, CheckBox>(
             surfaceId,
@@ -476,9 +460,7 @@ internal static class DropCommandEditorDialogService
     {
         var unavailableTarget = new ComboBoxItem
         {
-            Content = $"Unavailable application type ({targetId})",
-            Tag = targetId,
-            IsEnabled = false
+            Content = $"Unavailable application type ({targetId})", Tag = targetId, IsEnabled = false
         };
         targetBox.Items.Add(unavailableTarget);
         return unavailableTarget;

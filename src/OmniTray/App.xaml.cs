@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.ComponentModel;
@@ -22,9 +22,10 @@ namespace OmniTray;
 
 public partial class App : Application
 {
+    internal event EventHandler? SystemColorsChanged;
+    private readonly AccessibilitySettings _accessibilitySettings = new();
     private readonly object _activationSync = new();
     private readonly AppSettingsService _appSettingsService;
-    private readonly AccessibilitySettings _accessibilitySettings = new();
     private readonly DispatcherQueue _dispatcherQueue;
     private readonly DropCommandExecutionService _dropCommandExecutionService = new();
     private readonly DropCommandRepository _dropCommandRepository = new();
@@ -40,6 +41,55 @@ public partial class App : Application
     private ToggleMenuFlyoutItem? _pauseEdgeWindowsMenuItem;
     private TaskbarIcon? _trayIcon;
     private WindowCoordinator? _windows;
+
+    public static new App Current => (App)Application.Current;
+
+    internal bool IsHighContrast { get; private set; }
+
+    public MainViewModel StackCatalogViewModel { get; } = new();
+
+    internal DropCommandCatalogViewModel DropCommandCatalogViewModel { get; } = new();
+
+    internal bool AllowMoveOnDragOutPreference
+    {
+        get => this._appSettingsService.AllowMoveOnDragOut;
+        set => this._appSettingsService.AllowMoveOnDragOut = value;
+    }
+
+    internal bool OpenInspectorOnHoverPreference
+    {
+        get => this._appSettingsService.OpenInspectorOnHover;
+        set => this._appSettingsService.OpenInspectorOnHover = value;
+    }
+
+    internal bool ShakeToCreateTrayPreference
+    {
+        get => this._appSettingsService.ShakeToCreateTray;
+        set => this._appSettingsService.ShakeToCreateTray = value;
+    }
+
+    internal bool UseSystemAccentForNeutralPreference
+    {
+        get => this._appSettingsService.UseSystemAccentForNeutral;
+        set
+        {
+            if (this._appSettingsService.UseSystemAccentForNeutral == value)
+            {
+                return;
+            }
+
+            this._appSettingsService.UseSystemAccentForNeutral = value;
+            StackTintPalette.UseSystemAccentForNeutral = value;
+            this.StackCatalogViewModel.RefreshSystemColors();
+            this.DropCommandCatalogViewModel.RefreshSystemColors();
+        }
+    }
+
+    internal ToastPosition ToastPositionPreference
+    {
+        get => this._appSettingsService.ToastPosition;
+        set => this._appSettingsService.ToastPosition = value;
+    }
 
     public App()
     {
@@ -87,57 +137,6 @@ public partial class App : Application
         // These desktop notifications are backed by window messages. The WinRT
         // HighContrastChanged and ColorValuesChanged events are unsupported here.
         SystemEvents.UserPreferenceChanged += this.OnSystemUserPreferenceChanged;
-    }
-
-    public static new App Current => (App)Application.Current;
-
-    internal event EventHandler? SystemColorsChanged;
-
-    internal bool IsHighContrast { get; private set; }
-
-    public MainViewModel StackCatalogViewModel { get; } = new();
-
-    internal DropCommandCatalogViewModel DropCommandCatalogViewModel { get; } = new();
-
-    internal bool AllowMoveOnDragOutPreference
-    {
-        get => this._appSettingsService.AllowMoveOnDragOut;
-        set => this._appSettingsService.AllowMoveOnDragOut = value;
-    }
-
-    internal bool OpenInspectorOnHoverPreference
-    {
-        get => this._appSettingsService.OpenInspectorOnHover;
-        set => this._appSettingsService.OpenInspectorOnHover = value;
-    }
-
-    internal bool ShakeToCreateTrayPreference
-    {
-        get => this._appSettingsService.ShakeToCreateTray;
-        set => this._appSettingsService.ShakeToCreateTray = value;
-    }
-
-    internal bool UseSystemAccentForNeutralPreference
-    {
-        get => this._appSettingsService.UseSystemAccentForNeutral;
-        set
-        {
-            if (this._appSettingsService.UseSystemAccentForNeutral == value)
-            {
-                return;
-            }
-
-            this._appSettingsService.UseSystemAccentForNeutral = value;
-            StackTintPalette.UseSystemAccentForNeutral = value;
-            this.StackCatalogViewModel.RefreshSystemColors();
-            this.DropCommandCatalogViewModel.RefreshSystemColors();
-        }
-    }
-
-    internal ToastPosition ToastPositionPreference
-    {
-        get => this._appSettingsService.ToastPosition;
-        set => this._appSettingsService.ToastPosition = value;
     }
 
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
@@ -283,7 +282,7 @@ public partial class App : Application
                 result.SuccessfulItemIds.Count > 0 &&
                 input.SourceReference is { } source &&
                 this.StackCatalogViewModel.Stacks.FirstOrDefault(stack => stack.Model.Id == source.StackId) is
-                { } sourceStack)
+                    { } sourceStack)
             {
                 var sourceIds = source.ItemIds.ToHashSet();
                 await this.RemoveItemsAsync(
@@ -551,16 +550,21 @@ public partial class App : Application
         });
         contextMenu.Items.Add(new MenuFlyoutItem
         {
-            Text = "New note", Icon = new FontIcon { Glyph = "\uE70B" }, Command = this.CreateUiCommand(() => this.CreateQuickNote())
+            Text = "New note",
+            Icon = new FontIcon { Glyph = "\uE70B" },
+            Command = this.CreateUiCommand(() => this.CreateQuickNote())
         });
         contextMenu.Items.Add(new MenuFlyoutItem
         {
-            Text = "Clipboard → note", Icon = new SymbolIcon(Symbol.Paste),
+            Text = "Clipboard → note",
+            Icon = new SymbolIcon(Symbol.Paste),
             Command = this.CreateUiCommand(() => _ = this.CreateClipboardNoteAsync())
         });
         contextMenu.Items.Add(new MenuFlyoutItem
         {
-            Text = "Browse notes", Icon = new FontIcon { Glyph = "\uE70B" }, Command = this.CreateUiCommand(() => this.ShowNotes())
+            Text = "Browse notes",
+            Icon = new FontIcon { Glyph = "\uE70B" },
+            Command = this.CreateUiCommand(() => this.ShowNotes())
         });
         this._edgeShelfMenu = new MenuFlyoutSubItem
         {
@@ -987,7 +991,8 @@ public partial class App : Application
         {
             Debug.WriteLine($"OmniTray could not flush the stack catalogue during exit: {exception}");
             this._windows?.SetNoteEditingEnabled(true);
-            this.ShowToast("Could not save your stacks and notes. OmniTray is still open; try exiting again.", InfoBarSeverity.Error);
+            this.ShowToast("Could not save your stacks and notes. OmniTray is still open; try exiting again.",
+                InfoBarSeverity.Error);
             return;
         }
 

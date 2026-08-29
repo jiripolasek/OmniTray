@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.ComponentModel;
@@ -12,7 +12,12 @@ namespace OmniTray.Views.Organizer;
 
 public sealed partial class StackSearchPage : Page, IDisposable
 {
+    internal event EventHandler? BackRequested;
+    internal event EventHandler<StackSearchResultViewModel>? ResultOpened;
     private bool _disposed;
+
+    public StackSearchViewModel ViewModel { get; }
+    public CollectionViewSource ResultsSource { get; } = new() { IsSourceGrouped = true };
 
     internal StackSearchPage(StackSearchViewModel viewModel)
     {
@@ -21,18 +26,16 @@ public sealed partial class StackSearchPage : Page, IDisposable
         this.ViewModel.PropertyChanged += this.OnViewModelPropertyChanged;
     }
 
-    public StackSearchViewModel ViewModel { get; }
-    public CollectionViewSource ResultsSource { get; } = new() { IsSourceGrouped = true };
-    internal event EventHandler? BackRequested;
-    internal event EventHandler<StackSearchResultViewModel>? ResultOpened;
-
     internal async Task RefreshAsync(StackOrganizerNavigationState navigation, bool focusResults = false)
     {
-        if (!await this.ViewModel.RefreshAsync(navigation.SearchQuery, navigation.LastSearchStackId, navigation.LastSearchItemId))
+        if (!await this.ViewModel.RefreshAsync(navigation.SearchQuery, navigation.LastSearchStackId,
+                navigation.LastSearchItemId))
         {
             return;
         }
+
         if (this._disposed || navigation.Page != StackOrganizerPage.Search) { return; }
+
         this.SearchResultsList.SelectedItem = this.ViewModel.SelectedResult;
         if (this.ViewModel.SelectedResult is { } selected)
         {
@@ -49,7 +52,8 @@ public sealed partial class StackSearchPage : Page, IDisposable
         }
     }
 
-    private void OnBackFromSearchClick(object sender, RoutedEventArgs args) => this.BackRequested?.Invoke(this, EventArgs.Empty);
+    private void OnBackFromSearchClick(object sender, RoutedEventArgs args) =>
+        this.BackRequested?.Invoke(this, EventArgs.Empty);
 
     private void OnSearchResultClick(object sender, ItemClickEventArgs args)
     {

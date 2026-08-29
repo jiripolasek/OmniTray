@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using Windows.ApplicationModel.DataTransfer;
@@ -11,15 +11,6 @@ namespace OmniTray.ViewModels;
 
 public sealed class StackOrganizerViewModel
 {
-    public StackOrganizerViewModel(MainViewModel catalog)
-    {
-        this.Catalog = catalog;
-        this.Overview = new(catalog);
-        this.Stack = new(catalog);
-        this.Search = new(catalog);
-        this.RefreshScopes();
-    }
-
     internal MainViewModel Catalog { get; }
     public StackOrganizerNavigationState Navigation { get; } = new();
     public StackOverviewViewModel Overview { get; }
@@ -40,6 +31,15 @@ public sealed class StackOrganizerViewModel
     public StackOrganizerScopeViewModel RightEdgeScope => this.Scopes[2];
     public StackOrganizerScopeViewModel TopEdgeScope => this.Scopes[3];
     public StackOrganizerScopeViewModel BottomEdgeScope => this.Scopes[4];
+
+    public StackOrganizerViewModel(MainViewModel catalog)
+    {
+        this.Catalog = catalog;
+        this.Overview = new StackOverviewViewModel(catalog);
+        this.Stack = new StackContentsViewModel(catalog);
+        this.Search = new StackSearchViewModel(catalog);
+        this.RefreshScopes();
+    }
 
     internal void RefreshScopes()
     {
@@ -104,5 +104,4 @@ public sealed class StackOrganizerViewModel
             }
         }
     }
-
 }

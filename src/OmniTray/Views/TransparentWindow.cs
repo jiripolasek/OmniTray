@@ -66,6 +66,21 @@ namespace OmniTray.Views;
 /// </remarks>
 public partial class TransparentWindow : WindowEx
 {
+    /// <summary>
+    ///     Raised (without activation) when <see cref="Show()" /> makes the window
+    ///     visible. A content surface subscribes to this to play its in-animation,
+    ///     using <see cref="ShowingEventArgs.Transition" />.
+    /// </summary>
+    public event TypedEventHandler<TransparentWindow, ShowingEventArgs>? Showing;
+
+    /// <summary>
+    ///     Raised when <see cref="Hide" /> begins dismissing the window. A content
+    ///     surface subscribes to this to play its out-animation, taking a deferral
+    ///     (<see cref="HidingEventArgs.GetDeferral" />) so the underlying window stays
+    ///     visible until the animation completes.
+    /// </summary>
+    public event TypedEventHandler<TransparentWindow, HidingEventArgs>? Hiding;
+
     private const uint DwmwaColorNone = 0xFFFFFFFE;
     private const int DwmwaNcRenderingPolicy = 2;
     private const int DwmwaCloak = 13;
@@ -102,6 +117,26 @@ public partial class TransparentWindow : WindowEx
     private bool _inputHooked;
     private bool _seenActivated;
 
+    /// <summary>
+    ///     Gets or sets a value indicating whether pressing <c>Esc</c> while the
+    ///     window content has keyboard focus dismisses the window (<see cref="Hide" />).
+    ///     Defaults to <see langword="false" />. The window is shown without
+    ///     activation, so the consumer must activate it for its content to receive
+    ///     keyboard input.
+    /// </summary>
+    public bool DismissOnEscape { get; set; }
+
+    /// <summary>
+    ///     Gets or sets a value indicating whether the window dismisses itself
+    ///     (<see cref="Hide" />) when it loses focus (is deactivated), i.e. light
+    ///     dismiss. Defaults to <see langword="false" />. Only takes effect after the
+    ///     window has been activated at least once since the last <see cref="Show()" />,
+    ///     so the transient deactivation that can occur during the show sequence does
+    ///     not dismiss it prematurely. The window is shown without activation, so the
+    ///     consumer must activate it for this to apply.
+    /// </summary>
+    public bool DismissOnFocusLost { get; set; }
+
     public TransparentWindow()
         : this(false)
     {
@@ -122,26 +157,6 @@ public partial class TransparentWindow : WindowEx
 
         this.Activated += this.OnActivatedForDismiss;
     }
-
-    /// <summary>
-    ///     Gets or sets a value indicating whether pressing <c>Esc</c> while the
-    ///     window content has keyboard focus dismisses the window (<see cref="Hide" />).
-    ///     Defaults to <see langword="false" />. The window is shown without
-    ///     activation, so the consumer must activate it for its content to receive
-    ///     keyboard input.
-    /// </summary>
-    public bool DismissOnEscape { get; set; }
-
-    /// <summary>
-    ///     Gets or sets a value indicating whether the window dismisses itself
-    ///     (<see cref="Hide" />) when it loses focus (is deactivated), i.e. light
-    ///     dismiss. Defaults to <see langword="false" />. Only takes effect after the
-    ///     window has been activated at least once since the last <see cref="Show()" />,
-    ///     so the transient deactivation that can occur during the show sequence does
-    ///     not dismiss it prematurely. The window is shown without activation, so the
-    ///     consumer must activate it for this to apply.
-    /// </summary>
-    public bool DismissOnFocusLost { get; set; }
 
     /// <summary>
     ///     Applies (or re-applies) the baseline transparent chrome: strips the
@@ -251,21 +266,6 @@ public partial class TransparentWindow : WindowEx
         _ = SetWindowPos(this._hwnd, 0, 0, 0, 0, 0,
             SwpNoMove | SwpNoSize | SwpNoZOrder | SwpNoActivate | SwpFrameChanged);
     }
-
-    /// <summary>
-    ///     Raised (without activation) when <see cref="Show()" /> makes the window
-    ///     visible. A content surface subscribes to this to play its in-animation,
-    ///     using <see cref="ShowingEventArgs.Transition" />.
-    /// </summary>
-    public event TypedEventHandler<TransparentWindow, ShowingEventArgs>? Showing;
-
-    /// <summary>
-    ///     Raised when <see cref="Hide" /> begins dismissing the window. A content
-    ///     surface subscribes to this to play its out-animation, taking a deferral
-    ///     (<see cref="HidingEventArgs.GetDeferral" />) so the underlying window stays
-    ///     visible until the animation completes.
-    /// </summary>
-    public event TypedEventHandler<TransparentWindow, HidingEventArgs>? Hiding;
 
     /// <summary>
     ///     Shows the window without activation (<c>SW_SHOWNA</c>) and raises
@@ -576,16 +576,16 @@ public partial class TransparentWindow : WindowEx
 /// </summary>
 public sealed class ShowingEventArgs : EventArgs
 {
-    public ShowingEventArgs(Transition? transition)
-    {
-        this.Transition = transition;
-    }
-
     /// <summary>
     ///     Gets the transition the content should play, or <see langword="null" /> to
     ///     use the content's own configured show transition.
     /// </summary>
     public Transition? Transition { get; }
+
+    public ShowingEventArgs(Transition? transition)
+    {
+        this.Transition = transition;
+    }
 }
 
 /// <summary>

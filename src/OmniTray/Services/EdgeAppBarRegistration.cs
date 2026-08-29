@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.Runtime.InteropServices;
@@ -10,7 +10,7 @@ using Windows.Graphics;
 namespace OmniTray.Services;
 
 /// <summary>
-/// Registers an edge shelf HWND with the Windows shell as a pinned AppBar.
+///     Registers an edge shelf HWND with the Windows shell as a pinned AppBar.
 /// </summary>
 internal sealed partial class EdgeAppBarRegistration : IDisposable
 {
@@ -41,6 +41,12 @@ internal sealed partial class EdgeAppBarRegistration : IDisposable
     private bool _isDisposed;
     private nint _originalWindowProcedure;
 
+    public bool IsRegistered { get; private set; }
+
+    private uint CallbackMessage { get; }
+
+    private uint TaskbarRestartMessage { get; }
+
     public EdgeAppBarRegistration(
         nint hwnd,
         Action positionChanged,
@@ -63,12 +69,6 @@ internal sealed partial class EdgeAppBarRegistration : IDisposable
         this._windowProcedurePointer = Marshal.GetFunctionPointerForDelegate(this._windowProcedure);
         this._originalWindowProcedure = SetWindowProcedure(this._hwnd, this._windowProcedurePointer);
     }
-
-    public bool IsRegistered { get; private set; }
-
-    private uint CallbackMessage { get; }
-
-    private uint TaskbarRestartMessage { get; }
 
     public bool Register()
     {

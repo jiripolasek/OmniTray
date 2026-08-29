@@ -141,7 +141,8 @@
                             FontSize="16"
                             Glyph="&#xE71D;" />
                     </NavigationViewItem.Icon>
-                    <ContentPresenter Content="{x:Bind ViewModel.AllStacksScope}" ContentTemplate="{StaticResource OrganizerScopeItemTemplate}" />
+                    <ContentPresenter Content="{x:Bind ViewModel.AllStacksScope}"
+                                      ContentTemplate="{StaticResource OrganizerScopeItemTemplate}" />
                 </NavigationViewItem>
                 <NavigationViewItem
                     x:Name="NotesNavigationItem"
@@ -168,7 +169,8 @@
                             FontSize="16"
                             Glyph="&#xE90C;" />
                     </NavigationViewItem.Icon>
-                    <ContentPresenter Content="{x:Bind ViewModel.LeftEdgeScope}" ContentTemplate="{StaticResource OrganizerScopeItemTemplate}" />
+                    <ContentPresenter Content="{x:Bind ViewModel.LeftEdgeScope}"
+                                      ContentTemplate="{StaticResource OrganizerScopeItemTemplate}" />
                 </NavigationViewItem>
                 <NavigationViewItem
                     AllowDrop="True"
@@ -184,7 +186,8 @@
                             FontSize="16"
                             Glyph="&#xE90D;" />
                     </NavigationViewItem.Icon>
-                    <ContentPresenter Content="{x:Bind ViewModel.RightEdgeScope}" ContentTemplate="{StaticResource OrganizerScopeItemTemplate}" />
+                    <ContentPresenter Content="{x:Bind ViewModel.RightEdgeScope}"
+                                      ContentTemplate="{StaticResource OrganizerScopeItemTemplate}" />
                 </NavigationViewItem>
                 <NavigationViewItem
                     AllowDrop="True"
@@ -206,7 +209,8 @@
                             </FontIcon.RenderTransform>
                         </FontIcon>
                     </NavigationViewItem.Icon>
-                    <ContentPresenter Content="{x:Bind ViewModel.TopEdgeScope}" ContentTemplate="{StaticResource OrganizerScopeItemTemplate}" />
+                    <ContentPresenter Content="{x:Bind ViewModel.TopEdgeScope}"
+                                      ContentTemplate="{StaticResource OrganizerScopeItemTemplate}" />
                 </NavigationViewItem>
                 <NavigationViewItem
                     AllowDrop="True"
@@ -222,7 +226,8 @@
                             FontSize="16"
                             Glyph="&#xE90E;" />
                     </NavigationViewItem.Icon>
-                    <ContentPresenter Content="{x:Bind ViewModel.BottomEdgeScope}" ContentTemplate="{StaticResource OrganizerScopeItemTemplate}" />
+                    <ContentPresenter Content="{x:Bind ViewModel.BottomEdgeScope}"
+                                      ContentTemplate="{StaticResource OrganizerScopeItemTemplate}" />
                 </NavigationViewItem>
             </NavigationView.MenuItems>
             <NavigationView.FooterMenuItems>

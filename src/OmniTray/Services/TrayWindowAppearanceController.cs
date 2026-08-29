@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.ComponentModel;
@@ -13,9 +13,9 @@ namespace OmniTray.Services;
 
 internal sealed class TrayWindowAppearanceController : IDisposable
 {
-    private readonly Window _window;
     private readonly Panel _root;
     private readonly TrayContentViewModel _viewModel;
+    private readonly Window _window;
     private bool _isDisposed;
 
     public TrayWindowAppearanceController(
@@ -95,10 +95,7 @@ internal sealed class TrayWindowAppearanceController : IDisposable
                                    !StackTintPalette.UseSystemAccentForNeutral;
         this._root.Background = usesUntintedBackdrop
             ? new SolidColorBrush(Colors.Transparent)
-            : new SolidColorBrush(this._viewModel.TintColor)
-            {
-                Opacity = TintedAcrylicBackdrop.FallbackTintOpacity
-            };
+            : new SolidColorBrush(this._viewModel.TintColor) { Opacity = TintedAcrylicBackdrop.FallbackTintOpacity };
         this._window.SystemBackdrop = new DesktopAcrylicBackdrop();
     }
 

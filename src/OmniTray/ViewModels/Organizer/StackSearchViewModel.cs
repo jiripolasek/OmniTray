@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.ViewModels.Organizer;
@@ -9,9 +9,9 @@ namespace OmniTray.ViewModels.Organizer;
 public sealed partial class StackSearchViewModel(MainViewModel catalog) : ObservableObject, IDisposable
 {
     private readonly MainViewModel _catalog = catalog;
+    private bool _disposed;
     private CancellationTokenSource? _searchCancellation;
     private CancellationTokenSource? _suggestionCancellation;
-    private bool _disposed;
 
     [ObservableProperty]
     public partial IReadOnlyList<StackSearchResultGroup> Groups { get; private set; } = [];
@@ -30,12 +30,14 @@ public sealed partial class StackSearchViewModel(MainViewModel catalog) : Observ
 
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; }
+
     public StackSearchResultViewModel? SelectedResult { get; private set; }
 
     internal async Task<IReadOnlyList<StackSearchResultGroup>?> FindSuggestionsAsync(string query)
     {
         this.CancelSuggestions();
         if (this._disposed || string.IsNullOrWhiteSpace(query)) { return null; }
+
         var cancellation = this._suggestionCancellation = new CancellationTokenSource();
         var token = cancellation.Token;
         try
@@ -43,8 +45,10 @@ public sealed partial class StackSearchViewModel(MainViewModel catalog) : Observ
             await Task.Delay(150, token);
             var snapshot = this._catalog.Stacks.Select(stack => stack.Model).ToArray();
             var matches = await Task.Run(() => StackCatalogSearch.Find(snapshot, query, token), token);
-            return token.IsCancellationRequested || !ReferenceEquals(this._suggestionCancellation, cancellation) || this._disposed
-                ? null : StackSearchResultGroup.Create(this.CreateSearchResults(matches), stackLimit: 3, itemLimit: 4);
+            return token.IsCancellationRequested || !ReferenceEquals(this._suggestionCancellation, cancellation) ||
+                   this._disposed
+                ? null
+                : StackSearchResultGroup.Create(this.CreateSearchResults(matches), 3, 4);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { return null; }
         catch (Exception)
@@ -66,6 +70,7 @@ public sealed partial class StackSearchViewModel(MainViewModel catalog) : Observ
     {
         this.CancelResults();
         if (this._disposed) { return false; }
+
         var cancellation = this._searchCancellation = new CancellationTokenSource();
         var token = cancellation.Token;
         this.Groups = [];
@@ -77,21 +82,26 @@ public sealed partial class StackSearchViewModel(MainViewModel catalog) : Observ
         {
             var snapshot = this._catalog.Stacks.Select(stack => stack.Model).ToArray();
             var matches = await Task.Run(() => StackCatalogSearch.Find(snapshot, query, token), token);
-            if (token.IsCancellationRequested || !ReferenceEquals(this._searchCancellation, cancellation) || this._disposed)
+            if (token.IsCancellationRequested || !ReferenceEquals(this._searchCancellation, cancellation) ||
+                this._disposed)
             {
                 return false;
             }
+
             var results = this.CreateSearchResults(matches);
             this.Groups = StackSearchResultGroup.Create(results);
             var stackCount = results.Count(result => result.Item is null && result.Note is null);
             var noteCount = results.Count(result => result.Note is not null);
             var itemCount = results.Count - stackCount - noteCount;
-            this.Summary = $"“{query}” · {stackCount} {(stackCount == 1 ? "stack" : "stacks")} · {itemCount} {(itemCount == 1 ? "item" : "items")} · {noteCount} {(noteCount == 1 ? "note" : "notes")} · All locations";
+            this.Summary
+                = $"“{query}” · {stackCount} {(stackCount == 1 ? "stack" : "stacks")} · {itemCount} {(itemCount == 1 ? "item" : "items")} · {noteCount} {(noteCount == 1 ? "note" : "notes")} · All locations";
             this.EmptyTitle = "No results";
             this.EmptyDescription = "Try a stack name, item name, path, URL, or saved text.";
             this.IsEmpty = results.Count == 0;
             this.SelectedResult = results.FirstOrDefault(result =>
-                result.Stack.Model.Id == selectedStackId && result.Item?.Model.Id == selectedItemId) ?? results.FirstOrDefault();
+                                      result.Stack.Model.Id == selectedStackId &&
+                                      result.Item?.Model.Id == selectedItemId) ??
+                                  results.FirstOrDefault();
             return true;
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { return false; }
@@ -104,6 +114,7 @@ public sealed partial class StackSearchViewModel(MainViewModel catalog) : Observ
                 this.Summary = $"“{query}” · All locations";
                 this.IsEmpty = true;
             }
+
             return false;
         }
         finally
@@ -141,6 +152,7 @@ public sealed partial class StackSearchViewModel(MainViewModel catalog) : Observ
             {
                 continue;
             }
+
             results.Add(new StackSearchResultViewModel(stack, item, match.Preview, note));
         }
 
@@ -170,8 +182,9 @@ public sealed partial class StackSearchViewModel(MainViewModel catalog) : Observ
     public void Dispose()
     {
         if (this._disposed) { return; }
+
         this._disposed = true;
         this.CancelSuggestions();
-        this.CancelResults(clear: true);
+        this.CancelResults(true);
     }
 }

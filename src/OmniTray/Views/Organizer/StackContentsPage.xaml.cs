@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using Microsoft.UI.Xaml.Input;
@@ -12,7 +12,11 @@ namespace OmniTray.Views.Organizer;
 
 public sealed partial class StackContentsPage : Page, IDisposable
 {
+    internal event EventHandler? BackRequested;
+    internal event EventHandler? SelectedItemsChanged;
     private bool _isSynchronizingViewButtons;
+
+    public StackContentsViewModel ViewModel { get; }
 
     internal StackContentsPage(StackContentsViewModel viewModel, Window owner)
     {
@@ -22,9 +26,6 @@ public sealed partial class StackContentsPage : Page, IDisposable
         this.ItemsOrganizer.SelectedItemsChanged += this.OnSelectedItemsChanged;
     }
 
-    public StackContentsViewModel ViewModel { get; }
-    internal event EventHandler? BackRequested;
-    internal event EventHandler? SelectedItemsChanged;
     internal void RevealItem(Guid id) => this.ItemsOrganizer.SelectItem(id);
     internal void FocusList() => this.ItemsOrganizer.FocusItemList();
 
@@ -34,10 +35,12 @@ public sealed partial class StackContentsPage : Page, IDisposable
         this.ItemsOrganizer.Stack = stack;
         NoteMenu.SetStack(this.EditorNotesMenu, stack);
         if (stack is not null) { this.ApplyStackViewMode(stack.InspectorViewMode); }
+
         this.OnSelectedItemsChanged(this, EventArgs.Empty);
     }
 
-    private void OnBackToOverviewClick(object sender, RoutedEventArgs args) => this.BackRequested?.Invoke(this, EventArgs.Empty);
+    private void OnBackToOverviewClick(object sender, RoutedEventArgs args) =>
+        this.BackRequested?.Invoke(this, EventArgs.Empty);
 
     private void OnSelectedItemsChanged(object? sender, EventArgs args)
     {
@@ -48,6 +51,7 @@ public sealed partial class StackContentsPage : Page, IDisposable
     private void ChangeStackViewMode(StackInspectorViewMode viewMode)
     {
         if (this._isSynchronizingViewButtons || this.ViewModel.Stack is null) { return; }
+
         this.ViewModel.ChangeViewMode(viewMode);
         this.ApplyStackViewMode(viewMode);
     }
@@ -157,13 +161,16 @@ public sealed partial class StackContentsPage : Page, IDisposable
     private void AssignEditorStackToEdge(EdgeShelfSide side)
     {
         if (this.ViewModel.Stack is not { } stack || !this.ViewModel.AssignToEdge(side)) { return; }
-        App.Current.ShowToast($"Placed {stack.Name} on the {side.GetDisplayName().ToLowerInvariant()} edge.", InfoBarSeverity.Success);
+
+        App.Current.ShowToast($"Placed {stack.Name} on the {side.GetDisplayName().ToLowerInvariant()} edge.",
+            InfoBarSeverity.Success);
         this.ViewModel.Refresh();
     }
 
     private void OnRemoveEdgeAssignmentClick(object sender, RoutedEventArgs args)
     {
         if (this.ViewModel.Stack is not { } stack || !this.ViewModel.AssignToEdge(null)) { return; }
+
         App.Current.ShowToast($"Removed {stack.Name} from the edge shelves.", InfoBarSeverity.Success);
         this.ViewModel.Refresh();
     }

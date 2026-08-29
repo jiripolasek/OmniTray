@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -13,9 +13,9 @@ internal sealed class TrayInspectorPopupHost : IDisposable
     private readonly Window _owner;
     private readonly Popup _popup;
     private TrayInspectorPopup? _activeInspector;
-    private PendingInspector? _pendingInspector;
     private bool _isClosingInspector;
     private bool _isDisposed;
+    private PendingInspector? _pendingInspector;
 
     public TrayInspectorPopupHost(Window owner, Popup popup)
     {

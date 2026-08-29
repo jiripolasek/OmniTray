@@ -19,6 +19,10 @@ internal static class DragDropDataService
     private const int MaxCustomFormatCount = 32;
     private const ulong MaxCustomFormatBytes = 8UL * 1024 * 1024;
     private const ulong MaxCustomFormatTotalBytes = 32UL * 1024 * 1024;
+
+    public const string StackReferenceFormat = "application/x-omnitray-stack-id";
+    public const string ItemReferenceFormat = "application/x-omnitray-item-reference";
+
     private static readonly HashSet<string> StandardFormatIds = new(StringComparer.Ordinal)
     {
         StandardDataFormats.ApplicationLink,
@@ -30,9 +34,6 @@ internal static class DragDropDataService
         StandardDataFormats.Uri,
         StandardDataFormats.WebLink
     };
-
-    public const string StackReferenceFormat = "application/x-omnitray-stack-id";
-    public const string ItemReferenceFormat = "application/x-omnitray-item-reference";
 
     public static Guid? ActiveStackReferenceId { get; private set; }
 
@@ -643,27 +644,19 @@ internal static class DragDropDataService
         return materialized.WithMetadata(
             backing: new ContentBacking
             {
-                Kind = ContentBackingKind.VirtualFileMaterialization,
-                Path = materialized.SourcePath
+                Kind = ContentBackingKind.VirtualFileMaterialization, Path = materialized.SourcePath
             },
             fileFacts: fileFacts);
     }
 
     private static async Task<DropFileFacts> ReadFileFactsAsync(StorageFile file)
     {
-        var fileFacts = new DropFileFacts
-        {
-            OriginalFileName = file.Name
-        };
+        var fileFacts = new DropFileFacts { OriginalFileName = file.Name };
         try
         {
             fileFacts = fileFacts with { ContentType = NormalizeOptional(file.ContentType) };
             var properties = await file.GetBasicPropertiesAsync();
-            return fileFacts with
-            {
-                Size = properties.Size,
-                ModifiedAt = properties.DateModified
-            };
+            return fileFacts with { Size = properties.Size, ModifiedAt = properties.DateModified };
         }
         catch
         {
@@ -862,6 +855,7 @@ internal static class DragDropDataService
                 {
                     inventory.MarkSkipped(formatId, "Custom-format count limit reached");
                 }
+
                 continue;
             }
 
@@ -871,66 +865,66 @@ internal static class DragDropDataService
                 switch (value)
                 {
                     case string text:
-                    {
-                        var byteCount = (ulong)Encoding.UTF8.GetByteCount(text);
-                        if (byteCount > MaxCustomFormatBytes ||
-                            byteCount > MaxCustomFormatTotalBytes - totalBytes)
                         {
-                            inventory.MarkSkipped(formatId, "Custom-format size limit exceeded");
-                            continue;
-                        }
+                            var byteCount = (ulong)Encoding.UTF8.GetByteCount(text);
+                            if (byteCount > MaxCustomFormatBytes ||
+                                byteCount > MaxCustomFormatTotalBytes - totalBytes)
+                            {
+                                inventory.MarkSkipped(formatId, "Custom-format size limit exceeded");
+                                continue;
+                            }
 
-                        formats.Add(DropItemDataFormat.CreateText(formatId, text));
-                        totalBytes += byteCount;
-                        inventory.MarkSucceeded(formatId, $"{byteCount:N0} UTF-8 bytes");
-                        break;
-                    }
+                            formats.Add(DropItemDataFormat.CreateText(formatId, text));
+                            totalBytes += byteCount;
+                            inventory.MarkSucceeded(formatId, $"{byteCount:N0} UTF-8 bytes");
+                            break;
+                        }
                     case IRandomAccessStreamReference streamReference:
-                    {
-                        using var stream = await streamReference.OpenReadAsync();
-                        if (await ReadCustomFormatBytesAsync(stream, MaxCustomFormatTotalBytes - totalBytes)
-                            is not { } bytes)
                         {
-                            inventory.MarkSkipped(formatId, "Custom-format size limit exceeded");
-                            continue;
-                        }
+                            using var stream = await streamReference.OpenReadAsync();
+                            if (await ReadCustomFormatBytesAsync(stream, MaxCustomFormatTotalBytes - totalBytes)
+                                is not { } bytes)
+                            {
+                                inventory.MarkSkipped(formatId, "Custom-format size limit exceeded");
+                                continue;
+                            }
 
-                        formats.Add(DropItemDataFormat.CreateBinary(formatId, bytes));
-                        totalBytes += (ulong)bytes.Length;
-                        inventory.MarkSucceeded(formatId, $"{bytes.Length:N0} bytes");
-                        break;
-                    }
+                            formats.Add(DropItemDataFormat.CreateBinary(formatId, bytes));
+                            totalBytes += (ulong)bytes.Length;
+                            inventory.MarkSucceeded(formatId, $"{bytes.Length:N0} bytes");
+                            break;
+                        }
                     case IRandomAccessStream stream:
-                    {
-                        if (await ReadCustomFormatBytesAsync(stream, MaxCustomFormatTotalBytes - totalBytes)
-                            is not { } bytes)
                         {
-                            inventory.MarkSkipped(formatId, "Custom-format size limit exceeded");
-                            continue;
-                        }
+                            if (await ReadCustomFormatBytesAsync(stream, MaxCustomFormatTotalBytes - totalBytes)
+                                is not { } bytes)
+                            {
+                                inventory.MarkSkipped(formatId, "Custom-format size limit exceeded");
+                                continue;
+                            }
 
-                        formats.Add(DropItemDataFormat.CreateBinary(formatId, bytes));
-                        totalBytes += (ulong)bytes.Length;
-                        inventory.MarkSucceeded(formatId, $"{bytes.Length:N0} bytes");
-                        break;
-                    }
+                            formats.Add(DropItemDataFormat.CreateBinary(formatId, bytes));
+                            totalBytes += (ulong)bytes.Length;
+                            inventory.MarkSucceeded(formatId, $"{bytes.Length:N0} bytes");
+                            break;
+                        }
                     case IBuffer buffer:
-                    {
-                        if (buffer.Length > MaxCustomFormatBytes ||
-                            buffer.Length > MaxCustomFormatTotalBytes - totalBytes)
                         {
-                            inventory.MarkSkipped(formatId, "Custom-format size limit exceeded");
-                            continue;
-                        }
+                            if (buffer.Length > MaxCustomFormatBytes ||
+                                buffer.Length > MaxCustomFormatTotalBytes - totalBytes)
+                            {
+                                inventory.MarkSkipped(formatId, "Custom-format size limit exceeded");
+                                continue;
+                            }
 
-                        using var reader = DataReader.FromBuffer(buffer);
-                        var bytes = new byte[buffer.Length];
-                        reader.ReadBytes(bytes);
-                        formats.Add(DropItemDataFormat.CreateBinary(formatId, bytes));
-                        totalBytes += buffer.Length;
-                        inventory.MarkSucceeded(formatId, $"{buffer.Length:N0} bytes");
-                        break;
-                    }
+                            using var reader = DataReader.FromBuffer(buffer);
+                            var bytes = new byte[buffer.Length];
+                            reader.ReadBytes(bytes);
+                            formats.Add(DropItemDataFormat.CreateBinary(formatId, bytes));
+                            totalBytes += buffer.Length;
+                            inventory.MarkSucceeded(formatId, $"{buffer.Length:N0} bytes");
+                            break;
+                        }
                     default:
                         inventory.MarkSkipped(
                             formatId,
@@ -1110,8 +1104,7 @@ internal sealed class FormatInventoryBuilder
             .Distinct(StringComparer.Ordinal)
             .Select(static formatId => new DataFormatInventoryEntry
             {
-                FormatId = formatId,
-                Status = DataFormatReadStatus.Advertised
+                FormatId = formatId, Status = DataFormatReadStatus.Advertised
             })
             .ToList();
     }
@@ -1137,9 +1130,7 @@ internal sealed class FormatInventoryBuilder
             string.Equals(entry.FormatId, formatId, StringComparison.Ordinal));
         var entry = new DataFormatInventoryEntry
         {
-            FormatId = formatId,
-            Status = status,
-            Detail = string.IsNullOrWhiteSpace(detail) ? null : detail.Trim()
+            FormatId = formatId, Status = status, Detail = string.IsNullOrWhiteSpace(detail) ? null : detail.Trim()
         };
         if (index < 0)
         {

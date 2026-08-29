@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using Microsoft.UI.Dispatching;
@@ -15,15 +15,17 @@ public sealed partial class NoteWindow : Window
 {
     private readonly MainViewModel _catalog;
     private readonly DispatcherQueueTimer _saveTimer;
-    private StickyNote _note;
-    private bool _isLoading = true;
-    private bool _isClosing;
     private bool _allowClose;
-    private bool _isClosed;
-    private bool _isDeleting;
-    private string? _lastEditorRtf;
     private (NoteColor Color, ElementTheme Theme, bool HighContrast)? _appliedColor;
     private int _editVersion;
+    private bool _isClosed;
+    private bool _isClosing;
+    private bool _isDeleting;
+    private bool _isLoading = true;
+    private string? _lastEditorRtf;
+    private StickyNote _note;
+
+    internal Guid NoteId => this._note.Id;
 
     internal NoteWindow(MainViewModel catalog, StickyNote note)
     {
@@ -36,6 +38,7 @@ public sealed partial class NoteWindow : Window
         {
             this.AppWindow.SetIcon(iconPath);
         }
+
         this._saveTimer = this.DispatcherQueue.CreateTimer();
         this._saveTimer.Interval = TimeSpan.FromMilliseconds(500);
         this._saveTimer.IsRepeating = false;
@@ -52,8 +55,6 @@ public sealed partial class NoteWindow : Window
         }
     }
 
-    internal Guid NoteId => this._note.Id;
-
     internal void CloseDeleted()
     {
         this._allowClose = true;
@@ -69,7 +70,9 @@ public sealed partial class NoteWindow : Window
 
         if (this.Editor.SetNote(this._note) is { } exception)
         {
-            this.ShowError("The saved formatting could not be opened. Plain text is available; the original RTF is kept until you edit.", exception, "Could not open formatting");
+            this.ShowError(
+                "The saved formatting could not be opened. Plain text is available; the original RTF is kept until you edit.",
+                exception, "Could not open formatting");
         }
 
         this._isLoading = false;
@@ -86,7 +89,8 @@ public sealed partial class NoteWindow : Window
 
     private void CaptureEdit()
     {
-        if (this._isLoading || this._isClosed || this._isClosing || this._isDeleting || this._catalog.FindNote(this.NoteId) is null)
+        if (this._isLoading || this._isClosed || this._isClosing || this._isDeleting ||
+            this._catalog.FindNote(this.NoteId) is null)
         {
             return;
         }
@@ -221,10 +225,14 @@ public sealed partial class NoteWindow : Window
         {
             if (this.Editor.SetNote(this._note) is { } exception)
             {
-                this.ShowError("The saved formatting could not be opened. Plain text is available; the original RTF is kept until you edit.", exception, "Could not open formatting");
+                this.ShowError(
+                    "The saved formatting could not be opened. Plain text is available; the original RTF is kept until you edit.",
+                    exception, "Could not open formatting");
             }
+
             this.Editor.TextDocument.GetText(TextGetOptions.FormatRtf, out this._lastEditorRtf);
         }
+
         this.RefreshPresentation();
     }
 
@@ -244,14 +252,16 @@ public sealed partial class NoteWindow : Window
         };
         ToolTipService.SetToolTip(this.LocationText, this.LocationText.Text);
         this.DetachButton.Visibility = location?.Target.Placement == NotePlacement.StackItem
-            ? Visibility.Collapsed : Visibility.Visible;
+            ? Visibility.Collapsed
+            : Visibility.Visible;
         var history = this._catalog.NoteHistory.FirstOrDefault(entry => entry.NoteId == this.NoteId);
         this.InspectSourceButton.Visibility = history is null ? Visibility.Collapsed : Visibility.Visible;
         var sourceExists = history is not null && this._catalog.Stacks.Any(stack => stack.Model.Items.Any(item =>
             item.Id == history.SourceItem.Id && item.Kind != DropItemKind.Note));
         this.ShowSourceButton.Visibility = sourceExists ? Visibility.Visible : Visibility.Collapsed;
         this.UndoConversionButton.Visibility = history?.IsConversion == true && !sourceExists
-            ? Visibility.Visible : Visibility.Collapsed;
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         this.ApplyColor();
     }
 
@@ -296,7 +306,10 @@ public sealed partial class NoteWindow : Window
                 Text = color.ToString(),
                 GroupName = "NoteColor",
                 IsChecked = this._note.Color == color,
-                Icon = new FontIcon { Glyph = "\uE91F", Foreground = new SolidColorBrush(NotePalette.Resolve(color, false)) }
+                Icon = new FontIcon
+                {
+                    Glyph = "\uE91F", Foreground = new SolidColorBrush(NotePalette.Resolve(color, false))
+                }
             };
             item.Click += (_, _) =>
             {
@@ -329,14 +342,15 @@ public sealed partial class NoteWindow : Window
     {
         if (this.AppWindow.Presenter is OverlappedPresenter presenter)
         {
-            presenter.IsAlwaysOnTop = this.KeepOnTopButton.IsChecked == true;
+            presenter.IsAlwaysOnTop = this.KeepOnTopButton.IsChecked;
         }
     }
 
     private async void OnDeleteClick(object sender, RoutedEventArgs args)
     {
         if (await StackDialogWindow.ShowAsync(this, "Delete note?",
-                "This moves the note to Recently deleted. You can restore it from Browse notes. The associated stack or item is kept.", "Delete"))
+                "This moves the note to Recently deleted. You can restore it from Browse notes. The associated stack or item is kept.",
+                "Delete"))
         {
             this._isDeleting = true;
             this._editVersion++;
@@ -377,7 +391,9 @@ public sealed partial class NoteWindow : Window
     private async void OnUndoConversionClick(object sender, RoutedEventArgs args)
     {
         if (!await StackDialogWindow.ShowAsync(this, "Undo conversion?",
-            "Restore the original capture in this stack. The edited note is kept in Recently deleted. Annotations moved elsewhere stay where they are.", "Restore capture")) { return; }
+                "Restore the original capture in this stack. The edited note is kept in Recently deleted. Annotations moved elsewhere stay where they are.",
+                "Restore capture")) { return; }
+
         try
         {
             this._isDeleting = true;
@@ -395,8 +411,11 @@ public sealed partial class NoteWindow : Window
         }
     }
 
-    private async void OnAppendClipboardClick(object sender, RoutedEventArgs args) => await this.AppendClipboardAsync(false);
-    private async void OnAppendClipboardWithTimeClick(object sender, RoutedEventArgs args) => await this.AppendClipboardAsync(true);
+    private async void OnAppendClipboardClick(object sender, RoutedEventArgs args) =>
+        await this.AppendClipboardAsync(false);
+
+    private async void OnAppendClipboardWithTimeClick(object sender, RoutedEventArgs args) =>
+        await this.AppendClipboardAsync(true);
 
     private async Task AppendClipboardAsync(bool timestamp)
     {
@@ -404,6 +423,7 @@ public sealed partial class NoteWindow : Window
         {
             var content = await NoteClipboardService.ReadAsync();
             if (this._isLoading || this._isClosing || this._isClosed || this._isDeleting) { return; }
+
             this.Editor.TextDocument.GetText(TextGetOptions.FormatRtf, out var original);
             this._isLoading = true;
             var undoGroupStarted = false;
@@ -415,6 +435,7 @@ public sealed partial class NoteWindow : Window
                 selection.EndKey(TextRangeUnit.Story, false);
                 var prefix = string.IsNullOrEmpty(this._note.Text) ? "" : "\r\r";
                 if (timestamp) { prefix += $"— {DateTimeOffset.Now:g} —\r"; }
+
                 selection.TypeText(prefix);
                 selection.SetText(string.IsNullOrEmpty(content.Rtf) ? TextSetOptions.None : TextSetOptions.FormatRtf,
                     content.Rtf ?? content.Text);
@@ -432,10 +453,14 @@ public sealed partial class NoteWindow : Window
                 }
                 finally { this._isLoading = false; }
             }
+
             this.CaptureEdit();
             this.Editor.FocusText(FocusState.Programmatic);
         }
-        catch (Exception exception) { this.ShowError("Clipboard text could not be appended.", exception, "Could not append clipboard"); }
+        catch (Exception exception)
+        {
+            this.ShowError("Clipboard text could not be appended.", exception, "Could not append clipboard");
+        }
     }
 
     internal void SetEditingEnabled(bool enabled)

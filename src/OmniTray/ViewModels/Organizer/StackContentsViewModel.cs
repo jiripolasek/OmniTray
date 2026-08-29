@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.ViewModels.Organizer;
@@ -22,6 +22,7 @@ public sealed partial class StackContentsViewModel(MainViewModel catalog) : Obse
 
     [ObservableProperty]
     public partial string BackLabel { get; private set; } = "Back to stacks";
+
     public DropItemViewModel? SelectedItem { get; private set; }
     public int SelectedItemCount { get; private set; }
 
@@ -49,7 +50,9 @@ public sealed partial class StackContentsViewModel(MainViewModel catalog) : Obse
     }
 
     internal bool AssignToEdge(EdgeShelfSide? side) => this.Stack is { } stack &&
-        (side is { } edge ? catalog.AssignStackToEdge(stack, edge) : catalog.RemoveStackFromEdge(stack));
+                                                       (side is { } edge
+                                                           ? catalog.AssignStackToEdge(stack, edge)
+                                                           : catalog.RemoveStackFromEdge(stack));
 
     internal void ChangeViewMode(StackInspectorViewMode viewMode)
     {

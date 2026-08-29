@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.Collections.ObjectModel;
@@ -12,6 +12,13 @@ namespace OmniTray.Controls;
 
 public sealed partial class DropCommandSurface : UserControl
 {
+    public event EventHandler? ContentAvailabilityChanged;
+
+    public event EventHandler? ExternalDragEntered;
+
+    public event EventHandler? ExternalDragLeft;
+
+    public event EventHandler? CommandDropCompleted;
     private readonly DispatcherTimer _folderDwellTimer = new() { Interval = TimeSpan.FromMilliseconds(450) };
     private readonly Stack<(Guid? FolderId, string Name)> _navigation = [];
     private DropCommandPlacementViewModel? _dwellFolder;
@@ -20,14 +27,6 @@ public sealed partial class DropCommandSurface : UserControl
     private bool _isSubscribed;
     private bool _showRootHeader = true;
     private string _surfaceId = DropCommandSurfaceIds.Popup;
-
-    public DropCommandSurface()
-    {
-        this.InitializeComponent();
-        this._folderDwellTimer.Tick += this.OnFolderDwellTick;
-        this.Loaded += this.OnLoaded;
-        this.Unloaded += this.OnUnloaded;
-    }
 
     public ObservableCollection<DropCommandPlacementViewModel> Items { get; } = [];
 
@@ -73,13 +72,15 @@ public sealed partial class DropCommandSurface : UserControl
         }
     }
 
-    public event EventHandler? ContentAvailabilityChanged;
+    private Guid? CurrentFolderId => this._navigation.Count == 0 ? null : this._navigation.Peek().FolderId;
 
-    public event EventHandler? ExternalDragEntered;
-
-    public event EventHandler? ExternalDragLeft;
-
-    public event EventHandler? CommandDropCompleted;
+    public DropCommandSurface()
+    {
+        this.InitializeComponent();
+        this._folderDwellTimer.Tick += this.OnFolderDwellTick;
+        this.Loaded += this.OnLoaded;
+        this.Unloaded += this.OnUnloaded;
+    }
 
     internal void ResetNavigation()
     {
@@ -94,8 +95,6 @@ public sealed partial class DropCommandSurface : UserControl
         this._navigation.Clear();
         this.Refresh();
     }
-
-    private Guid? CurrentFolderId => this._navigation.Count == 0 ? null : this._navigation.Peek().FolderId;
 
     private void OnLoaded(object sender, RoutedEventArgs args)
     {
@@ -277,7 +276,9 @@ public sealed partial class DropCommandSurface : UserControl
         args.AcceptedOperation = accepted ? DataPackageOperation.Copy : DataPackageOperation.None;
         args.DragUIOverride.Caption = accepted
             ? node.IsFolder ? $"Open {node.DisplayName}" : node.DisplayName
-            : node.IsFolder ? "No compatible commands in this folder" : node.Command?.AcceptanceText ?? "Unavailable";
+            : node.IsFolder
+                ? "No compatible commands in this folder"
+                : node.Command?.AcceptanceText ?? "Unavailable";
         args.DragUIOverride.IsCaptionVisible = true;
         args.DragUIOverride.IsContentVisible = true;
         SetDropOutline(sender as FrameworkElement, accepted);

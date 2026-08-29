@@ -1,36 +1,45 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
-using Microsoft.UI.Xaml.Input;
-using OmniTray.ViewModels.Organizer;
 using Windows.System;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
+using OmniTray.ViewModels.Organizer;
 
 namespace OmniTray.Views.Organizer;
 
 public sealed partial class NoteLibraryPage : Page, IDisposable
 {
+    internal event EventHandler? SelectedNoteChanged;
     private readonly Window _owner;
+
+    public NoteLibraryViewModel ViewModel { get; }
+    internal Guid? SelectedNoteId => this.ViewModel.SelectedNoteId;
 
     internal NoteLibraryPage(MainViewModel catalog, Window owner)
     {
         this._owner = owner;
-        this.ViewModel = new(catalog);
+        this.ViewModel = new NoteLibraryViewModel(catalog);
         this.InitializeComponent();
         this.ViewModel.SelectedNoteChanged += this.OnSelectedNoteChanged;
     }
 
-    public NoteLibraryViewModel ViewModel { get; }
-    internal event EventHandler? SelectedNoteChanged;
-    internal Guid? SelectedNoteId => this.ViewModel.SelectedNoteId;
     internal void SetActive(bool active) => this.ViewModel.SetActive(active);
     internal void FocusList() => this.NotesList.Focus(FocusState.Keyboard);
     internal void ShowDeleted(bool deleted) => this.ModeBox.SelectedIndex = deleted ? 1 : 0;
-    private void OnModeChanged(object sender, SelectionChangedEventArgs args) => this.ViewModel.ShowDeleted = ((ComboBox)sender).SelectedIndex == 1;
-    private void OnSearchChanged(object sender, TextChangedEventArgs args) => this.ViewModel.FilterText = ((TextBox)sender).Text;
-    private void OnSelectionChanged(object sender, SelectionChangedEventArgs args) => this.ViewModel.SetSelection(this.NotesList.SelectedItem as NoteLibraryEntry);
+
+    private void OnModeChanged(object sender, SelectionChangedEventArgs args) =>
+        this.ViewModel.ShowDeleted = ((ComboBox)sender).SelectedIndex == 1;
+
+    private void OnSearchChanged(object sender, TextChangedEventArgs args) =>
+        this.ViewModel.FilterText = ((TextBox)sender).Text;
+
+    private void OnSelectionChanged(object sender, SelectionChangedEventArgs args) =>
+        this.ViewModel.SetSelection(this.NotesList.SelectedItem as NoteLibraryEntry);
+
     private void OnSelectedNoteChanged(object? sender, EventArgs args) => this.SelectedNoteChanged?.Invoke(this, args);
 
     private async void OnOpenClick(object sender, RoutedEventArgs args)
@@ -40,7 +49,8 @@ public sealed partial class NoteLibraryPage : Page, IDisposable
 
     private void OnNewClick(object sender, RoutedEventArgs args) => App.Current.CreateQuickNote();
 
-    private async void OnClipboardClick(object sender, RoutedEventArgs args) => await App.Current.CreateClipboardNoteAsync();
+    private async void OnClipboardClick(object sender, RoutedEventArgs args) =>
+        await App.Current.CreateClipboardNoteAsync();
 
     private async void OnNotesDoubleTapped(object sender, DoubleTappedRoutedEventArgs args)
     {
@@ -53,7 +63,8 @@ public sealed partial class NoteLibraryPage : Page, IDisposable
                 await this.ViewModel.OpenAsync(entry);
                 return;
             }
-            element = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(element);
+
+            element = VisualTreeHelper.GetParent(element);
         }
     }
 
@@ -69,7 +80,9 @@ public sealed partial class NoteLibraryPage : Page, IDisposable
     private async void OnPurgeClick(object sender, RoutedEventArgs args)
     {
         if (this.ViewModel.SelectedEntry is not { IsDeleted: true } entry) { return; }
-        await this.ViewModel.PurgeAsync(entry, () => StackDialogWindow.ShowAsync(this._owner, "Permanently delete note?",
+
+        await this.ViewModel.PurgeAsync(entry, () => StackDialogWindow.ShowAsync(this._owner,
+            "Permanently delete note?",
             "This deletes the note and its recovery history. This cannot be undone.", "Delete permanently"));
     }
 

@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.Core;
@@ -15,6 +15,12 @@ public enum ContentRequirementCardinality
 
 public sealed record ContentRequirement
 {
+    public ContentRequirementCardinality Cardinality { get; }
+
+    public IReadOnlyList<ContentProperty> Alternatives { get; }
+
+    public IReadOnlyList<string> TagAlternatives { get; }
+
     private ContentRequirement(
         ContentRequirementCardinality cardinality,
         IReadOnlyList<ContentProperty> alternatives,
@@ -36,12 +42,6 @@ public sealed record ContentRequirement
             .Distinct(StringComparer.Ordinal)
             .ToArray();
     }
-
-    public ContentRequirementCardinality Cardinality { get; }
-
-    public IReadOnlyList<ContentProperty> Alternatives { get; }
-
-    public IReadOnlyList<string> TagAlternatives { get; }
 
     public static ContentRequirement All(params ContentProperty[] alternatives) =>
         new(ContentRequirementCardinality.All, alternatives, []);

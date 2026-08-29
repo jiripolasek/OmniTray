@@ -2,9 +2,7 @@
     x:Class="OmniTray.Views.Organizer.StackSearchPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="using:OmniTray.Controls"
-    xmlns:organizer="using:OmniTray.Views.Organizer"
-    xmlns:viewModels="using:OmniTray.ViewModels">
+    xmlns:organizer="using:OmniTray.Views.Organizer">
     <Page.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>

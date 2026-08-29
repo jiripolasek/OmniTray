@@ -74,6 +74,7 @@ public static class StackFilter
                 searchableText.Add(tag.DisplayName);
                 searchableText.Add(tag.ProviderId);
             }
+
             if (facets.HasFlag(ContentFacets.Tabular))
             {
                 searchableText.Add("table tabular");

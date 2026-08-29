@@ -29,8 +29,8 @@ internal sealed class TrayInspectorPopup : IDisposable
     private readonly Popup _popup;
     private readonly DropStackViewModel _viewModel;
     private Action? _closePreparationCompleted;
-    private bool _isDisposed;
     private bool _isDeleteDialogOpen;
+    private bool _isDisposed;
     private bool _isPopupClosing;
     private bool _isPopupOpen;
     private bool _isPreparingForClose;

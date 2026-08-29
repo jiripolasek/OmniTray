@@ -1,3 +1,9 @@
+// ------------------------------------------------------------
+// 
+// Copyright (c) Jiří Polášek. All rights reserved.
+// 
+// ------------------------------------------------------------
+
 namespace OmniTray.Core.ClassifierProviders;
 
 internal sealed class CodeContentClassifierProvider()
@@ -10,12 +16,63 @@ internal sealed class CodeContentClassifierProvider()
 {
     private static readonly HashSet<string> SourceFileExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".asm", ".bash", ".bat", ".c", ".cc", ".cjs", ".clj", ".cljs", ".cpp", ".cs",
-        ".css", ".cxx", ".dart", ".ex", ".exs", ".fs", ".fsx", ".go", ".gradle", ".groovy",
-        ".h", ".hh", ".hpp", ".htm", ".html", ".hxx", ".java", ".js", ".jsx", ".kt",
-        ".kts", ".less", ".lua", ".m", ".mjs", ".mm", ".php", ".ps1", ".psd1", ".psm1",
-        ".py", ".pyw", ".r", ".rb", ".rs", ".s", ".scala", ".scss", ".sh", ".sol", ".sql",
-        ".swift", ".ts", ".tsx", ".vb", ".vue", ".zsh"
+        ".asm",
+        ".bash",
+        ".bat",
+        ".c",
+        ".cc",
+        ".cjs",
+        ".clj",
+        ".cljs",
+        ".cpp",
+        ".cs",
+        ".css",
+        ".cxx",
+        ".dart",
+        ".ex",
+        ".exs",
+        ".fs",
+        ".fsx",
+        ".go",
+        ".gradle",
+        ".groovy",
+        ".h",
+        ".hh",
+        ".hpp",
+        ".htm",
+        ".html",
+        ".hxx",
+        ".java",
+        ".js",
+        ".jsx",
+        ".kt",
+        ".kts",
+        ".less",
+        ".lua",
+        ".m",
+        ".mjs",
+        ".mm",
+        ".php",
+        ".ps1",
+        ".psd1",
+        ".psm1",
+        ".py",
+        ".pyw",
+        ".r",
+        ".rb",
+        ".rs",
+        ".s",
+        ".scala",
+        ".scss",
+        ".sh",
+        ".sol",
+        ".sql",
+        ".swift",
+        ".ts",
+        ".tsx",
+        ".vb",
+        ".vue",
+        ".zsh"
     };
 
     private static readonly HashSet<string> SourceFileNames = new(StringComparer.OrdinalIgnoreCase)

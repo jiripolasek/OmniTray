@@ -1,3 +1,9 @@
+// ------------------------------------------------------------
+// 
+// Copyright (c) Jiří Polášek. All rights reserved.
+// 
+// ------------------------------------------------------------
+
 namespace OmniTray.Core.ClassifierProviders;
 
 internal sealed class OcrContentClassifierProvider()

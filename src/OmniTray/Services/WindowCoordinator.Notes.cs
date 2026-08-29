@@ -1,8 +1,10 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
+
+using Microsoft.UI.Windowing;
 
 namespace OmniTray.Services;
 
@@ -51,8 +53,8 @@ internal sealed partial class WindowCoordinator
         }
 
         this.HidePopup();
-        if (window.AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter &&
-            presenter.State == Microsoft.UI.Windowing.OverlappedPresenterState.Minimized)
+        if (window.AppWindow.Presenter is OverlappedPresenter presenter &&
+            presenter.State == OverlappedPresenterState.Minimized)
         {
             presenter.Restore();
         }

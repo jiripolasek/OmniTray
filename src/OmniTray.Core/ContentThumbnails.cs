@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using OmniTray.Core.ThumbnailProviders;
@@ -40,6 +40,12 @@ public sealed record ContentThumbnailRequest
 
 public sealed class ContentThumbnailContext
 {
+    public DropItem Item { get; }
+
+    public ContentMetadata Metadata { get; }
+
+    public ContentThumbnailRequest Request { get; }
+
     public ContentThumbnailContext(
         DropItem item,
         ContentMetadata metadata,
@@ -65,12 +71,6 @@ public sealed class ContentThumbnailContext
         this.Metadata = metadata;
         this.Request = request;
     }
-
-    public DropItem Item { get; }
-
-    public ContentMetadata Metadata { get; }
-
-    public ContentThumbnailRequest Request { get; }
 }
 
 public sealed record ContentThumbnailDescriptor
@@ -138,8 +138,8 @@ public sealed record ContentThumbnailResolution
 }
 
 /// <summary>
-/// Stable fallback presentation for OmniTray's intentionally small primary visual taxonomy.
-/// Extensible metadata thumbnails resolve before this fallback.
+///     Stable fallback presentation for OmniTray's intentionally small primary visual taxonomy.
+///     Extensible metadata thumbnails resolve before this fallback.
 /// </summary>
 public static class ContentThumbnailFallback
 {
@@ -155,10 +155,7 @@ public static class ContentThumbnailFallback
             DropItemKind.Note => ("\uE70B", "Note"),
             _ => ("\uE7B8", "Content")
         };
-        return ContentThumbnailDescriptor.CreateGlyph(glyph, label, kind.ToString()) with
-        {
-            IsFallback = true
-        };
+        return ContentThumbnailDescriptor.CreateGlyph(glyph, label, kind.ToString()) with { IsFallback = true };
     }
 }
 
@@ -185,6 +182,7 @@ public sealed record ContentThumbnailProviderDescriptor(
 
 public sealed class ContentThumbnailRegistry
 {
+    public event EventHandler? ProvidersChanged;
     private const int MaxProviderCount = 128;
     private const int MaxProviderIdLength = 128;
     private const int MaxProviderDisplayNameLength = 128;
@@ -195,8 +193,6 @@ public sealed class ContentThumbnailRegistry
     private long _nextSequence;
 
     public static ContentThumbnailRegistry Default { get; } = CreateDefault();
-
-    public event EventHandler? ProvidersChanged;
 
     public IReadOnlyList<ContentThumbnailProviderDescriptor> Providers
     {
@@ -364,8 +360,7 @@ public sealed class ContentThumbnailRegistry
                 {
                     Thumbnail = thumbnail with
                     {
-                        ProviderId = registration.Id,
-                        EncodedData = thumbnail.EncodedData?.ToArray()
+                        ProviderId = registration.Id, EncodedData = thumbnail.EncodedData?.ToArray()
                     },
                     Failures = failures
                 };

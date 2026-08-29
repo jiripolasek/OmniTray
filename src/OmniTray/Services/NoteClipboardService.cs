@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using Windows.ApplicationModel.DataTransfer;
@@ -24,14 +24,17 @@ internal static class NoteClipboardService
             var decoded = ReadRtfText(rtf);
             return new NoteClipboardContent(text ?? decoded, rtf);
         }
+
         if (text is null && data.Contains(StandardDataFormats.Html))
         {
             text = ContentDetection.ExtractPlainTextFromHtml(await data.GetHtmlFormatAsync());
         }
+
         if (string.IsNullOrEmpty(text))
         {
             throw new InvalidOperationException("The clipboard does not contain text or rich text.");
         }
+
         return new NoteClipboardContent(text, null);
     }
 

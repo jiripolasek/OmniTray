@@ -1,7 +1,7 @@
 ﻿// ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using Microsoft.UI.Composition;
@@ -119,14 +119,14 @@ public sealed partial class AlwaysActiveDesktopAcrylicBackdrop : SystemBackdrop
 
     private sealed class BackdropTarget
     {
+        public DesktopAcrylicController Controller { get; }
+
+        public SystemBackdropConfiguration Configuration { get; }
+
         public BackdropTarget(DesktopAcrylicController controller, SystemBackdropConfiguration configuration)
         {
             this.Controller = controller;
             this.Configuration = configuration;
         }
-
-        public DesktopAcrylicController Controller { get; }
-
-        public SystemBackdropConfiguration Configuration { get; }
     }
 }

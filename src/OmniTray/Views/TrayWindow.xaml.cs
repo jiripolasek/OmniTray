@@ -1,10 +1,9 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
-using Windows.UI;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
@@ -15,6 +14,9 @@ namespace OmniTray.Views;
 
 public sealed partial class TrayWindow : WindowEx
 {
+    internal event EventHandler? CloseRequested;
+
+    internal event EventHandler? MinimalModeRequested;
     internal const int DefaultWidthInDips = 196;
     internal const int DefaultHeightInDips = 242;
 
@@ -27,6 +29,8 @@ public sealed partial class TrayWindow : WindowEx
     private bool _isContextFlyoutOpen;
     private bool _isPreparingForClose;
     private Action? _pendingContextFlyoutAction;
+
+    internal TrayContentViewModel ViewModel { get; }
 
     internal TrayWindow(
         TrayContentViewModel viewModel,
@@ -41,11 +45,17 @@ public sealed partial class TrayWindow : WindowEx
         if (viewModel is StackTrayContentViewModel stackContent)
         {
             NoteMenu.SetStack(this.TrayContextFlyout, stackContent.Stack);
-            var notes = new NoteIndicator { Stack = stackContent.Stack, HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 8, 8) };
+            var notes = new NoteIndicator
+            {
+                Stack = stackContent.Stack,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(0, 0, 8, 8)
+            };
             Grid.SetRow(notes, 1);
             this.RootGrid.Children.Add(notes);
         }
+
         this._appearance = new TrayWindowAppearanceController(this, this.RootGrid, viewModel);
 
         this.IsShownInSwitchers = false;
@@ -64,12 +74,6 @@ public sealed partial class TrayWindow : WindowEx
 
         this.Closed += this.OnClosed;
     }
-
-    internal TrayContentViewModel ViewModel { get; }
-
-    internal event EventHandler? CloseRequested;
-
-    internal event EventHandler? MinimalModeRequested;
 
     internal void PrepareForClose(Action completed)
     {
@@ -111,11 +115,7 @@ public sealed partial class TrayWindow : WindowEx
                 this.TrayContextFlyout.Items.Insert(insertIndex++, new MenuFlyoutSeparator());
             }
 
-            var item = new MenuFlyoutItem
-            {
-                Text = action.Text,
-                Icon = new SymbolIcon(action.Icon)
-            };
+            var item = new MenuFlyoutItem { Text = action.Text, Icon = new SymbolIcon(action.Icon) };
             item.Click += (_, _) => this.RequestAfterContextFlyoutClosed(action.Execute);
             this.TrayContextFlyout.Items.Insert(insertIndex++, item);
         }

@@ -90,8 +90,8 @@
                         </Button>
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <TextBlock Margin="4,0,0,0" VerticalAlignment="Center"
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Text="{x:Bind ViewModel.ItemCountText, Mode=OneWay}" />
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       Text="{x:Bind ViewModel.ItemCountText, Mode=OneWay}" />
                             <controls:NoteIndicator Stack="{x:Bind ViewModel}" />
                         </StackPanel>
                     </StackPanel>

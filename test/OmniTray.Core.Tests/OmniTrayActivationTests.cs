@@ -19,7 +19,8 @@ public sealed class OmniTrayActivationTests
         Assert.IsNull(request.StackId);
         Assert.Throws<ArgumentException>(() => OmniTrayActivation.NoteUri(Guid.Empty));
         Assert.IsFalse(OmniTrayActivation.TryParse(new Uri("omnitray://note/invalid"), out _));
-        Assert.IsFalse(OmniTrayActivation.TryParse(new Uri("omnitray://note/00000000-0000-0000-0000-000000000000"), out _));
+        Assert.IsFalse(OmniTrayActivation.TryParse(new Uri("omnitray://note/00000000-0000-0000-0000-000000000000"),
+            out _));
     }
 
     [TestMethod]

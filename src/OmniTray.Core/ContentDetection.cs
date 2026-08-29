@@ -1,11 +1,11 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
-using System.Net;
 using System.Globalization;
+using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -245,11 +245,7 @@ public static partial class ContentDetection
             using var textReader = new StringReader(candidate);
             using var xmlReader = XmlReader.Create(
                 textReader,
-                new XmlReaderSettings
-                {
-                    DtdProcessing = DtdProcessing.Prohibit,
-                    XmlResolver = null
-                });
+                new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null });
             var hasElement = false;
             while (xmlReader.Read())
             {
@@ -380,7 +376,7 @@ public static partial class ContentDetection
         var chroma = (1d - Math.Abs((2d * lightness) - 1d)) * saturation;
         var hueSection = hue / 60d;
         var secondary = chroma * (1d - Math.Abs((hueSection % 2d) - 1d));
-        var (red, green, blue) = ((int)Math.Floor(hueSection)) switch
+        var (red, green, blue) = (int)Math.Floor(hueSection) switch
         {
             0 => (chroma, secondary, 0d),
             1 => (secondary, chroma, 0d),
@@ -538,7 +534,7 @@ public static partial class ContentDetection
             return false;
         }
 
-        hue = ((parsed * multiplier) % 360d + 360d) % 360d;
+        hue = (parsed * multiplier % 360d + 360d) % 360d;
         return true;
     }
 
@@ -577,7 +573,8 @@ public static partial class ContentDetection
     [GeneratedRegex(@"(?s)<[^>]+>", RegexOptions.CultureInvariant)]
     private static partial Regex HtmlTagRegex();
 
-    [GeneratedRegex(@"(?is)\bhref\s*=\s*(?:""(?<href>[^""]*)""|'(?<href>[^']*)'|(?<href>[^\s>]+))", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"(?is)\bhref\s*=\s*(?:""(?<href>[^""]*)""|'(?<href>[^']*)'|(?<href>[^\s>]+))",
+        RegexOptions.CultureInvariant)]
     private static partial Regex HtmlHrefRegex();
 
     [GeneratedRegex(@"(?i)<table(?:\s|>)", RegexOptions.CultureInvariant)]
@@ -595,12 +592,15 @@ public static partial class ContentDetection
     [GeneratedRegex(@"^[^\s@]+@[^\s@]+\.[^\s@]+$", RegexOptions.CultureInvariant)]
     private static partial Regex EmailAddressRegex();
 
-    [GeneratedRegex(@"^(?<name>rgba?|hsla?)\s*\((?<arguments>[^\r\n()]*)\)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^(?<name>rgba?|hsla?)\s*\((?<arguments>[^\r\n()]*)\)$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex CssColorFunctionRegex();
 
-    [GeneratedRegex(@"(?m)^(?:\s{0,3}#{1,6}\s+|\s*[-*+]\s+|\s*\d+[.)]\s+|>\s+)|\[[^\]\r\n]+\]\([^\)\r\n]+\)", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"(?m)^(?:\s{0,3}#{1,6}\s+|\s*[-*+]\s+|\s*\d+[.)]\s+|>\s+)|\[[^\]\r\n]+\]\([^\)\r\n]+\)",
+        RegexOptions.CultureInvariant)]
     private static partial Regex MarkdownStructureRegex();
 
-    [GeneratedRegex(@"^\d{4}-\d{2}-\d{2}(?:[T\s]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:\s?(?:Z|[+-]\d{2}:?\d{2}))?)?$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^\d{4}-\d{2}-\d{2}(?:[T\s]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:\s?(?:Z|[+-]\d{2}:?\d{2}))?)?$",
+        RegexOptions.CultureInvariant)]
     private static partial Regex IsoDateTimeRegex();
 }

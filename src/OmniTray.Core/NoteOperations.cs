@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.Core;
@@ -9,6 +9,7 @@ namespace OmniTray.Core;
 public enum NotePlacement
 {
     StackItem = 0,
+
     // Retain the persisted value for recovery entries from earlier catalogs.
     LegacyStack = 1,
     Item = 2
@@ -17,7 +18,8 @@ public enum NotePlacement
 public sealed record NoteTarget(Guid StackId, NotePlacement Placement, Guid? ItemId = null)
 {
     public NoteTarget NormalizePlacement() => this.Placement == NotePlacement.LegacyStack
-        ? this with { Placement = NotePlacement.StackItem } : this;
+        ? this with { Placement = NotePlacement.StackItem }
+        : this;
 }
 
 public sealed record NoteLocation(StickyNote Note, NoteTarget Target);
@@ -25,7 +27,10 @@ public sealed record NoteLocation(StickyNote Note, NoteTarget Target);
 public static class NoteOperations
 {
     public static (DropStack Stack, StickyNote Note) ConvertTextItem(
-        DropStack stack, Guid itemId, bool duplicate, string? plainText = null)
+        DropStack stack,
+        Guid itemId,
+        bool duplicate,
+        string? plainText = null)
     {
         ArgumentNullException.ThrowIfNull(stack);
         var items = stack.Items.ToList();
@@ -94,13 +99,16 @@ public static class NoteOperations
         {
             if (!ids.Add(location.Note.Id))
             {
-                throw new ArgumentException("Each note must have exactly one placement in the catalog.", nameof(stacks));
+                throw new ArgumentException("Each note must have exactly one placement in the catalog.",
+                    nameof(stacks));
             }
         }
     }
 
     public static IReadOnlyList<DropStack> Add(
-        IReadOnlyList<DropStack> stacks, StickyNote note, NoteTarget target)
+        IReadOnlyList<DropStack> stacks,
+        StickyNote note,
+        NoteTarget target)
     {
         ArgumentNullException.ThrowIfNull(note);
         ArgumentNullException.ThrowIfNull(target);
@@ -111,20 +119,25 @@ public static class NoteOperations
             throw new ArgumentException("The note is already in the catalog.", nameof(note));
         }
 
-        return stacks.Select(stack => stack.Id != target.StackId ? stack : target.Placement switch
-        {
-            NotePlacement.StackItem => stack.Append([DropItem.CreateNote(note)]),
-            NotePlacement.Item => stack.WithItems(stack.Items.Select(item => item.Id == target.ItemId
-                ? item.WithAttachedNotes(item.AttachedNotes.Append(note))
-                : item)),
-            _ => throw new ArgumentOutOfRangeException(nameof(target))
-        }).ToArray();
+        return stacks.Select(stack => stack.Id != target.StackId
+            ? stack
+            : target.Placement switch
+            {
+                NotePlacement.StackItem => stack.Append([DropItem.CreateNote(note)]),
+                NotePlacement.Item => stack.WithItems(stack.Items.Select(item => item.Id == target.ItemId
+                    ? item.WithAttachedNotes(item.AttachedNotes.Append(note))
+                    : item)),
+                _ => throw new ArgumentOutOfRangeException(nameof(target))
+            }).ToArray();
     }
 
     public static IReadOnlyList<DropStack> Relocate(
-        IReadOnlyList<DropStack> stacks, Guid noteId, NoteTarget target)
+        IReadOnlyList<DropStack> stacks,
+        Guid noteId,
+        NoteTarget target)
     {
-        var location = Find(stacks, noteId) ?? throw new ArgumentException("The note no longer exists.", nameof(noteId));
+        var location = Find(stacks, noteId) ??
+                       throw new ArgumentException("The note no longer exists.", nameof(noteId));
         ArgumentNullException.ThrowIfNull(target);
         target = target.NormalizePlacement();
         // Validate before changing either owner, including attempts to attach a note to itself.
@@ -155,7 +168,9 @@ public static class NoteOperations
     }
 
     private static IReadOnlyList<DropStack> Rewrite(
-        IReadOnlyList<DropStack> stacks, NoteLocation location, StickyNote? replacement)
+        IReadOnlyList<DropStack> stacks,
+        NoteLocation location,
+        StickyNote? replacement)
     {
         IReadOnlyList<StickyNote> RewriteAttachments(IReadOnlyList<StickyNote> notes) => notes
             .Select(note => note.Id == location.Note.Id ? replacement : note)
@@ -187,7 +202,7 @@ public static class NoteOperations
         ArgumentNullException.ThrowIfNull(stacks);
         ArgumentNullException.ThrowIfNull(target);
         var stack = stacks.SingleOrDefault(stack => stack.Id == target.StackId)
-            ?? throw new ArgumentException("The destination stack no longer exists.", nameof(target));
+                    ?? throw new ArgumentException("The destination stack no longer exists.", nameof(target));
         if (!Enum.IsDefined(target.Placement) ||
             (target.Placement != NotePlacement.Item && target.ItemId is not null))
         {

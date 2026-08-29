@@ -1,15 +1,15 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.ComponentModel;
 using System.Diagnostics;
-using Microsoft.VisualBasic.FileIO;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using Windows.System;
+using Microsoft.VisualBasic.FileIO;
 
 namespace OmniTray.Services;
 
@@ -134,8 +134,7 @@ internal static class ItemManipulationService
         {
             var process = Process.Start(new ProcessStartInfo(item.SourcePath)
             {
-                UseShellExecute = true,
-                Verb = "properties"
+                UseShellExecute = true, Verb = "properties"
             });
             process?.Dispose();
         }

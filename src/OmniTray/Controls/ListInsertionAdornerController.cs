@@ -65,11 +65,11 @@ internal sealed class ListInsertionAdornerController
         if (this._wraps)
         {
             var rowAnchor = realized.MinBy(value =>
-                Math.Abs((value.Bounds.Y + (value.Bounds.Height / 2)) - position.Y));
+                Math.Abs(value.Bounds.Y + (value.Bounds.Height / 2) - position.Y));
             var rowTolerance = Math.Max(1, rowAnchor.Bounds.Height / 2);
             var row = realized
                 .Where(value => Math.Abs(
-                    (value.Bounds.Y + (value.Bounds.Height / 2)) -
+                    value.Bounds.Y + (value.Bounds.Height / 2) -
                     (rowAnchor.Bounds.Y + (rowAnchor.Bounds.Height / 2))) < rowTolerance)
                 .OrderBy(static value => value.Bounds.X)
                 .ToArray();

@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.Core.Tests;
@@ -14,7 +14,7 @@ public sealed class TextNoteConversionTests
     {
         var before = DropItem.CreateText("Before");
         var source = DropItem.CreateText("Hello\r\n世界", @"C:\captures\text.txt", true,
-            html: "<b>Hello</b>", rtf: @"{\rtf1\b Hello\par\u19990?\u30028?}");
+            "<b>Hello</b>", @"{\rtf1\b Hello\par\u19990?\u30028?}");
         var after = DropItem.CreateText("After");
         var stackNote = StickyNote.Create("Stack annotation");
         var stack = DropStack.Create([before, source, after]).Rename("Work")
@@ -50,7 +50,7 @@ public sealed class TextNoteConversionTests
     {
         var attachment = StickyNote.Create("Annotation", color: NoteColor.Pink);
         var source = DropItem.CreateText("Keep me", @"C:\captures\text.txt", true,
-            html: "<b>Keep me</b>", rtf: @"{\rtf1\b Keep me}", sourceUrl: "https://example.com/")
+                "<b>Keep me</b>", @"{\rtf1\b Keep me}", "https://example.com/")
             .WithAttachedNotes([attachment]);
         var after = DropItem.CreateText("After");
         var stack = DropStack.Create([source, after]);
@@ -140,6 +140,7 @@ public sealed class TextNoteConversionTests
         {
             Assert.Throws<ArgumentException>(() => NoteOperations.ConvertTextItem(stack, id, duplicate));
         }
+
         Assert.AreSame(file, stack.Items[0]);
         Assert.AreSame(note, stack.Items[1]);
     }

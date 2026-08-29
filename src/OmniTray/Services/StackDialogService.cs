@@ -201,8 +201,10 @@ internal static class StackDialogService
     private static string DescribeStackDeletion(DropStackViewModel stack)
     {
         var count = NoteOperations.Enumerate([stack.Model]).Count();
-        var notes = count == 0 ? string.Empty
+        var notes = count == 0
+            ? string.Empty
             : $" Its {count} {(count == 1 ? "note is" : "notes are")} kept in Recently deleted, including attachments.";
-        return $"This removes the stack and its {stack.ItemCountText}.{notes} Original files and folders are never deleted.";
+        return
+            $"This removes the stack and its {stack.ItemCountText}.{notes} Original files and folders are never deleted.";
     }
 }

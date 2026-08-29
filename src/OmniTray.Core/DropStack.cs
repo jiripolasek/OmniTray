@@ -11,6 +11,16 @@ public sealed record DropStack
     public const string DefaultTint = TrayTintIds.Neutral;
     public const string SystemAccentTint = TrayTintIds.SystemAccent;
 
+    public Guid Id { get; }
+
+    public string Name { get; }
+
+    public string Tint { get; }
+
+    public IReadOnlyList<DropItem> Items { get; }
+
+    public StackInspectorViewMode InspectorViewMode { get; }
+
     private DropStack(
         Guid id,
         string name,
@@ -34,16 +44,6 @@ public sealed record DropStack
         this.Items = items;
         this.InspectorViewMode = inspectorViewMode;
     }
-
-    public Guid Id { get; }
-
-    public string Name { get; }
-
-    public string Tint { get; }
-
-    public IReadOnlyList<DropItem> Items { get; }
-
-    public StackInspectorViewMode InspectorViewMode { get; }
 
     public DropStack Append(IEnumerable<DropItem> items)
     {

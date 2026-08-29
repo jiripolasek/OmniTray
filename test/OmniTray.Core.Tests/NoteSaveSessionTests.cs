@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using OmniTray.Services;
@@ -15,7 +15,11 @@ public sealed class NoteSaveSessionTests
     public async Task OpeningWithoutEditsDoesNotWrite()
     {
         var writes = 0;
-        var session = new NoteSaveSession(() => { writes++; return Task.CompletedTask; });
+        var session = new NoteSaveSession(() =>
+        {
+            writes++;
+            return Task.CompletedTask;
+        });
 
         Assert.IsTrue(await session.FlushAsync());
         Assert.AreEqual(0, writes);
@@ -26,7 +30,11 @@ public sealed class NoteSaveSessionTests
     public async Task PendingEditsShareOneCatalogWrite()
     {
         var writes = 0;
-        var session = new NoteSaveSession(() => { writes++; return Task.CompletedTask; });
+        var session = new NoteSaveSession(() =>
+        {
+            writes++;
+            return Task.CompletedTask;
+        });
         // Edits can belong to different selected notes: the catalog is the save unit.
         session.MarkChanged();
         session.MarkChanged();
@@ -64,6 +72,7 @@ public sealed class NoteSaveSessionTests
         var session = new NoteSaveSession(() =>
         {
             if (++writes == 1) { return firstWrite.Task; }
+
             secondStarted.SetResult();
             return secondWrite.Task;
         });
@@ -86,7 +95,11 @@ public sealed class NoteSaveSessionTests
     {
         var write = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var writes = 0;
-        var session = new NoteSaveSession(() => { writes++; return write.Task; });
+        var session = new NoteSaveSession(() =>
+        {
+            writes++;
+            return write.Task;
+        });
         session.MarkChanged();
         var autosave = session.FlushAsync();
         var closing = session.FlushAsync();

@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.Collections.ObjectModel;
@@ -30,6 +30,8 @@ public sealed partial class DataFormatInspectorWindow : Window
     private int _inspectionGeneration;
     private bool _isInspecting;
 
+    public ObservableCollection<DataFormatInspectionEntry> Formats { get; } = [];
+
     public DataFormatInspectorWindow()
     {
         this.InitializeComponent();
@@ -41,8 +43,6 @@ public sealed partial class DataFormatInspectorWindow : Window
             this.AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
         }
     }
-
-    public ObservableCollection<DataFormatInspectionEntry> Formats { get; } = [];
 
     public void Inspect(DropItem item)
     {
@@ -363,10 +363,7 @@ public sealed partial class DataFormatInspectorWindow : Window
     private static string DescribePackage(DataPackageView dataView)
     {
         var properties = dataView.Properties;
-        var details = new List<string>
-        {
-            $"Requested operation: {dataView.RequestedOperation}"
-        };
+        var details = new List<string> { $"Requested operation: {dataView.RequestedOperation}" };
         AddProperty(details, "Application", properties.ApplicationName);
         AddProperty(details, "Package", properties.PackageFamilyName);
         AddProperty(details, "Title", properties.Title);
@@ -414,11 +411,10 @@ public sealed partial class DataFormatInspectorWindow : Window
     {
         var formats = new List<DataFormatInventoryEntry>();
         var metadata = ContentMetadataPolicy.GetMetadata(item);
+
         void Add(string formatId, string detail) => formats.Add(new DataFormatInventoryEntry
         {
-            FormatId = formatId,
-            Status = DataFormatReadStatus.Succeeded,
-            Detail = detail
+            FormatId = formatId, Status = DataFormatReadStatus.Succeeded, Detail = detail
         });
 
         if (item.Text is not null)
@@ -516,6 +512,16 @@ public sealed partial class DataFormatInspectorWindow : Window
 
 public sealed class DataFormatInspectionEntry
 {
+    public int Order { get; set; }
+
+    public string FormatId { get; set; } = string.Empty;
+
+    public string Kind { get; set; } = string.Empty;
+
+    public string PayloadType { get; set; } = string.Empty;
+
+    public string Details { get; set; } = string.Empty;
+
     public DataFormatInspectionEntry()
     {
     }
@@ -533,14 +539,4 @@ public sealed class DataFormatInspectionEntry
         this.PayloadType = payloadType;
         this.Details = details;
     }
-
-    public int Order { get; set; }
-
-    public string FormatId { get; set; } = string.Empty;
-
-    public string Kind { get; set; } = string.Empty;
-
-    public string PayloadType { get; set; } = string.Empty;
-
-    public string Details { get; set; } = string.Empty;
 }

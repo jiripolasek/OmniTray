@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using Windows.ApplicationModel.DataTransfer;
@@ -14,10 +14,18 @@ namespace OmniTray.Controls;
 internal sealed partial class StackTrayContent : UserControl, ITrayWindowContent
 {
     private static readonly TimeSpan InspectorHoverDelay = TimeSpan.FromMilliseconds(700);
-    private readonly TrayInspectorPopup _inspectorPopup;
     private readonly DispatcherQueueTimer _inspectorHoverTimer;
+    private readonly TrayInspectorPopup _inspectorPopup;
     private FrameworkElement? _inspectorHoverTarget;
     private bool _isDisposed;
+
+    public DropStackViewModel ViewModel { get; }
+
+    public bool IsMinimal { get; }
+
+    public FrameworkElement View => this;
+
+    public IReadOnlyList<TrayContextAction> ContextActions { get; }
 
     public StackTrayContent(Window owner, DropStackViewModel viewModel, bool isMinimal)
     {
@@ -59,14 +67,6 @@ internal sealed partial class StackTrayContent : UserControl, ITrayWindowContent
                 true)
         ];
     }
-
-    public DropStackViewModel ViewModel { get; }
-
-    public bool IsMinimal { get; }
-
-    public FrameworkElement View => this;
-
-    public IReadOnlyList<TrayContextAction> ContextActions { get; }
 
     public void PrepareForClose(Action completed) => this._inspectorPopup.PrepareForClose(completed);
 

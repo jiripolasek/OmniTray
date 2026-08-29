@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.ComponentModel;
@@ -17,24 +17,34 @@ namespace OmniTray.Views;
 public sealed partial class StackOrganizerWindow : Window
 {
     private readonly StackOverviewPage _overviewPage;
-    private readonly StackContentsPage _stackPage;
     private readonly StackSearchPage _searchPage;
+    private readonly StackContentsPage _stackPage;
+
+    public StackOrganizerViewModel ViewModel { get; }
+    private StackOrganizerNavigationState Navigation => this.ViewModel.Navigation;
+    private DropStackViewModel? SelectedStack => this.ViewModel.Stack.Stack;
+    private NoteEditorPane InlineNoteEditor => this.DetailsPane.NoteEditor;
+    private bool IsShowingSearch => this.Navigation.Page == StackOrganizerPage.Search;
+    private bool IsShowingNotes => this.Navigation.Page == StackOrganizerPage.Notes;
 
     public StackOrganizerWindow()
     {
-        this.ViewModel = new(App.Current.StackCatalogViewModel);
-        this._overviewPage = new(this.ViewModel.Catalog, this.ViewModel.Overview);
-        this._stackPage = new(this.ViewModel.Stack, this);
-        this._searchPage = new(this.ViewModel.Search);
+        this.ViewModel = new StackOrganizerViewModel(App.Current.StackCatalogViewModel);
+        this._overviewPage = new StackOverviewPage(this.ViewModel.Catalog, this.ViewModel.Overview);
+        this._stackPage = new StackContentsPage(this.ViewModel.Stack, this);
+        this._searchPage = new StackSearchPage(this.ViewModel.Search);
         this.InitializeComponent();
-        this._searchPopupFooter = (FrameworkElement)((DataTemplate)this.RootGrid.Resources["SearchPopupFooterTemplate"]).LoadContent();
-        this._searchPopupEmptyState = (TextBlock)((DataTemplate)this.RootGrid.Resources["SearchPopupEmptyTemplate"]).LoadContent();
+        this._searchPopupFooter
+            = (FrameworkElement)((DataTemplate)this.RootGrid.Resources["SearchPopupFooterTemplate"]).LoadContent();
+        this._searchPopupEmptyState
+            = (TextBlock)((DataTemplate)this.RootGrid.Resources["SearchPopupEmptyTemplate"]).LoadContent();
         AutoSuggestBoxGrouping.Enable(this.GlobalSearchBox, this._searchPopupFooter, this._searchPopupEmptyState);
 
         this.ExtendsContentIntoTitleBar = true;
         this.SetTitleBar(this.AppTitleBar);
         var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "OmniTray.ico");
         if (File.Exists(iconPath)) { this.AppWindow.SetIcon(iconPath); }
+
         if (AppWindowTitleBar.IsCustomizationSupported())
         {
             this.AppWindow.TitleBar.ButtonBackgroundColor = Colors.Transparent;
@@ -62,13 +72,6 @@ public sealed partial class StackOrganizerWindow : Window
         this.ShowOverview();
     }
 
-    public StackOrganizerViewModel ViewModel { get; }
-    private StackOrganizerNavigationState Navigation => this.ViewModel.Navigation;
-    private DropStackViewModel? SelectedStack => this.ViewModel.Stack.Stack;
-    private NoteEditorPane InlineNoteEditor => this.DetailsPane.NoteEditor;
-    private bool IsShowingSearch => this.Navigation.Page == StackOrganizerPage.Search;
-    private bool IsShowingNotes => this.Navigation.Page == StackOrganizerPage.Notes;
-
     internal void SelectStack(DropStackViewModel? stack)
     {
         this.OrganizerNavigation.SelectedItem = this.AllStacksNavigationItem;
@@ -76,6 +79,7 @@ public sealed partial class StackOrganizerWindow : Window
         this.RefreshVisibleStacks();
         if (stack is not null && this.ViewModel.Catalog.Stacks.Contains(stack)) { this.OpenStack(stack); }
         else { this.ShowOverview(); }
+
         this.Activate();
     }
 
@@ -91,7 +95,9 @@ public sealed partial class StackOrganizerWindow : Window
     private void OnNewNoteAcceleratorInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         App.Current.CreateQuickNote(this.SelectedStack?.Model.Id ??
-            (this.Navigation.Page == StackOrganizerPage.Overview ? this._overviewPage.SelectedStackId : null));
+                                    (this.Navigation.Page == StackOrganizerPage.Overview
+                                        ? this._overviewPage.SelectedStackId
+                                        : null));
         args.Handled = true;
     }
 
@@ -130,12 +136,19 @@ public sealed partial class StackOrganizerWindow : Window
 
     private void OnStackOpened(object? sender, DropStackViewModel stack) => this.OpenStack(stack);
     private void OnNewStackRequested(object? sender, EventArgs args) => this.CreateNewStack();
-    private async void OnClipboardStackRequested(object? sender, EventArgs args) => await this.CreateNewStackFromClipboardAsync();
+
+    private async void OnClipboardStackRequested(object? sender, EventArgs args) =>
+        await this.CreateNewStackFromClipboardAsync();
 
     private void OpenStack(DropStackViewModel stack, bool fromSearch = false)
     {
         if (this._isOrganizerClosed || !this.ViewModel.Catalog.Stacks.Contains(stack)) { return; }
-        if (this.IsShowingNotes && !fromSearch) { this.OrganizerNavigation.SelectedItem = this.AllStacksNavigationItem; }
+
+        if (this.IsShowingNotes && !fromSearch)
+        {
+            this.OrganizerNavigation.SelectedItem = this.AllStacksNavigationItem;
+        }
+
         this.LeaveNotesPage();
         this.LeaveSearchResults(fromSearch);
         this.Navigation.OpenStack(stack.Model.Id, fromSearch);
@@ -153,6 +166,7 @@ public sealed partial class StackOrganizerWindow : Window
     private void ShowOverview()
     {
         if (this._isOrganizerClosed) { return; }
+
         var previousStack = this.SelectedStack;
         this.LeaveNotesPage();
         this.LeaveSearchResults(false);
@@ -169,10 +183,12 @@ public sealed partial class StackOrganizerWindow : Window
     private void RefreshDetailsPane()
     {
         if (this._isOrganizerClosed) { return; }
+
         if (this.IsShowingNotes) { this.DetailsPane.ShowNote(this._notesPage?.SelectedNoteId); }
         else
         {
-            this.DetailsPane.ShowItem(this.SelectedStack, this.ViewModel.Stack.SelectedItem, this.ViewModel.Stack.SelectedItemCount);
+            this.DetailsPane.ShowItem(this.SelectedStack, this.ViewModel.Stack.SelectedItem,
+                this.ViewModel.Stack.SelectedItemCount);
         }
     }
 
@@ -236,9 +252,11 @@ public sealed partial class StackOrganizerWindow : Window
     private void OnCatalogChanged(object? sender, EventArgs args)
     {
         if (this._isOrganizerClosed || this.ViewModel.Overview.IsApplyingScopeCommand) { return; }
+
         this.ViewModel.RefreshScopes();
         this.RefreshVisibleStacks();
         if (this.IsShowingSearch) { _ = this._searchPage.RefreshAsync(this.Navigation); }
+
         if (this.SelectedStack is { } stack)
         {
             if (this.ViewModel.Catalog.Stacks.Contains(stack))
@@ -285,6 +303,7 @@ public sealed partial class StackOrganizerWindow : Window
             this._notesPage.SelectedNoteChanged -= this.OnLibraryNoteSelected;
             this._notesPage.Dispose();
         }
+
         this.ClearSearchSuggestions();
         this.ViewModel.Search.Dispose();
         this._searchPage.Dispose();

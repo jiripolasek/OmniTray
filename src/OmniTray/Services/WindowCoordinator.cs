@@ -16,16 +16,19 @@ namespace OmniTray.Services;
 
 internal sealed partial class WindowCoordinator
 {
+    public event EventHandler? TrayWindowStatesChanged;
+
+    public event EventHandler? DropCommandWindowStatesChanged;
     private const int PopupEdgeInsetInDips = 8;
-    private readonly EdgeWindowController _edgeWindowController;
 
     private readonly DropCommandCatalogViewModel _dropCommandCatalog;
-    private readonly MainViewModel _viewModel;
     private readonly Dictionary<Guid, TrayWindowSession> _dropCommandWindows = [];
+    private readonly EdgeWindowController _edgeWindowController;
     private readonly Dictionary<Guid, TrayWindowSession> _trayWindows = [];
+    private readonly MainViewModel _viewModel;
+    private DataFormatInspectorWindow? _dataFormatInspectorWindow;
     private bool _isClosing;
     private bool _isPopupVisible;
-    private DataFormatInspectorWindow? _dataFormatInspectorWindow;
     private OmniTrayPopupWindow? _popupWindow;
     private SettingsWindow? _settingsWindow;
     private StackOrganizerWindow? _stackOrganizerWindow;
@@ -48,10 +51,6 @@ internal sealed partial class WindowCoordinator
             isShakeToCreateTrayEnabled,
             this.OnShakeToCreateTray);
     }
-
-    public event EventHandler? TrayWindowStatesChanged;
-
-    public event EventHandler? DropCommandWindowStatesChanged;
 
     public void TogglePopup()
     {
@@ -268,6 +267,7 @@ internal sealed partial class WindowCoordinator
             this._stackOrganizerWindow = this.CreateStackOrganizerWindow();
             CenterWindow(this._stackOrganizerWindow, 1180, 760);
         }
+
         return this._stackOrganizerWindow;
     }
 

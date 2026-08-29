@@ -2,8 +2,7 @@
     x:Class="OmniTray.Views.Organizer.StackContentsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="using:OmniTray.Controls"
-    xmlns:viewModels="using:OmniTray.ViewModels">
+    xmlns:controls="using:OmniTray.Controls">
     <Grid x:Name="RootGrid">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />

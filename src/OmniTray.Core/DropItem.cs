@@ -18,6 +18,52 @@ public enum DropItemKind
 
 public sealed record DropItem
 {
+    public Guid Id { get; }
+
+    public DropItemKind Kind { get; }
+
+    public string DisplayName { get; }
+
+    public string? SourcePath { get; }
+
+    public string? Text { get; }
+
+    public string? Html { get; }
+
+    public string? Rtf { get; }
+
+    public string? Url { get; }
+
+    public string? SourceUrl { get; }
+
+    public string? SourceApplicationName { get; }
+
+    public string? ApplicationLink { get; }
+
+    public string? SourcePackageFamilyName => this.Provenance.PackageFamilyName;
+
+    public string? SourceApplicationLink => this.Provenance.SourceApplicationLink;
+
+    public ContentProvenance Provenance { get; }
+
+    public DropCaptureMetadata? Capture { get; }
+
+    public ContentBacking Backing { get; }
+
+    public DropFileFacts? FileFacts { get; }
+
+    public IReadOnlyList<DropItemHtmlResource> HtmlResources { get; }
+
+    public IReadOnlyList<DropItemDataFormat> CustomFormats { get; }
+
+    public bool IsOwned { get; }
+
+    public DateTimeOffset CreatedAt { get; }
+
+    public StickyNote? Note { get; }
+
+    public IReadOnlyList<StickyNote> AttachedNotes { get; private init; }
+
     private DropItem(
         Guid id,
         DropItemKind kind,
@@ -67,7 +113,7 @@ public sealed record DropItem
         this.Backing = NormalizeBacking(backing, kind, sourcePath, isOwned);
         this.FileFacts = NormalizeFileFacts(fileFacts);
         this.HtmlResources = NormalizeHtmlResources(htmlResources);
-        if ((kind == DropItemKind.Note) != (note is not null) || (note is not null && note.Id != id))
+        if (kind == DropItemKind.Note != note is not null || (note is not null && note.Id != id))
         {
             throw new ArgumentException("A note item must contain a note with the same identity.", nameof(note));
         }
@@ -79,52 +125,6 @@ public sealed record DropItem
             throw new ArgumentException("Notes cannot have attached notes.", nameof(attachedNotes));
         }
     }
-
-    public Guid Id { get; }
-
-    public DropItemKind Kind { get; }
-
-    public string DisplayName { get; }
-
-    public string? SourcePath { get; }
-
-    public string? Text { get; }
-
-    public string? Html { get; }
-
-    public string? Rtf { get; }
-
-    public string? Url { get; }
-
-    public string? SourceUrl { get; }
-
-    public string? SourceApplicationName { get; }
-
-    public string? ApplicationLink { get; }
-
-    public string? SourcePackageFamilyName => this.Provenance.PackageFamilyName;
-
-    public string? SourceApplicationLink => this.Provenance.SourceApplicationLink;
-
-    public ContentProvenance Provenance { get; }
-
-    public DropCaptureMetadata? Capture { get; }
-
-    public ContentBacking Backing { get; }
-
-    public DropFileFacts? FileFacts { get; }
-
-    public IReadOnlyList<DropItemHtmlResource> HtmlResources { get; }
-
-    public IReadOnlyList<DropItemDataFormat> CustomFormats { get; }
-
-    public bool IsOwned { get; }
-
-    public DateTimeOffset CreatedAt { get; }
-
-    public StickyNote? Note { get; }
-
-    public IReadOnlyList<StickyNote> AttachedNotes { get; private init; }
 
     public static DropItem CreateNote(StickyNote note)
     {
@@ -526,8 +526,7 @@ public sealed record DropItem
                 .Where(static format => !string.IsNullOrWhiteSpace(format.FormatId))
                 .Select(static format => format with
                 {
-                    FormatId = format.FormatId.Trim(),
-                    Detail = NormalizeOptionalValue(format.Detail)
+                    FormatId = format.FormatId.Trim(), Detail = NormalizeOptionalValue(format.Detail)
                 })
                 .DistinctBy(static format => format.FormatId, StringComparer.Ordinal)
                 .ToArray()
@@ -548,11 +547,7 @@ public sealed record DropItem
                 : kind is DropItemKind.Text or DropItemKind.Image
                     ? ContentBackingKind.GeneratedProjection
                     : ContentBackingKind.ManagedSnapshot;
-        return new ContentBacking
-        {
-            Kind = backing?.Kind ?? inferredKind,
-            Path = path
-        };
+        return new ContentBacking { Kind = backing?.Kind ?? inferredKind, Path = path };
     }
 
     private static DropFileFacts? NormalizeFileFacts(DropFileFacts? facts) =>
@@ -574,8 +569,7 @@ public sealed record DropItem
                 !string.IsNullOrWhiteSpace(resource.ManagedRelativePath))
             .Select(static resource => resource with
             {
-                ResourceKey = resource.ResourceKey.Trim(),
-                ManagedRelativePath = resource.ManagedRelativePath.Trim()
+                ResourceKey = resource.ResourceKey.Trim(), ManagedRelativePath = resource.ManagedRelativePath.Trim()
             })
             .DistinctBy(static resource => resource.ResourceKey, StringComparer.Ordinal)
             .ToArray();

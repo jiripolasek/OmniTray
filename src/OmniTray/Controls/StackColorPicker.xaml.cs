@@ -12,19 +12,12 @@ namespace OmniTray.Controls;
 
 public sealed partial class StackColorPicker : UserControl
 {
+    public event EventHandler? ColorSelected;
     private const int PaletteColumnCount = 9;
     private readonly List<(StackTintPreset Preset, Border Selection)> _presetSelections = [];
     private Action<string>? _changeTint;
     private Func<string>? _getTint;
     private DropStackViewModel? _stack;
-
-    public StackColorPicker()
-    {
-        this.InitializeComponent();
-        this.BuildPalette();
-        this.NeutralSwatch.Background = new SolidColorBrush(
-            StackTintPalette.Resolve(DropStack.DefaultTint));
-    }
 
     public DropStackViewModel? Stack
     {
@@ -36,7 +29,13 @@ public sealed partial class StackColorPicker : UserControl
         }
     }
 
-    public event EventHandler? ColorSelected;
+    public StackColorPicker()
+    {
+        this.InitializeComponent();
+        this.BuildPalette();
+        this.NeutralSwatch.Background = new SolidColorBrush(
+            StackTintPalette.Resolve(DropStack.DefaultTint));
+    }
 
     internal void Configure(Func<string> getTint, Action<string> changeTint)
     {
@@ -58,10 +57,8 @@ public sealed partial class StackColorPicker : UserControl
     {
         for (var column = 0; column < PaletteColumnCount; column++)
         {
-            this.PaletteGrid.ColumnDefinitions.Add(new ColumnDefinition
-            {
-                Width = new GridLength(1, GridUnitType.Star)
-            });
+            this.PaletteGrid.ColumnDefinitions.Add(
+                new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         }
 
         var itemCount = StackTintPalette.Presets.Count + 1;

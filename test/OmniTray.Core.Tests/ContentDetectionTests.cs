@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.Core.Tests;
@@ -50,7 +50,8 @@ public sealed class ContentDetectionTests
     [TestMethod]
     public void ExtractApplicationLinkFromHtml_ReadsNonWebHref()
     {
-        const string html = "<!--StartFragment--><a href=\"mailto:someone&#64;example.com\">Email someone</a><!--EndFragment-->";
+        const string html
+            = "<!--StartFragment--><a href=\"mailto:someone&#64;example.com\">Email someone</a><!--EndFragment-->";
 
         Assert.AreEqual(
             "mailto:someone@example.com",
@@ -60,7 +61,8 @@ public sealed class ContentDetectionTests
     [TestMethod]
     public void ExtractSourceUrlFromHtml_ReadsClipboardSourceHeader()
     {
-        const string html = "Version:1.0\r\nSourceURL:https://contoso.example/sheet\r\n<!--StartFragment--><table><tr><td>A</td></tr></table><!--EndFragment-->";
+        const string html
+            = "Version:1.0\r\nSourceURL:https://contoso.example/sheet\r\n<!--StartFragment--><table><tr><td>A</td></tr></table><!--EndFragment-->";
 
         Assert.AreEqual(
             "https://contoso.example/sheet",
@@ -78,7 +80,8 @@ public sealed class ContentDetectionTests
     [TestMethod]
     public void ContainsHtmlTable_DetectsExcelStyleClipboardMarkup()
     {
-        const string html = "Version:1.0\r\n<meta name=ProgId content=Excel.Sheet><TABLE x:str><!--StartFragment--><tr><td>North</td><td>42</td></tr><!--EndFragment--></TABLE>";
+        const string html
+            = "Version:1.0\r\n<meta name=ProgId content=Excel.Sheet><TABLE x:str><!--StartFragment--><tr><td>North</td><td>42</td></tr><!--EndFragment--></TABLE>";
 
         Assert.IsTrue(ContentDetection.ContainsHtmlTable(html));
         Assert.IsFalse(ContentDetection.ContainsHtmlTable("<img src=\"https://example.com/chart.png\">"));

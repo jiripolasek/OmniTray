@@ -17,6 +17,10 @@ public sealed partial class SettingsWindow : Window
     private readonly StartupTaskService _startupTaskService = new();
     private bool _isUpdatingStartupTask;
 
+    public SettingsViewModel ViewModel { get; }
+
+    public string VersionText { get; } = GetVersionText();
+
     public SettingsWindow()
     {
         this.ViewModel = new SettingsViewModel(
@@ -42,10 +46,6 @@ public sealed partial class SettingsWindow : Window
         this.Closed += (_, _) => this.ViewModel.Dispose();
         this.UpdateToastSystemSettingsLink();
     }
-
-    public SettingsViewModel ViewModel { get; }
-
-    public string VersionText { get; } = GetVersionText();
 
     public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
@@ -95,11 +95,7 @@ public sealed partial class SettingsWindow : Window
     {
         foreach (var template in DropCommandTemplates.All)
         {
-            var item = new MenuFlyoutItem
-            {
-                Tag = template.Id,
-                Text = template.DisplayName
-            };
+            var item = new MenuFlyoutItem { Tag = template.Id, Text = template.DisplayName };
             item.Click += this.OnAddCommandTemplateClick;
             this.AddCommandTemplateFlyout.Items.Add(item);
         }
@@ -147,7 +143,8 @@ public sealed partial class SettingsWindow : Window
         {
             XamlRoot = this.SettingsNavigation.XamlRoot,
             Title = $"Delete “{command.Name}”?",
-            Content = "This removes the configured command from every surface. It does not change any files or folders.",
+            Content
+                = "This removes the configured command from every surface. It does not change any files or folders.",
             PrimaryButtonText = "Delete",
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Close
@@ -182,11 +179,7 @@ public sealed partial class SettingsWindow : Window
             return;
         }
 
-        var commandBox = new ComboBox
-        {
-            Header = "Command",
-            HorizontalAlignment = HorizontalAlignment.Stretch
-        };
+        var commandBox = new ComboBox { Header = "Command", HorizontalAlignment = HorizontalAlignment.Stretch };
         // Runtime DisplayMemberPath lookup has no XAML metadata for these dialog-only models.
         foreach (var candidate in candidates)
         {
@@ -217,11 +210,7 @@ public sealed partial class SettingsWindow : Window
 
     private async void OnAddCommandFolderClick(object sender, RoutedEventArgs args)
     {
-        var nameBox = new TextBox
-        {
-            Header = "Folder name",
-            PlaceholderText = "Utilities"
-        };
+        var nameBox = new TextBox { Header = "Folder name", PlaceholderText = "Utilities" };
         var dialog = new ContentDialog
         {
             XamlRoot = this.SettingsNavigation.XamlRoot,
@@ -312,11 +301,7 @@ public sealed partial class SettingsWindow : Window
 
         var options = this.ViewModel.GetParentFolderOptions(placement);
 
-        var folderBox = new ComboBox
-        {
-            Header = "Parent folder",
-            HorizontalAlignment = HorizontalAlignment.Stretch
-        };
+        var folderBox = new ComboBox { Header = "Parent folder", HorizontalAlignment = HorizontalAlignment.Stretch };
         // Keep the displayed strings and typed options paired by index for the same reason.
         foreach (var option in options)
         {

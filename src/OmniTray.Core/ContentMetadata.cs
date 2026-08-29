@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.Core;
@@ -51,27 +51,6 @@ public enum ContentFacets
 public sealed class ContentProperty : IEquatable<ContentProperty>
 {
     private readonly Func<ContentMetadata, bool> _matches;
-
-    public ContentProperty(
-        string id,
-        string requirementDescription,
-        Func<ContentMetadata, bool> matches)
-    {
-        if (string.IsNullOrWhiteSpace(id))
-        {
-            throw new ArgumentException("A content property ID is required.", nameof(id));
-        }
-
-        if (string.IsNullOrWhiteSpace(requirementDescription))
-        {
-            throw new ArgumentException("A content property description is required.", nameof(requirementDescription));
-        }
-
-        ArgumentNullException.ThrowIfNull(matches);
-        this.Id = id.Trim();
-        this.RequirementDescription = requirementDescription.Trim();
-        this._matches = matches;
-    }
 
     public string Id { get; }
 
@@ -163,6 +142,27 @@ public sealed class ContentProperty : IEquatable<ContentProperty>
 
     public static ContentProperty IsOcrText { get; } =
         HasFacet("omnitray.is-ocr-text", "contain OCR text", ContentFacets.OcrText);
+
+    public ContentProperty(
+        string id,
+        string requirementDescription,
+        Func<ContentMetadata, bool> matches)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            throw new ArgumentException("A content property ID is required.", nameof(id));
+        }
+
+        if (string.IsNullOrWhiteSpace(requirementDescription))
+        {
+            throw new ArgumentException("A content property description is required.", nameof(requirementDescription));
+        }
+
+        ArgumentNullException.ThrowIfNull(matches);
+        this.Id = id.Trim();
+        this.RequirementDescription = requirementDescription.Trim();
+        this._matches = matches;
+    }
 
     public bool IsSatisfiedBy(ContentMetadata metadata) => this._matches(metadata);
 
@@ -311,5 +311,4 @@ public static class ContentMetadataPolicy
 
     private static bool Has(ContentActions actions, ContentActions requested) =>
         (actions & requested) == requested;
-
 }

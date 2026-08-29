@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using Windows.ApplicationModel.DataTransfer;
@@ -13,9 +13,9 @@ namespace OmniTray.Services;
 internal sealed class SystemShareService
 {
     private static readonly TimeSpan DataRequestTimeout = TimeSpan.FromSeconds(5);
-    private readonly object _sync = new();
-    private readonly Dictionary<nint, ShareOperation> _pendingOperations = [];
     private readonly HashSet<ShareOperation> _payloadOperations = [];
+    private readonly Dictionary<nint, ShareOperation> _pendingOperations = [];
+    private readonly object _sync = new();
 
     public async Task ShowAsync(
         nint ownerHwnd,
@@ -118,15 +118,15 @@ internal sealed class SystemShareService
 
     private sealed class PreparedShareContent
     {
-        private readonly IReadOnlyList<IStorageItem> _storageItems;
         private readonly string? _applicationLink;
         private readonly string? _html;
+        private readonly IReadOnlyList<DropItemHtmlResource> _htmlResources;
         private readonly string? _rtf;
-        private readonly string? _sourceUrl;
+        private readonly string? _sourceApplicationLink;
         private readonly string? _sourceApplicationName;
         private readonly string? _sourcePackageFamilyName;
-        private readonly string? _sourceApplicationLink;
-        private readonly IReadOnlyList<DropItemHtmlResource> _htmlResources;
+        private readonly string? _sourceUrl;
+        private readonly IReadOnlyList<IStorageItem> _storageItems;
         private readonly string? _text;
         private readonly string _title;
         private readonly string? _url;
@@ -297,13 +297,21 @@ internal sealed class SystemShareService
 
     private sealed class ShareOperation
     {
-        private readonly SystemShareService _owner;
-        private readonly DataTransferManager _manager;
         private readonly PreparedShareContent _content;
+        private readonly DataTransferManager _manager;
+        private readonly SystemShareService _owner;
+
         private readonly TaskCompletionSource<Exception?> _requestPrepared =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private DataPackage? _dataPackage;
         private int _state;
+
+        public nint OwnerHwnd { get; }
+
+        public IReadOnlyList<DropItem> TransientItems { get; }
+
+        public Task<Exception?> RequestPrepared => this._requestPrepared.Task;
 
         public ShareOperation(
             SystemShareService owner,
@@ -318,12 +326,6 @@ internal sealed class SystemShareService
             this._content = content;
             this.TransientItems = transientItems;
         }
-
-        public nint OwnerHwnd { get; }
-
-        public IReadOnlyList<DropItem> TransientItems { get; }
-
-        public Task<Exception?> RequestPrepared => this._requestPrepared.Task;
 
         public void Start(nint ownerHwnd)
         {
@@ -410,7 +412,8 @@ internal sealed class SystemShareService
             if (previousState == 0)
             {
                 this._requestPrepared.TrySetResult(
-                    pendingError ?? new InvalidOperationException("The Share request ended before Windows requested its content."));
+                    pendingError ??
+                    new InvalidOperationException("The Share request ended before Windows requested its content."));
             }
 
             this._owner.Complete(this, releaseTransientItems);

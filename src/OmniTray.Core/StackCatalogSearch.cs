@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.Core;
@@ -46,24 +46,30 @@ public static class StackCatalogSearch
                 {
                     if (Matches(terms, [note.Text, item.DisplayName, stack.Name]))
                     {
-                        itemMatches.Add(new StackSearchMatch(stack.Id, item.Id, CreatePreview(note.Text, terms), note.Id));
+                        itemMatches.Add(new StackSearchMatch(stack.Id, item.Id, CreatePreview(note.Text, terms),
+                            note.Id));
                     }
                 }
+
                 var text = !string.IsNullOrWhiteSpace(item.Text)
                     ? item.Text
                     : !string.IsNullOrWhiteSpace(item.Html)
                         ? ContentDetection.ExtractPlainTextFromHtml(item.Html)
                         : null;
-                string?[] fields = [item.DisplayName, item.SourcePath, item.Url, item.ApplicationLink,
-                    text, item.SourceUrl, item.SourceApplicationName];
+                string?[] fields =
+                [
+                    item.DisplayName, item.SourcePath, item.Url, item.ApplicationLink,
+                    text, item.SourceUrl, item.SourceApplicationName
+                ];
                 if (!Matches(terms, fields))
                 {
                     continue;
                 }
 
                 var preview = fields.Skip(1).FirstOrDefault(field =>
-                    !string.IsNullOrWhiteSpace(field) && terms.Any(term => field.Contains(term, StringComparison.OrdinalIgnoreCase)))
-                    ?? text ?? item.SourcePath ?? item.Url ?? string.Empty;
+                                  !string.IsNullOrWhiteSpace(field) && terms.Any(term =>
+                                      field.Contains(term, StringComparison.OrdinalIgnoreCase)))
+                              ?? text ?? item.SourcePath ?? item.Url ?? string.Empty;
                 itemMatches.Add(new StackSearchMatch(stack.Id, item.Id, CreatePreview(preview, terms), item.Note?.Id));
             }
         }

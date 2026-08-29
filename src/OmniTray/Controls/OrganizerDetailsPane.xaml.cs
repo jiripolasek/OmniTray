@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.Controls;
@@ -9,10 +9,9 @@ namespace OmniTray.Controls;
 // The editor stays alive across page changes so pending saves and retry state are not lost.
 public sealed partial class OrganizerDetailsPane : UserControl, IDisposable
 {
-    public OrganizerDetailsPane() => this.InitializeComponent();
-
     public OrganizerDetailsViewModel ViewModel { get; } = new();
     internal NoteEditorPane NoteEditor => this.InlineNoteEditor;
+    public OrganizerDetailsPane() => this.InitializeComponent();
 
     internal void ShowEmpty(string title, string description)
     {
@@ -39,8 +38,10 @@ public sealed partial class OrganizerDetailsPane : UserControl, IDisposable
     {
         var hasNote = this.InlineNoteEditor.NoteId is not null;
         this.InlineNoteEditor.Visibility = hasNote ? Visibility.Visible : Visibility.Collapsed;
-        this.DetailsEmptyState.Visibility = !hasNote && this.ViewModel.Item is null ? Visibility.Visible : Visibility.Collapsed;
-        this.DetailsScrollViewer.Visibility = !hasNote && this.ViewModel.Item is not null ? Visibility.Visible : Visibility.Collapsed;
+        this.DetailsEmptyState.Visibility
+            = !hasNote && this.ViewModel.Item is null ? Visibility.Visible : Visibility.Collapsed;
+        this.DetailsScrollViewer.Visibility
+            = !hasNote && this.ViewModel.Item is not null ? Visibility.Visible : Visibility.Collapsed;
     }
 
     public void Dispose()

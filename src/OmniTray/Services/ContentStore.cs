@@ -153,12 +153,13 @@ internal static class ContentStore
         ArgumentNullException.ThrowIfNull(items);
 
         var retained = retainedItems?.ToArray() ?? [];
-        var retainedPaths = retained.Select(item => item.SourcePath).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var retainedPaths = retained.Select(item => item.SourcePath).OfType<string>()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var retainedResources = retained.SelectMany(item => item.HtmlResources)
             .Select(resource => resource.ManagedRelativePath).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         foreach (var item in items.Where(item => item.IsOwned && !string.IsNullOrWhiteSpace(item.SourcePath)
-                     && !retainedPaths.Contains(item.SourcePath)))
+                                                              && !retainedPaths.Contains(item.SourcePath)))
         {
             try
             {
@@ -407,11 +408,7 @@ internal static class ContentStore
                 item.SourceApplicationName,
                 item.ApplicationLink);
         return await CompleteCopyAsync(item, copy.WithMetadata(
-            backing: new ContentBacking
-            {
-                Kind = ContentBackingKind.ManagedSnapshot,
-                Path = copy.SourcePath
-            }));
+            backing: new ContentBacking { Kind = ContentBackingKind.ManagedSnapshot, Path = copy.SourcePath }));
     }
 
     private static async Task<DropItem> CompleteCopyAsync(DropItem source, DropItem copy)
@@ -427,10 +424,7 @@ internal static class ContentStore
                     contentFolder,
                     original.Name,
                     NameCollisionOption.GenerateUniqueName);
-                copiedResources.Add(resource with
-                {
-                    ManagedRelativePath = $"{ContentFolderName}\\{cloned.Name}"
-                });
+                copiedResources.Add(resource with { ManagedRelativePath = $"{ContentFolderName}\\{cloned.Name}" });
             }
 
             return copy

@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.Core;
@@ -18,6 +18,27 @@ public enum NoteColor
 
 public sealed record StickyNote
 {
+    public Guid Id { get; }
+
+    public string Text { get; }
+
+    public string? Rtf { get; }
+
+    public NoteColor Color { get; }
+
+    public DateTimeOffset CreatedAt { get; }
+
+    public DateTimeOffset UpdatedAt { get; }
+
+    public string DisplayName
+    {
+        get
+        {
+            var title = string.Join(' ', this.Text.Split(default(char[]), StringSplitOptions.RemoveEmptyEntries));
+            return title.Length == 0 ? "New note" : title.Length <= 48 ? title : $"{title[..47]}…";
+        }
+    }
+
     public StickyNote(
         Guid id,
         string text,
@@ -48,27 +69,6 @@ public sealed record StickyNote
         this.Color = color;
         this.CreatedAt = createdAt;
         this.UpdatedAt = updatedAt;
-    }
-
-    public Guid Id { get; }
-
-    public string Text { get; }
-
-    public string? Rtf { get; }
-
-    public NoteColor Color { get; }
-
-    public DateTimeOffset CreatedAt { get; }
-
-    public DateTimeOffset UpdatedAt { get; }
-
-    public string DisplayName
-    {
-        get
-        {
-            var title = string.Join(' ', this.Text.Split(default(char[]), StringSplitOptions.RemoveEmptyEntries));
-            return title.Length == 0 ? "New note" : title.Length <= 48 ? title : $"{title[..47]}…";
-        }
     }
 
     public static StickyNote Create(string text = "", string? rtf = null, NoteColor color = NoteColor.Yellow)

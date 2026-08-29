@@ -12,6 +12,9 @@ namespace OmniTray.Services;
 
 internal sealed class TrayWindowSession
 {
+    public event EventHandler? Closed;
+
+    public event EventHandler? StateChanged;
     private readonly TrayWindowContentFactory _contentFactory;
     private readonly TrayContentViewModel _viewModel;
     private Window? _activeWindow;
@@ -19,6 +22,13 @@ internal sealed class TrayWindowSession
     private bool _isClosed;
     private bool _isClosing;
     private SizeInt32 _normalSize;
+
+    public Window ActiveWindow =>
+        this._activeWindow ?? throw new InvalidOperationException("The tray window is closed.");
+
+    public bool IsMinimalMode { get; private set; }
+
+    public SizeInt32 NormalSize => this._normalSize;
 
     public TrayWindowSession(
         TrayContentViewModel viewModel,
@@ -33,17 +43,6 @@ internal sealed class TrayWindowSession
             WindowCoordinator.DipsToPixels(this._activeWindow, TrayWindow.DefaultWidthInDips),
             WindowCoordinator.DipsToPixels(this._activeWindow, TrayWindow.DefaultHeightInDips));
     }
-
-    public Window ActiveWindow =>
-        this._activeWindow ?? throw new InvalidOperationException("The tray window is closed.");
-
-    public bool IsMinimalMode { get; private set; }
-
-    public SizeInt32 NormalSize => this._normalSize;
-
-    public event EventHandler? Closed;
-
-    public event EventHandler? StateChanged;
 
     public void Activate()
     {

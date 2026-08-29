@@ -1,14 +1,15 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
+using System.Runtime.InteropServices;
 using Windows.Storage;
 using Windows.Storage.FileProperties;
 using Windows.Storage.Streams;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace OmniTray.Services;
 
@@ -33,14 +34,14 @@ internal sealed class ContentThumbnailService
     private const int ShellThumbnailAttemptCount = 3;
     private readonly ContentThumbnailRegistry _registry;
 
+    public static ContentThumbnailService Default { get; } =
+        new(ContentThumbnailRegistry.Default);
+
     public ContentThumbnailService(ContentThumbnailRegistry registry)
     {
         ArgumentNullException.ThrowIfNull(registry);
         this._registry = registry;
     }
-
-    public static ContentThumbnailService Default { get; } =
-        new(ContentThumbnailRegistry.Default);
 
     public async Task<ContentThumbnailPresentation> ResolveAsync(
         DropItem item,
@@ -125,7 +126,8 @@ internal sealed class ContentThumbnailService
         string color,
         CancellationToken cancellationToken)
     {
-        var svg = $"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"120\" viewBox=\"0 0 120 120\"><rect width=\"120\" height=\"120\" fill=\"{color}\"/></svg>";
+        var svg
+            = $"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"120\" viewBox=\"0 0 120 120\"><rect width=\"120\" height=\"120\" fill=\"{color}\"/></svg>";
         using var stream = new InMemoryRandomAccessStream();
         using (var writer = new DataWriter(stream))
         {
@@ -174,13 +176,13 @@ internal sealed class ContentThumbnailService
             {
                 return await TryLoadShellThumbnailOnceAsync(item, metadata, cancellationToken);
             }
-            catch (System.Runtime.InteropServices.COMException exception)
+            catch (COMException exception)
                 when (exception.HResult == PendingThumbnailHResult &&
                       attempt < ShellThumbnailAttemptCount - 1)
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(50 * (attempt + 1)), cancellationToken);
             }
-            catch (System.Runtime.InteropServices.COMException exception)
+            catch (COMException exception)
                 when (exception.HResult == PendingThumbnailHResult)
             {
                 return null;
@@ -256,7 +258,7 @@ internal sealed class ContentThumbnailService
         {
             throw;
         }
-        catch (System.Runtime.InteropServices.COMException exception)
+        catch (COMException exception)
             when (exception.HResult == PendingThumbnailHResult)
         {
             throw;

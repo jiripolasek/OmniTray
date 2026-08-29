@@ -19,11 +19,6 @@ internal sealed partial class TintedAcrylicBackdrop : SystemBackdrop
     private Color _tintColor;
     private XamlRoot? _xamlRoot;
 
-    public TintedAcrylicBackdrop(Color tintColor)
-    {
-        this._tintColor = tintColor;
-    }
-
     public static bool IsSupported => DesktopAcrylicController.IsSupported();
 
     public Color TintColor
@@ -39,6 +34,11 @@ internal sealed partial class TintedAcrylicBackdrop : SystemBackdrop
     public float TintOpacity { get; set; } = 0.24f;
 
     public float LuminosityOpacity { get; set; } = 0.78f;
+
+    public TintedAcrylicBackdrop(Color tintColor)
+    {
+        this._tintColor = tintColor;
+    }
 
     protected override void OnTargetConnected(
         ICompositionSupportsSystemBackdrop connectedTarget,

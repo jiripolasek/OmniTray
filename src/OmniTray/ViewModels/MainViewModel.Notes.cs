@@ -1,16 +1,16 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.ViewModels;
 
 public partial class MainViewModel
 {
-    private DropStack[] _lastNoteStacks = [];
     private readonly List<DeletedNote> _deletedNotes = [];
     private readonly List<NoteCaptureHistory> _noteHistory = [];
+    private DropStack[] _lastNoteStacks = [];
 
     public IReadOnlyList<DeletedNote> DeletedNotes => this._deletedNotes;
 
@@ -33,6 +33,7 @@ public partial class MainViewModel
             this._deletedNotes.RemoveAll(item => item.Note.Id == deleted.Note.Id);
             this._deletedNotes.Add(deleted);
         }
+
         this._lastNoteStacks = current;
         this.CatalogChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -51,7 +52,7 @@ public partial class MainViewModel
     {
         var stacks = this.GetNoteStacks();
         var source = stacks.SingleOrDefault(stack => stack.Id == stackId)
-            ?? throw new ArgumentException("The source stack no longer exists.", nameof(stackId));
+                     ?? throw new ArgumentException("The source stack no longer exists.", nameof(stackId));
         var (updatedStack, note) = NoteOperations.ConvertTextItem(source, itemId, duplicate, plainText);
         var updated = stacks.Select(stack => stack.Id == stackId ? updatedStack : stack).ToArray();
         NoteOperations.Validate(updated);
@@ -76,6 +77,7 @@ public partial class MainViewModel
             this._noteHistory.Remove(history);
             this._noteHistory.Add(history with { NoteId = note.Id });
         }
+
         this._deletedNotes.Remove(deleted);
         this.ApplyNoteChanges(stacks);
         return note;

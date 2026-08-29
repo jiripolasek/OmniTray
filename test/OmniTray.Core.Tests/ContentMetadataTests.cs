@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.Core.Tests;
@@ -46,7 +46,8 @@ public sealed class ContentMetadataTests
     public void ExcelRange_IsTextWithRichRepresentationsAndTabularFacet()
     {
         const string plainText = "Region\tSales\r\nNorth\t42";
-        const string html = "Version:1.0\r\n<!--StartFragment--><table><tr><td>Region</td><td>Sales</td></tr></table><!--EndFragment-->";
+        const string html
+            = "Version:1.0\r\n<!--StartFragment--><table><tr><td>Region</td><td>Sales</td></tr></table><!--EndFragment-->";
         const string rtf = @"{\rtf1\ansi Region\tab Sales\par North\tab 42}";
         var item = DropItem.CreateRichText(plainText, html, rtf, sourceApplicationName: "Microsoft Excel");
 
@@ -147,8 +148,7 @@ public sealed class ContentMetadataTests
                 [
                     new DataFormatInventoryEntry
                     {
-                        FormatId = "Contoso.OcrText",
-                        Status = DataFormatReadStatus.Succeeded
+                        FormatId = "Contoso.OcrText", Status = DataFormatReadStatus.Succeeded
                     }
                 ]
             });
@@ -165,9 +165,7 @@ public sealed class ContentMetadataTests
     {
         var resource = new DropItemHtmlResource
         {
-            ResourceKey = "https://example.com/chart.png",
-            ManagedRelativePath = @"Content\chart.png",
-            Size = 42
+            ResourceKey = "https://example.com/chart.png", ManagedRelativePath = @"Content\chart.png", Size = 42
         };
         var item = DropItem.CreateText(
                 "Open draft",
@@ -195,7 +193,8 @@ public sealed class ContentMetadataTests
     public void ExcelRange_ExportPlanReAdvertisesExactRichRepresentations()
     {
         const string plainText = "Region\tSales\r\nNorth\t42";
-        const string html = "Version:1.0\r\nStartHTML:0000000105\r\n<!--StartFragment--><table><tr><td>Region</td><td>Sales</td></tr></table><!--EndFragment-->";
+        const string html
+            = "Version:1.0\r\nStartHTML:0000000105\r\n<!--StartFragment--><table><tr><td>Region</td><td>Sales</td></tr></table><!--EndFragment-->";
         const string rtf = @"{\rtf1\ansi Region\tab Sales\par North\tab 42}";
         var item = DropItem.CreateRichText(plainText, html, rtf);
 
@@ -260,7 +259,8 @@ public sealed class ContentMetadataTests
     public void PreviouslyCapturedExcelRange_DoesNotExportImageFallback()
     {
         const string plainText = "Region\tSales\r\nNorth\t42";
-        const string html = "Version:1.0\r\n<!--StartFragment--><table><tr><td>Region</td><td>Sales</td></tr></table><!--EndFragment-->";
+        const string html
+            = "Version:1.0\r\n<!--StartFragment--><table><tr><td>Region</td><td>Sales</td></tr></table><!--EndFragment-->";
         const string rtf = @"{\rtf1\ansi Region\tab Sales\par North\tab 42}";
         var item = DropItem.CreateImage(
             "Dropped image",

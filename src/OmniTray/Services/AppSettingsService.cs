@@ -105,6 +105,41 @@ internal sealed class AppSettingsService
         set => this._localSettings.Values[HorizontalStackCardDisplayModeKey] = (int)value;
     }
 
+    public bool SyncLeftAndRightEdgeContent
+    {
+        get => this.GetBoolean(SyncLeftAndRightEdgeContentKey, false);
+        set => this._localSettings.Values[SyncLeftAndRightEdgeContentKey] = value;
+    }
+
+    public bool SyncTopAndBottomEdgeContent
+    {
+        get => this.GetBoolean(SyncTopAndBottomEdgeContentKey, false);
+        set => this._localSettings.Values[SyncTopAndBottomEdgeContentKey] = value;
+    }
+
+    public bool SyncAllEdgeContent
+    {
+        get => this.GetBoolean(SyncAllEdgeContentKey, false);
+        set => this._localSettings.Values[SyncAllEdgeContentKey] = value;
+    }
+
+    public ToastPosition ToastPosition
+    {
+        get
+        {
+            if (this._localSettings.Values.TryGetValue(ToastPositionKey, out var value) &&
+                value is int storedValue &&
+                Enum.IsDefined(typeof(ToastPosition), storedValue))
+            {
+                return (ToastPosition)storedValue;
+            }
+
+            return ToastPosition.UseSystemSettings;
+        }
+
+        set => this._localSettings.Values[ToastPositionKey] = (int)value;
+    }
+
     public EdgeWindowSizeMode GetEdgeWindowSizeMode(EdgeShelfSide side) =>
         this.GetEnum($"{side}EdgeWindowSizeMode", EdgeWindowSizeMode.Reasonable);
 
@@ -149,41 +184,6 @@ internal sealed class AppSettingsService
         }
 
         this._localSettings.Values[GetEdgeWindowDockThicknessKey(displayId, side)] = thickness;
-    }
-
-    public bool SyncLeftAndRightEdgeContent
-    {
-        get => this.GetBoolean(SyncLeftAndRightEdgeContentKey, false);
-        set => this._localSettings.Values[SyncLeftAndRightEdgeContentKey] = value;
-    }
-
-    public bool SyncTopAndBottomEdgeContent
-    {
-        get => this.GetBoolean(SyncTopAndBottomEdgeContentKey, false);
-        set => this._localSettings.Values[SyncTopAndBottomEdgeContentKey] = value;
-    }
-
-    public bool SyncAllEdgeContent
-    {
-        get => this.GetBoolean(SyncAllEdgeContentKey, false);
-        set => this._localSettings.Values[SyncAllEdgeContentKey] = value;
-    }
-
-    public ToastPosition ToastPosition
-    {
-        get
-        {
-            if (this._localSettings.Values.TryGetValue(ToastPositionKey, out var value) &&
-                value is int storedValue &&
-                Enum.IsDefined(typeof(ToastPosition), storedValue))
-            {
-                return (ToastPosition)storedValue;
-            }
-
-            return ToastPosition.UseSystemSettings;
-        }
-
-        set => this._localSettings.Values[ToastPositionKey] = (int)value;
     }
 
     private bool GetBoolean(string key, bool defaultValue) =>

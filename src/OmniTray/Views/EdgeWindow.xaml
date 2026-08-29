@@ -263,7 +263,9 @@
                                                         Tag="{x:Bind}"
                                                         Unloaded="OnStackDragSurfaceUnloaded">
                                                         <Button.Resources />
-                                                        <Grid MinHeight="{x:Bind CardLayout.HeaderMinHeight, Mode=OneWay}" Padding="7,5">
+                                                        <Grid
+                                                            MinHeight="{x:Bind CardLayout.HeaderMinHeight, Mode=OneWay}"
+                                                            Padding="7,5">
                                                             <Grid.RowDefinitions>
                                                                 <RowDefinition Height="Auto" />
                                                                 <RowDefinition Height="Auto" />
@@ -559,7 +561,8 @@
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <SymbolIcon Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Symbol="Paste" />
+                                    <SymbolIcon Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                                Symbol="Paste" />
                                     <TextBlock
                                         Grid.Column="1"
                                         VerticalAlignment="Center"
@@ -577,7 +580,8 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <Grid x:Name="HorizontalTargetRail" MinHeight="{x:Bind ViewModel.HorizontalStackCardLayout.HorizontalPanelCollapsedHeight, Mode=OneWay}">
+                        <Grid x:Name="HorizontalTargetRail"
+                              MinHeight="{x:Bind ViewModel.HorizontalStackCardLayout.HorizontalPanelCollapsedHeight, Mode=OneWay}">
                             <ScrollViewer
                                 x:Name="HorizontalRailScrollViewer"
                                 Padding="10,8,108,8"
@@ -587,7 +591,9 @@
                                 VerticalScrollMode="Disabled"
                                 ZoomMode="Disabled">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
-                                    <Grid MinWidth="{x:Bind ViewModel.HorizontalStackCardLayout.HorizontalCardWidth, Mode=OneWay}" MinHeight="{x:Bind ViewModel.HorizontalStackCardLayout.HorizontalCardHeight, Mode=OneWay}">
+                                    <Grid
+                                        MinWidth="{x:Bind ViewModel.HorizontalStackCardLayout.HorizontalCardWidth, Mode=OneWay}"
+                                        MinHeight="{x:Bind ViewModel.HorizontalStackCardLayout.HorizontalCardHeight, Mode=OneWay}">
                                         <ListView
                                             x:Name="HorizontalStackList"
                                             AllowDrop="True"
@@ -909,7 +915,9 @@
                                                 HorizontalAlignment="Center"
                                                 Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                                 CornerRadius="8">
-                                                <SymbolIcon Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Symbol="Paste" />
+                                                <SymbolIcon
+                                                    Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                                    Symbol="Paste" />
                                             </Border>
                                             <TextBlock
                                                 Width="{x:Bind ViewModel.HorizontalStackCardLayout.HorizontalActionNameWidth, Mode=OneWay}"

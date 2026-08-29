@@ -134,7 +134,8 @@ internal sealed partial class StackItemListItem : ListItem
         var classifications = metadata.Tags;
         if (classifications.Count > 0)
         {
-            body += $"  \n**Classifications:** {string.Join(", ", classifications.Select(static tag => tag.DisplayName))}";
+            body
+                += $"  \n**Classifications:** {string.Join(", ", classifications.Select(static tag => tag.DisplayName))}";
         }
 
         if (!string.IsNullOrWhiteSpace(item.Text))

@@ -29,6 +29,10 @@ public sealed partial class MainPage : Page
     private bool _isFilterApplied;
     private bool _isStackDragOperationActive;
 
+    public MainViewModel ViewModel => App.Current.StackCatalogViewModel;
+
+    private bool IsCommandsTabSelected => this.PopupSectionSelector.SelectedIndex == 1;
+
     public MainPage()
     {
         this._stackPointerMovedHandler = this.OnStackPointerMoved;
@@ -65,8 +69,6 @@ public sealed partial class MainPage : Page
         this._inspectorPopupHost?.Dispose();
         this._inspectorPopupHost = null;
     }
-
-    public MainViewModel ViewModel => App.Current.StackCatalogViewModel;
 
     private void OnNewNoteClick(object sender, RoutedEventArgs args) =>
         App.Current.CreateQuickNote((this._expandedStackOrganizer?.Tag as DropStackViewModel)?.Model.Id);
@@ -846,8 +848,6 @@ public sealed partial class MainPage : Page
             ? Visibility.Collapsed
             : Visibility.Visible;
     }
-
-    private bool IsCommandsTabSelected => this.PopupSectionSelector.SelectedIndex == 1;
 
     private void OnPopupSectionSelectionChanged(object sender, SelectionChangedEventArgs args) =>
         this.UpdateSelectedPopupSection();

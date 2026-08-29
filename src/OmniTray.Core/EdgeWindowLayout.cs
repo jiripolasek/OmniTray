@@ -8,18 +8,18 @@ namespace OmniTray.Core;
 
 public sealed record EdgeWindowLayout
 {
+    public Guid Id { get; }
+
+    public string Name { get; }
+
+    public IReadOnlyList<Guid> StackIds { get; }
+
     private EdgeWindowLayout(Guid id, string name, IReadOnlyList<Guid> stackIds)
     {
         this.Id = id;
         this.Name = name;
         this.StackIds = stackIds;
     }
-
-    public Guid Id { get; }
-
-    public string Name { get; }
-
-    public IReadOnlyList<Guid> StackIds { get; }
 
     public static EdgeWindowLayout Create(string name, IEnumerable<Guid>? stackIds = null)
     {
@@ -55,12 +55,12 @@ public sealed record EdgeWindowLayout
 
 public sealed record EdgeLayout
 {
+    public IReadOnlyList<EdgeWindowLayout> Windows { get; }
+
     private EdgeLayout(IReadOnlyList<EdgeWindowLayout> windows)
     {
         this.Windows = windows;
     }
-
-    public IReadOnlyList<EdgeWindowLayout> Windows { get; }
 
     public static EdgeLayout Create(IEnumerable<EdgeWindowLayout> windows)
     {

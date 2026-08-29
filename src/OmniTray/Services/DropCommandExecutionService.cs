@@ -1,12 +1,12 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.Diagnostics;
-using Microsoft.VisualBasic.FileIO;
 using Windows.ApplicationModel.DataTransfer;
+using Microsoft.VisualBasic.FileIO;
 
 namespace OmniTray.Services;
 
@@ -397,8 +397,7 @@ internal sealed class DropCommandExecutionService
             out var executable);
         var startInfo = new ProcessStartInfo(executable)
         {
-            UseShellExecute = false,
-            WorkingDirectory = Path.GetDirectoryName(executable) ?? string.Empty
+            UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(executable) ?? string.Empty
         };
         if (DropCommandTemplates.TryGetParameter(
                 command,
@@ -561,9 +560,9 @@ internal sealed class DropCommandExecutionService
                 input.Items.Select(static item => item.Item.Id).ToArray(),
                 0,
                 null,
-                ConsumeSuccessfulSourceItems: false,
-                OwnsTransientItemLifetime: true,
-                ReportsProgressExternally: true);
+                false,
+                true,
+                true);
         }
         catch (Exception exception)
         {

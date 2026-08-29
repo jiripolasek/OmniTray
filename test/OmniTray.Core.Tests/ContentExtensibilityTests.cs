@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.Core.Tests;
@@ -17,7 +17,7 @@ public sealed class ContentExtensibilityTests
             "contain an invoice",
             static metadata => metadata.Tags.Any(tag => tag.Id == "contoso.invoice"));
         var metadata = CreateMetadata(
-            tags: [new ContentTag { Id = "contoso.invoice", DisplayName = "Invoice" }]);
+            [new ContentTag { Id = "contoso.invoice", DisplayName = "Invoice" }]);
         var requirement = ContentRequirement.All(property);
 
         Assert.IsTrue(requirement.IsSatisfiedBy([metadata]));
@@ -37,8 +37,7 @@ public sealed class ContentExtensibilityTests
             10,
             static _ => new ContentMetadataContribution
             {
-                Representations = ContentRepresentations.Custom,
-                Actions = ContentActions.Copy
+                Representations = ContentRepresentations.Custom, Actions = ContentActions.Copy
             }));
 
         var composition = registry.Compose(DropItem.CreateText("Invoice"));
@@ -120,10 +119,7 @@ public sealed class ContentExtensibilityTests
             "contoso.working",
             1,
             static (_, _) => ValueTask.FromResult<ContentThumbnailDescriptor?>(
-                ContentThumbnailDescriptor.CreateGlyph("X", "Custom") with
-                {
-                    ProviderId = "spoofed.provider"
-                })));
+                ContentThumbnailDescriptor.CreateGlyph("X", "Custom") with { ProviderId = "spoofed.provider" })));
 
         var result = await registry.ResolveAsync(
             DropItem.CreateText("Value"),
@@ -169,10 +165,7 @@ public sealed class ContentExtensibilityTests
             "contoso.invalid-chrome",
             0,
             static (_, _) => ValueTask.FromResult<ContentThumbnailDescriptor?>(
-                ContentThumbnailDescriptor.CreateGlyph("X", "Invalid") with
-                {
-                    Chrome = (ContentThumbnailChrome)99
-                })));
+                ContentThumbnailDescriptor.CreateGlyph("X", "Invalid") with { Chrome = (ContentThumbnailChrome)99 })));
         registry.Register(new TestThumbnailProvider(
             "contoso.fallback",
             1,

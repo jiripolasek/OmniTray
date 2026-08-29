@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.Collections.ObjectModel;
@@ -10,10 +10,12 @@ namespace OmniTray.ViewModels.Organizer;
 
 public sealed partial class NoteLibraryViewModel(MainViewModel catalog) : ObservableObject, IDisposable
 {
+    internal event EventHandler? SelectedNoteChanged;
     private bool _active;
     private bool _isRefreshing;
 
     public ObservableCollection<NoteLibraryEntry> Entries { get; } = [];
+
     [ObservableProperty]
     public partial NoteLibraryEntry? SelectedEntry { get; private set; }
 
@@ -26,7 +28,7 @@ public sealed partial class NoteLibraryViewModel(MainViewModel catalog) : Observ
     [ObservableProperty]
     public partial bool IsErrorOpen { get; set; }
 
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanUseCommands))]
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanUseCommands))]
     public partial bool IsBusy { get; private set; }
 
     [ObservableProperty]
@@ -40,9 +42,9 @@ public sealed partial class NoteLibraryViewModel(MainViewModel catalog) : Observ
 
     [ObservableProperty]
     public partial string FilterText { get; set; } = string.Empty;
+
     public bool CanUseCommands => !this.IsBusy;
     internal Guid? SelectedNoteId => this.SelectedEntry is { IsDeleted: false } entry ? entry.Note.Id : null;
-    internal event EventHandler? SelectedNoteChanged;
 
     partial void OnShowDeletedChanged(bool value) => this.Refresh();
     partial void OnFilterTextChanged(string value) => this.Refresh();
@@ -50,6 +52,7 @@ public sealed partial class NoteLibraryViewModel(MainViewModel catalog) : Observ
     internal void SetActive(bool active)
     {
         if (this._active == active) { return; }
+
         this._active = active;
         if (active)
         {
@@ -62,6 +65,7 @@ public sealed partial class NoteLibraryViewModel(MainViewModel catalog) : Observ
     internal void SetSelection(NoteLibraryEntry? entry)
     {
         if (!this._active || this._isRefreshing) { return; }
+
         this.SelectedEntry = entry;
         this.NotifySelectionChanged();
     }
@@ -72,16 +76,18 @@ public sealed partial class NoteLibraryViewModel(MainViewModel catalog) : Observ
         this.SelectedNoteChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private void OnCatalogChanged(object? sender, EventArgs args) => this.Refresh(keepSelected: true);
+    private void OnCatalogChanged(object? sender, EventArgs args) => this.Refresh(true);
 
     private void Refresh(bool keepSelected = false)
     {
         if (!this._active) { return; }
+
         var selectedId = this.SelectedEntry?.Note.Id;
         var stacks = catalog.Stacks.Select(stack => stack.Model).ToArray();
         var entries = this.ShowDeleted
             ? catalog.DeletedNotes.Select(entry => new NoteLibraryEntry(entry.Note,
-                entry.ItemName is null ? entry.StackName : $"{entry.StackName} · {entry.ItemName}", entry.DeletedAt, true))
+                entry.ItemName is null ? entry.StackName : $"{entry.StackName} · {entry.ItemName}", entry.DeletedAt,
+                true))
             : NoteOperations.Enumerate(stacks).Select(location =>
             {
                 var stack = stacks.Single(stack => stack.Id == location.Target.StackId);
@@ -91,9 +97,11 @@ public sealed partial class NoteLibraryViewModel(MainViewModel catalog) : Observ
             });
         var terms = this.FilterText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         var results = entries.Where(entry => (keepSelected && entry.Note.Id == selectedId) || terms.All(term =>
-            entry.Note.Text.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-            entry.Note.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-            entry.Location.Contains(term, StringComparison.OrdinalIgnoreCase))).OrderByDescending(entry => entry.Time).ToArray();
+                entry.Note.Text.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                entry.Note.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                entry.Location.Contains(term, StringComparison.OrdinalIgnoreCase)))
+            .OrderByDescending(entry => entry.Time)
+            .ToArray();
 
         // Selection changes caused by rebuilding the list must not unload an editor during a local keystroke.
         this._isRefreshing = true;
@@ -101,9 +109,11 @@ public sealed partial class NoteLibraryViewModel(MainViewModel catalog) : Observ
         {
             this.Entries.Clear();
             foreach (var entry in results) { this.Entries.Add(entry); }
+
             this.SelectedEntry = this.Entries.FirstOrDefault(entry => entry.Note.Id == selectedId);
         }
         finally { this._isRefreshing = false; }
+
         this.NotifySelectionChanged();
         this.OpenLabel = this.ShowDeleted ? "Restore" : "Open";
         this.Summary = $"{results.Length} notes. " + (this.ShowDeleted
@@ -126,6 +136,7 @@ public sealed partial class NoteLibraryViewModel(MainViewModel catalog) : Observ
     private async Task RunAsync(Func<Task> operation)
     {
         if (this.IsBusy || !this._active) { return; }
+
         this.IsBusy = true;
         this.IsErrorOpen = false;
         try { await operation(); }

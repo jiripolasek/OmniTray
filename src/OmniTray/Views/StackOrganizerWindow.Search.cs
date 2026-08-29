@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using Microsoft.UI.Xaml.Data;
@@ -13,8 +13,8 @@ namespace OmniTray.Views;
 
 public sealed partial class StackOrganizerWindow
 {
-    private readonly FrameworkElement _searchPopupFooter;
     private readonly TextBlock _searchPopupEmptyState;
+    private readonly FrameworkElement _searchPopupFooter;
 
     private void OnOrganizerTitleBarSizeChanged(object sender, SizeChangedEventArgs args)
     {
@@ -33,13 +33,20 @@ public sealed partial class StackOrganizerWindow
     private async void OnGlobalSearchTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
     {
         if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) { return; }
+
         this.ClearSearchSuggestions();
         var query = sender.Text.Trim();
         if (query.Length == 0) { return; }
+
         var groups = await this.ViewModel.Search.FindSuggestionsAsync(query);
-        if (groups is null || this._isOrganizerClosed || sender.Text.Trim() != query || !this.IsSearchBoxFocused()) { return; }
+        if (groups is null || this._isOrganizerClosed || sender.Text.Trim() != query || !this.IsSearchBoxFocused())
+        {
+            return;
+        }
+
         this.UpdateSearchPopupFooter(query, groups.Count > 0);
-        sender.ItemsSource = groups.Count == 0 ? null
+        sender.ItemsSource = groups.Count == 0
+            ? null
             : new CollectionViewSource { IsSourceGrouped = true, Source = groups }.View;
         sender.IsSuggestionListOpen = true;
     }
@@ -75,6 +82,7 @@ public sealed partial class StackOrganizerWindow
     private void SubmitSearch(string query, StackSearchResultViewModel? chosenResult)
     {
         if (!this.Navigation.BeginSearch(query, this.ViewModel.Stack.SelectedItem?.Model.Id)) { return; }
+
         this.ClearSearchSuggestions();
         if (chosenResult is { } result) { this.OpenSearchResult(result); }
         else { this.ShowSearchResults(); }
@@ -83,6 +91,7 @@ public sealed partial class StackOrganizerWindow
     private void ShowSearchResults()
     {
         if (this._isOrganizerClosed) { return; }
+
         this.LeaveNotesPage();
         this.ClearSearchSuggestions();
         this.Navigation.ShowSearch();
@@ -93,10 +102,11 @@ public sealed partial class StackOrganizerWindow
         this.SearchHost.Content = this._searchPage;
         this.SearchHost.Visibility = Visibility.Visible;
         this.GlobalSearchBox.Text = this.Navigation.SearchQuery;
-        _ = this._searchPage.RefreshAsync(this.Navigation, focusResults: true);
+        _ = this._searchPage.RefreshAsync(this.Navigation, true);
     }
 
-    private void OnSearchResultOpened(object? sender, StackSearchResultViewModel result) => this.OpenSearchResult(result);
+    private void OnSearchResultOpened(object? sender, StackSearchResultViewModel result) =>
+        this.OpenSearchResult(result);
 
     private void OpenSearchResult(StackSearchResultViewModel result)
     {
@@ -107,10 +117,13 @@ public sealed partial class StackOrganizerWindow
                 App.Current.ShowToast("That note is no longer available.", InfoBarSeverity.Warning);
                 return;
             }
+
             App.Current.ShowNote(note.Id);
             return;
         }
-        var stack = this.ViewModel.Catalog.Stacks.FirstOrDefault(candidate => candidate.Model.Id == result.Stack.Model.Id);
+
+        var stack = this.ViewModel.Catalog.Stacks.FirstOrDefault(candidate =>
+            candidate.Model.Id == result.Stack.Model.Id);
         var itemId = result.Item?.Model.Id;
         if (stack is null || (itemId is { } id && stack.Items.All(item => item.Model.Id != id)))
         {
@@ -118,8 +131,9 @@ public sealed partial class StackOrganizerWindow
             this.ShowSearchResults();
             return;
         }
+
         this.Navigation.OpenSearchResult(stack.Model.Id, itemId);
-        this.OpenStack(stack, fromSearch: true);
+        this.OpenStack(stack, true);
         if (itemId is { } selectedItemId) { this._stackPage.RevealItem(selectedItemId); }
     }
 
@@ -132,15 +146,21 @@ public sealed partial class StackOrganizerWindow
             this.ShowNotesPage();
             return;
         }
+
         var stack = this.ViewModel.Catalog.Stacks.FirstOrDefault(candidate => candidate.Model.Id == origin?.StackId);
-        if (stack is null) { this.ShowOverview(); return; }
+        if (stack is null)
+        {
+            this.ShowOverview();
+            return;
+        }
+
         this.OpenStack(stack);
         if (origin?.ItemId is { } id) { this._stackPage.RevealItem(id); }
     }
 
     private void LeaveSearchResults(bool retainSearchNavigation)
     {
-        this.ViewModel.Search.CancelResults(clear: !retainSearchNavigation);
+        this.ViewModel.Search.CancelResults(!retainSearchNavigation);
         this.ClearSearchSuggestions();
         this.SearchHost.Visibility = Visibility.Collapsed;
         this.SearchHost.Content = null;

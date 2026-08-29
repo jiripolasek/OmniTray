@@ -1,12 +1,11 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using OmniTray.Core;
 
 namespace OmniTray.Services;
 
@@ -24,7 +23,8 @@ internal static class StackCatalogJson
         var history = catalog.NoteHistory.Select(entry => new NoteCaptureHistory(entry.NoteId,
             entry.SourceStackId, entry.SourceStackName, RestoreItem(entry.SourceItem),
             entry.SourceIndex, entry.IsConversion)).ToArray();
-        var deleted = catalog.DeletedNotes.Select(entry => entry with { Target = entry.Target.NormalizePlacement() }).ToArray();
+        var deleted = catalog.DeletedNotes.Select(entry => entry with { Target = entry.Target.NormalizePlacement() })
+            .ToArray();
         NoteRecovery.ValidateHistory(stacks, deleted, history);
         return new StackCatalogState(
             stacks,
@@ -40,15 +40,18 @@ internal static class StackCatalogJson
         return new StackCatalogDocument
         {
             DeletedNotes = [.. state.DeletedNotes],
-            NoteHistory = [.. state.NoteHistory.Select(history => new NoteHistoryDocument
-            {
-                NoteId = history.NoteId,
-                SourceStackId = history.SourceStackId,
-                SourceStackName = history.SourceStackName,
-                SourceItem = CreateItemDocument(history.SourceItem),
-                SourceIndex = history.SourceIndex,
-                IsConversion = history.IsConversion
-            })],
+            NoteHistory =
+            [
+                .. state.NoteHistory.Select(history => new NoteHistoryDocument
+                {
+                    NoteId = history.NoteId,
+                    SourceStackId = history.SourceStackId,
+                    SourceStackName = history.SourceStackName,
+                    SourceItem = CreateItemDocument(history.SourceItem),
+                    SourceIndex = history.SourceIndex,
+                    IsConversion = history.IsConversion
+                })
+            ],
             Stacks = [.. state.Stacks.Select(CreateStackDocument)],
             OpenTrayWindows =
             [
@@ -81,28 +84,28 @@ internal static class StackCatalogJson
         stack.AttachedNotes);
 
     private static DropItem RestoreItem(ItemDocument item) => DropItem.Restore(
-            item.Id,
-            item.Kind,
-            item.DisplayName,
-            item.SourcePath,
-            item.Text,
-            item.Html,
-            item.Rtf,
-            item.Url,
-            item.SourceUrl,
-            item.SourceApplicationName,
-            item.IsOwned,
-            item.CreatedAt,
-            RestoreCustomFormats(item.CustomFormats),
-            item.ApplicationLink,
-            item.SourcePackageFamilyName,
-            item.SourceApplicationLink,
-            item.Capture,
-            item.Backing,
-            item.FileFacts,
-            item.HtmlResources,
-            item.Note,
-            item.AttachedNotes);
+        item.Id,
+        item.Kind,
+        item.DisplayName,
+        item.SourcePath,
+        item.Text,
+        item.Html,
+        item.Rtf,
+        item.Url,
+        item.SourceUrl,
+        item.SourceApplicationName,
+        item.IsOwned,
+        item.CreatedAt,
+        RestoreCustomFormats(item.CustomFormats),
+        item.ApplicationLink,
+        item.SourcePackageFamilyName,
+        item.SourceApplicationLink,
+        item.Capture,
+        item.Backing,
+        item.FileFacts,
+        item.HtmlResources,
+        item.Note,
+        item.AttachedNotes);
 
     private static StackDocument CreateStackDocument(DropStack stack) => new()
     {
@@ -215,7 +218,6 @@ internal static class StackCatalogJson
                     : []))
             .ToArray();
     }
-
 }
 
 internal sealed record StackCatalogState(

@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.Globalization;
@@ -39,8 +39,7 @@ public static class DataFormatInspectionText
         {
             value /= 1024;
             unitIndex++;
-        }
-        while (value >= 1024 && unitIndex < units.Length - 1);
+        } while (value >= 1024 && unitIndex < units.Length - 1);
 
         return string.Create(
             CultureInfo.InvariantCulture,

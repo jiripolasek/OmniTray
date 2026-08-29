@@ -11,6 +11,7 @@ namespace OmniTray.CommandPalette.Sources;
 
 internal sealed class OmniTrayCatalogSource
 {
+    internal event EventHandler? Changed;
     private const string OmniTrayPackageIdentityName = "149aab7e-830a-4928-81d1-74d5a57b1fd9";
     private const string CatalogFileName = "stack-catalog.json";
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
@@ -22,16 +23,14 @@ internal sealed class OmniTrayCatalogSource
     private string? _watchedFolder;
     private FileSystemWatcher? _watcher;
 
-    internal OmniTrayCatalogSource()
-    {
-        _ = Task.Run(this.RefreshAsync);
-    }
-
     internal bool IsInitialized { get; private set; }
 
     internal string? StatusMessage { get; private set; }
 
-    internal event EventHandler? Changed;
+    internal OmniTrayCatalogSource()
+    {
+        _ = Task.Run(this.RefreshAsync);
+    }
 
     internal IReadOnlyList<DropStack> GetSnapshot()
     {

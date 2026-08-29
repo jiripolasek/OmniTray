@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using Microsoft.UI.Dispatching;
@@ -12,6 +12,9 @@ namespace OmniTray.Views;
 
 public sealed partial class MinimalTrayWindow : TransparentWindow
 {
+    internal event EventHandler? CloseRequested;
+
+    internal event EventHandler? ExpandRequested;
     internal const int DefaultSizeInDips = 96;
 
     private readonly TrayWindowAppearanceController _appearance;
@@ -23,6 +26,8 @@ public sealed partial class MinimalTrayWindow : TransparentWindow
     private bool _isContextFlyoutOpen;
     private bool _isPreparingForClose;
     private Action? _pendingContextFlyoutAction;
+
+    internal TrayContentViewModel ViewModel { get; }
 
     internal MinimalTrayWindow(
         TrayContentViewModel viewModel,
@@ -38,10 +43,15 @@ public sealed partial class MinimalTrayWindow : TransparentWindow
         if (viewModel is StackTrayContentViewModel stackContent)
         {
             NoteMenu.SetStack(this.TrayContextFlyout, stackContent.Stack);
-            this.RootGrid.Children.Add(new NoteIndicator { Stack = stackContent.Stack,
-                HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom,
-                Margin = new Thickness(0, 0, 8, 8) });
+            this.RootGrid.Children.Add(new NoteIndicator
+            {
+                Stack = stackContent.Stack,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(0, 0, 8, 8)
+            });
         }
+
         // TransparentWindow starts hidden, so initialize every x:Bind before the
         // HWND can render its first visible frame.
         this.Bindings.Update();
@@ -54,12 +64,6 @@ public sealed partial class MinimalTrayWindow : TransparentWindow
         this.SetTitleBar(this.WindowDragHandle);
         this.Closed += this.OnClosed;
     }
-
-    internal TrayContentViewModel ViewModel { get; }
-
-    internal event EventHandler? CloseRequested;
-
-    internal event EventHandler? ExpandRequested;
 
     internal void PrepareForClose(Action completed)
     {
@@ -101,11 +105,7 @@ public sealed partial class MinimalTrayWindow : TransparentWindow
                 this.TrayContextFlyout.Items.Insert(insertIndex++, new MenuFlyoutSeparator());
             }
 
-            var item = new MenuFlyoutItem
-            {
-                Text = action.Text,
-                Icon = new SymbolIcon(action.Icon)
-            };
+            var item = new MenuFlyoutItem { Text = action.Text, Icon = new SymbolIcon(action.Icon) };
             item.Click += (_, _) => this.RequestAfterContextFlyoutClosed(action.Execute);
             this.TrayContextFlyout.Items.Insert(insertIndex++, item);
         }

@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using Windows.ApplicationModel.DataTransfer;
@@ -17,6 +17,14 @@ internal sealed partial class DropCommandTrayContent : UserControl, ITrayWindowC
     private bool _isStackPickerOpen;
     private MenuFlyout? _stackPicker;
 
+    public DropCommandViewModel ViewModel { get; }
+
+    public bool IsMinimal { get; }
+
+    public FrameworkElement View => this;
+
+    public IReadOnlyList<TrayContextAction> ContextActions { get; } = [];
+
     public DropCommandTrayContent(Window owner, DropCommandViewModel viewModel, bool isMinimal)
     {
         this._owner = owner ?? throw new ArgumentNullException(nameof(owner));
@@ -26,14 +34,6 @@ internal sealed partial class DropCommandTrayContent : UserControl, ITrayWindowC
         this.NormalContent.Visibility = isMinimal ? Visibility.Collapsed : Visibility.Visible;
         this.MinimalContent.Visibility = isMinimal ? Visibility.Visible : Visibility.Collapsed;
     }
-
-    public DropCommandViewModel ViewModel { get; }
-
-    public bool IsMinimal { get; }
-
-    public FrameworkElement View => this;
-
-    public IReadOnlyList<TrayContextAction> ContextActions { get; } = [];
 
     public void PrepareForClose(Action completed)
     {

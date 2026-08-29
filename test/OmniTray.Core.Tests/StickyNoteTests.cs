@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.Core.Tests;
@@ -52,7 +52,7 @@ public sealed class StickyNoteTests
     [TestMethod]
     public void NoteContentRemainsAuthoritativeForItemRepresentations()
     {
-        var note = StickyNote.Create("Current", null, NoteColor.Yellow);
+        var note = StickyNote.Create("Current");
         var item = DropItem.CreateNote(note).WithRepresentations("Stale", rtf: @"{\rtf1 Stale}");
         Assert.AreEqual(note.Text, item.Text);
         Assert.IsNull(item.Rtf);
@@ -81,6 +81,7 @@ public sealed class StickyNoteTests
             Assert.AreSame(note, location.Note);
             Assert.HasCount(1, NoteOperations.Enumerate(stacks).ToArray());
         }
+
         Assert.AreSame(stacks, NoteOperations.Relocate(stacks, note.Id, targets[^1]));
     }
 
@@ -117,6 +118,7 @@ public sealed class StickyNoteTests
             Assert.AreEqual(edited.Rtf, item.Rtf);
             Assert.AreEqual(edited.DisplayName, item.DisplayName);
         }
+
         var deleted = NoteOperations.Delete(updated, note.Id);
         Assert.IsNull(NoteOperations.Find(deleted, note.Id));
         Assert.AreEqual(parent.Id, deleted[0].Items[0].Id);
@@ -132,8 +134,11 @@ public sealed class StickyNoteTests
         var stack = DropStack.Create([DropItem.CreateNote(note)]);
         Assert.Throws<ArgumentException>(() => NoteOperations.Add([stack], note,
             new NoteTarget(stack.Id, NotePlacement.StackItem)));
-        Assert.Throws<ArgumentException>(() => NoteOperations.Validate([stack, DropStack.Create([DropItem.CreateText("Parent").WithAttachedNotes([note])])]));
+        Assert.Throws<ArgumentException>(() =>
+            NoteOperations.Validate(
+                [stack, DropStack.Create([DropItem.CreateText("Parent").WithAttachedNotes([note])])]));
     }
+
     [TestMethod]
     public void LegacyStackTargetNormalizesAndDoesNotReorderAnExistingNote()
     {
@@ -143,7 +148,8 @@ public sealed class StickyNoteTests
         Assert.AreEqual(new NoteTarget(stack.Id, NotePlacement.StackItem), NoteOperations.Find(added, note.Id)!.Target);
         var withTail = added[0].Append([DropItem.CreateText("After")]);
         IReadOnlyList<DropStack> current = [withTail];
-        Assert.AreSame(current, NoteOperations.Relocate(current, note.Id, new NoteTarget(stack.Id, NotePlacement.LegacyStack)));
+        Assert.AreSame(current,
+            NoteOperations.Relocate(current, note.Id, new NoteTarget(stack.Id, NotePlacement.LegacyStack)));
         Assert.AreSame(note, current[0].Items[1].Note);
     }
 
@@ -157,5 +163,4 @@ public sealed class StickyNoteTests
         stack = StackOperations.MoveItemsWithin(stack, [second.Id], 0);
         CollectionAssert.AreEqual(new[] { second, first }, NoteOperations.GetStackNotes(stack).ToArray());
     }
-
 }

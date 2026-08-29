@@ -51,7 +51,8 @@
                         FontSize="20"
                         FontWeight="SemiBold"
                         Text="{x:Bind ViewModel.PopupTitle, Mode=OneWay}" />
-                    <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.StackCountText, Mode=OneWay}" />
+                    <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               Text="{x:Bind ViewModel.StackCountText, Mode=OneWay}" />
                 </StackPanel>
                 <Button
                     x:Name="SearchButton"

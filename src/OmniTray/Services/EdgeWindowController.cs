@@ -25,11 +25,11 @@ internal sealed partial class EdgeWindowController : IDisposable
     private readonly DispatcherQueueTimer _displayTimer;
     private readonly DispatcherQueueTimer _gameModeTimer;
     private readonly Dictionary<EdgeHostKey, EdgeWindowHost> _hosts = [];
-    private readonly AppSettingsService _settingsService;
     private readonly Func<bool> _isShakeToCreateTrayEnabled;
     private readonly DispatcherQueueTimer _pointerTimer;
-    private readonly Action<PointInt32> _shakeToCreateTray;
+    private readonly AppSettingsService _settingsService;
     private readonly MouseShakeGestureDetector _shakeDetector;
+    private readonly Action<PointInt32> _shakeToCreateTray;
 
     private readonly MainViewModel _viewModel;
     private NativePoint _buttonDownPoint;
@@ -42,6 +42,8 @@ internal sealed partial class EdgeWindowController : IDisposable
     private bool _leftButtonWasDown;
     private bool _likelyDrag;
     private bool _shakeTriggeredForCurrentPress;
+
+    private bool IsRevealSuppressed => this._isGameModeSuppressing || this._viewModel.EdgeWindowsPaused;
 
     public EdgeWindowController(
         MainViewModel viewModel,
@@ -86,8 +88,6 @@ internal sealed partial class EdgeWindowController : IDisposable
         this._displayTimer.Start();
         this._gameModeTimer.Start();
     }
-
-    private bool IsRevealSuppressed => this._isGameModeSuppressing || this._viewModel.EdgeWindowsPaused;
 
     public void Dispose()
     {
@@ -557,6 +557,7 @@ internal sealed partial class EdgeWindowController : IDisposable
 
     private sealed partial class EdgeWindowHost : IDisposable
     {
+        public event EventHandler? CollapseRequested;
         private const int ExtendedWindowStyle = -20;
         private const nint TransparentExtendedStyle = 0x00000020;
         private const nint NoActivateExtendedStyle = 0x08000000;
@@ -577,8 +578,6 @@ internal sealed partial class EdgeWindowController : IDisposable
 
         private readonly EdgeWindow _window;
         private readonly nint _windowHandle;
-        private RectInt32 _outerBounds;
-        private RectInt32 _workArea;
         private NativePoint? _dockResizeStartCursor;
         private double _dockResizeStartThicknessInDips;
         private double? _dockedThicknessInDips;
@@ -588,14 +587,15 @@ internal sealed partial class EdgeWindowController : IDisposable
         private int _hostWidth;
         private int _hostX;
         private int _hostY;
-        private bool _isDocked;
-        private bool _isDockTemporarilyHidden;
         private bool _isClickThrough;
         private bool _isClosing;
         private bool _isDockResizeActive;
+        private bool _isDockTemporarilyHidden;
+        private bool _isDocked;
         private bool _isFullScreenAppOpen;
-        private bool _isUpdatingAppBarPosition;
         private bool _isTargetExpanded;
+        private bool _isUpdatingAppBarPosition;
+        private RectInt32 _outerBounds;
         private int _panelHeight;
         private int _panelWidth;
         private int _panelX;
@@ -603,6 +603,25 @@ internal sealed partial class EdgeWindowController : IDisposable
         private double _scale;
         private int _shadowMargin;
         private RectInt32 _visiblePanelRect;
+        private RectInt32 _workArea;
+
+        public EdgeHostKey Key { get; }
+
+        public DisplayKey DisplayKey => this.Key.Display;
+
+        public bool IsExpanded { get; private set; }
+
+        public bool IsDocked => this._isDocked;
+
+        public bool IsHintOnly => this._window.AppWindow.IsVisible && !this.IsExpanded && !this._isTargetExpanded;
+
+        public bool IsActualDragOver { get; private set; }
+
+        public bool IsWindowActive { get; private set; }
+
+        public DateTimeOffset LastInteraction { get; private set; }
+
+        public DateTimeOffset ManualOpenUntil { get; private set; }
 
         public EdgeWindowHost(
             EdgeHostKey key,
@@ -659,24 +678,6 @@ internal sealed partial class EdgeWindowController : IDisposable
             }
         }
 
-        public EdgeHostKey Key { get; }
-
-        public DisplayKey DisplayKey => this.Key.Display;
-
-        public bool IsExpanded { get; private set; }
-
-        public bool IsDocked => this._isDocked;
-
-        public bool IsHintOnly => this._window.AppWindow.IsVisible && !this.IsExpanded && !this._isTargetExpanded;
-
-        public bool IsActualDragOver { get; private set; }
-
-        public bool IsWindowActive { get; private set; }
-
-        public DateTimeOffset LastInteraction { get; private set; }
-
-        public DateTimeOffset ManualOpenUntil { get; private set; }
-
         public void Dispose()
         {
             if (this._isClosing)
@@ -703,8 +704,6 @@ internal sealed partial class EdgeWindowController : IDisposable
             this._window.Detach();
             this._window.Close();
         }
-
-        public event EventHandler? CollapseRequested;
 
         public void ShowHint(bool animate)
         {
@@ -980,6 +979,7 @@ internal sealed partial class EdgeWindowController : IDisposable
                 {
                     this._window.AppWindow.Move(new PointInt32(this._outerBounds.X, this._outerBounds.Y));
                 }
+
                 var dpi = GetDpiForWindow(this._windowHandle);
                 this._scale = dpi == 0 ? 1 : dpi / 96d;
                 this._hintThickness = Math.Max(1, (int)Math.Round(EdgeWindow.HintThickness * this._scale));

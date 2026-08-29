@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.Services;
@@ -30,11 +30,11 @@ internal sealed record DropCommandConfirmationRequest(
 
 internal sealed class DropCommandProviderRegistry
 {
+    public event EventHandler? ProvidersChanged;
     private readonly object _gate = new();
+
     private readonly Dictionary<string, DropCommandTemplateDescriptor> _providers =
         new(StringComparer.Ordinal);
-
-    public event EventHandler? ProvidersChanged;
 
     public IReadOnlyList<DropCommandTemplateDescriptor> Providers
     {
@@ -104,6 +104,7 @@ internal static class DropCommandTemplates
         ContentRequirement.All(ContentProperty.HasLocalPath),
         ContentRequirement.All(ContentProperty.HasStorageItem)
     ];
+
     private static readonly IReadOnlyList<ContentRequirement> PackagedAppRequirements =
     [
         ContentRequirement.All(ContentProperty.HasLocalPath),
@@ -132,97 +133,97 @@ internal static class DropCommandTemplates
     }
 
     private static IReadOnlyList<DropCommandTemplateDescriptor> CreateBuiltInProviders() =>
-        [
-            new DropCommandTemplateDescriptor(
-                DropCommandTemplateIds.OpenInApp,
-                "Open in app",
-                "Open dropped content in a desktop executable or an installed packaged app.",
-                "\uE8A7",
-                DesktopAppRequirements,
-                ResolveOpenAppRequirements,
-                true,
-                false,
-                null,
-                static (command, input) => DropCommandExecutionService.ValidateOpenInAppInput(command, input),
-                static (service, command, input, _) => service.OpenInAppAsync(command, input)),
-            new DropCommandTemplateDescriptor(
-                DropCommandTemplateIds.CopyToFolder,
-                "Copy to folder",
-                "Copy dropped files, folders, and images to a chosen folder.",
-                "\uE8B0",
-                [ContentRequirement.All(ContentProperty.HasStorageItem, ContentProperty.HasBitmap)],
-                null,
-                false,
-                true,
-                null,
-                static (command, input) => DropCommandExecutionService.ValidateTransferInput(command, input, false),
-                static (service, command, input, _) => service.TransferToFolderAsync(command, input, false)),
-            new DropCommandTemplateDescriptor(
-                DropCommandTemplateIds.MoveToFolder,
-                "Move to folder",
-                "Move original files, folders, and images to a chosen folder.",
-                "\uE8DE",
-                [
-                    ContentRequirement.All(ContentProperty.HasOriginalPath),
-                    ContentRequirement.All(ContentProperty.HasStorageItem)
-                ],
-                null,
-                false,
-                true,
-                static (command, context) => new DropCommandConfirmationRequest(
-                    command.DisplayName,
-                    context.IsFromStack
-                        ? $"Move {context.ItemCount} {GetItemNoun(context.ItemCount)} using “{command.DisplayName}”? Successful items will be removed from their OmniTray stack."
-                        : $"Move {context.ItemCount} original {GetItemNoun(context.ItemCount)} using “{command.DisplayName}”?",
-                    "Move"),
-                static (command, input) => DropCommandExecutionService.ValidateTransferInput(command, input, true),
-                static (service, command, input, _) => service.TransferToFolderAsync(command, input, true)),
-            new DropCommandTemplateDescriptor(
-                DropCommandTemplateIds.Recycle,
-                "Recycle",
-                "Send original files and folders to the Windows Recycle Bin.",
-                "\uE74D",
-                [
-                    ContentRequirement.All(ContentProperty.HasOriginalPath),
-                    ContentRequirement.All(ContentProperty.HasStorageItem)
-                ],
-                null,
-                false,
-                false,
-                static (command, context) => new DropCommandConfirmationRequest(
-                    command.DisplayName,
-                    $"Send {context.ItemCount} {GetItemNoun(context.ItemCount)} to the Windows Recycle Bin?",
-                    "Recycle"),
-                static (_, input) => DropCommandExecutionService.ValidateRecycleInput(input),
-                static (service, _, input, _) => service.RecycleAsync(input)),
-            new DropCommandTemplateDescriptor(
-                DropCommandTemplateIds.CopyToClipboard,
-                "Copy to clipboard",
-                "Put the dropped content on the Windows clipboard.",
-                "\uE8C8",
-                [ContentRequirement.All(ContentProperty.CanCopy)],
-                null,
-                false,
-                false,
-                null,
-                static (_, _) => null,
-                static (service, command, input, _) => service.CopyToClipboard(command, input)),
-            new DropCommandTemplateDescriptor(
-                DropCommandTemplateIds.Share,
-                "Share",
-                "Share dropped content using the Windows share sheet.",
-                "\uE72D",
-                [ContentRequirement.All(ContentProperty.CanShare)],
-                null,
-                false,
-                false,
-                null,
-                static (_, input) => DropCommandExecutionService.ValidateShareInput(input),
-                static (service, command, input, ownerHwnd) => service.ShareAsync(
-                    command,
-                    input,
-                    ownerHwnd))
-        ];
+    [
+        new(
+            DropCommandTemplateIds.OpenInApp,
+            "Open in app",
+            "Open dropped content in a desktop executable or an installed packaged app.",
+            "\uE8A7",
+            DesktopAppRequirements,
+            ResolveOpenAppRequirements,
+            true,
+            false,
+            null,
+            static (command, input) => DropCommandExecutionService.ValidateOpenInAppInput(command, input),
+            static (service, command, input, _) => service.OpenInAppAsync(command, input)),
+        new(
+            DropCommandTemplateIds.CopyToFolder,
+            "Copy to folder",
+            "Copy dropped files, folders, and images to a chosen folder.",
+            "\uE8B0",
+            [ContentRequirement.All(ContentProperty.HasStorageItem, ContentProperty.HasBitmap)],
+            null,
+            false,
+            true,
+            null,
+            static (command, input) => DropCommandExecutionService.ValidateTransferInput(command, input, false),
+            static (service, command, input, _) => service.TransferToFolderAsync(command, input, false)),
+        new(
+            DropCommandTemplateIds.MoveToFolder,
+            "Move to folder",
+            "Move original files, folders, and images to a chosen folder.",
+            "\uE8DE",
+            [
+                ContentRequirement.All(ContentProperty.HasOriginalPath),
+                ContentRequirement.All(ContentProperty.HasStorageItem)
+            ],
+            null,
+            false,
+            true,
+            static (command, context) => new DropCommandConfirmationRequest(
+                command.DisplayName,
+                context.IsFromStack
+                    ? $"Move {context.ItemCount} {GetItemNoun(context.ItemCount)} using “{command.DisplayName}”? Successful items will be removed from their OmniTray stack."
+                    : $"Move {context.ItemCount} original {GetItemNoun(context.ItemCount)} using “{command.DisplayName}”?",
+                "Move"),
+            static (command, input) => DropCommandExecutionService.ValidateTransferInput(command, input, true),
+            static (service, command, input, _) => service.TransferToFolderAsync(command, input, true)),
+        new(
+            DropCommandTemplateIds.Recycle,
+            "Recycle",
+            "Send original files and folders to the Windows Recycle Bin.",
+            "\uE74D",
+            [
+                ContentRequirement.All(ContentProperty.HasOriginalPath),
+                ContentRequirement.All(ContentProperty.HasStorageItem)
+            ],
+            null,
+            false,
+            false,
+            static (command, context) => new DropCommandConfirmationRequest(
+                command.DisplayName,
+                $"Send {context.ItemCount} {GetItemNoun(context.ItemCount)} to the Windows Recycle Bin?",
+                "Recycle"),
+            static (_, input) => DropCommandExecutionService.ValidateRecycleInput(input),
+            static (service, _, input, _) => service.RecycleAsync(input)),
+        new(
+            DropCommandTemplateIds.CopyToClipboard,
+            "Copy to clipboard",
+            "Put the dropped content on the Windows clipboard.",
+            "\uE8C8",
+            [ContentRequirement.All(ContentProperty.CanCopy)],
+            null,
+            false,
+            false,
+            null,
+            static (_, _) => null,
+            static (service, command, input, _) => service.CopyToClipboard(command, input)),
+        new(
+            DropCommandTemplateIds.Share,
+            "Share",
+            "Share dropped content using the Windows share sheet.",
+            "\uE72D",
+            [ContentRequirement.All(ContentProperty.CanShare)],
+            null,
+            false,
+            false,
+            null,
+            static (_, input) => DropCommandExecutionService.ValidateShareInput(input),
+            static (service, command, input, ownerHwnd) => service.ShareAsync(
+                command,
+                input,
+                ownerHwnd))
+    ];
 
     public static DropCommandInstance CreateInstance(string templateId)
     {

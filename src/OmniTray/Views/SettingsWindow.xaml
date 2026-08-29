@@ -113,7 +113,9 @@
                                     Toggled="OnStartWithWindowsToggled" />
                             </toolkit:SettingsCard>
 
-                            <toolkit:SettingsCard Description="Hide every edge hint and panel until you turn this off. This choice persists across restarts." Header="Pause edge windows">
+                            <toolkit:SettingsCard
+                                Description="Hide every edge hint and panel until you turn this off. This choice persists across restarts."
+                                Header="Pause edge windows">
                                 <toolkit:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE769;" />
                                 </toolkit:SettingsCard.HeaderIcon>
@@ -124,7 +126,9 @@
                                     OnContent="Paused" />
                             </toolkit:SettingsCard>
 
-                            <toolkit:SettingsCard Description="Hide edge windows while Windows reports fullscreen Direct3D, presentation, or busy activity." Header="Game mode">
+                            <toolkit:SettingsCard
+                                Description="Hide edge windows while Windows reports fullscreen Direct3D, presentation, or busy activity."
+                                Header="Game mode">
                                 <toolkit:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE7FC;" />
                                 </toolkit:SettingsCard.HeaderIcon>
@@ -172,7 +176,9 @@
                                 Style="{ThemeResource BodyStrongTextBlockStyle}"
                                 Text="Diagnostics" />
 
-                            <toolkit:SettingsCard Description="See every standard and custom format advertised by a drop or the clipboard." Header="Data format inspector">
+                            <toolkit:SettingsCard
+                                Description="See every standard and custom format advertised by a drop or the clipboard."
+                                Header="Data format inspector">
                                 <toolkit:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE9D9;" />
                                 </toolkit:SettingsCard.HeaderIcon>
@@ -196,10 +202,12 @@
                                 <TextBlock Text="{x:Bind VersionText}" />
                                 <toolkit:SettingsExpander.Items>
                                     <toolkit:SettingsCard Header="Website">
-                                        <HyperlinkButton Content="jiripolasek.com" NavigateUri="https://jiripolasek.com" />
+                                        <HyperlinkButton Content="jiripolasek.com"
+                                                         NavigateUri="https://jiripolasek.com" />
                                     </toolkit:SettingsCard>
                                     <toolkit:SettingsCard Header="Source code">
-                                        <HyperlinkButton Content="github.com/jiripolasek/omnitray" NavigateUri="https://github.com/jiripolasek/omnitray" />
+                                        <HyperlinkButton Content="github.com/jiripolasek/omnitray"
+                                                         NavigateUri="https://github.com/jiripolasek/omnitray" />
                                     </toolkit:SettingsCard>
                                     <toolkit:SettingsCard Header="Copyright">
                                         <TextBlock Text="© Jiří Polášek 2024–2026" />
@@ -233,7 +241,9 @@
                                 Margin="0,0,0,6"
                                 Style="{ThemeResource BodyStrongTextBlockStyle}"
                                 Text="Interaction" />
-                            <toolkit:SettingsCard Description="Pause over a stack preview or minimal tray icon to open its inspector." Header="Open inspector on hover">
+                            <toolkit:SettingsCard
+                                Description="Pause over a stack preview or minimal tray icon to open its inspector."
+                                Header="Open inspector on hover">
                                 <ToggleSwitch
                                     x:Name="OpenInspectorOnHoverToggle"
                                     AutomationProperties.Name="Open tray inspector on hover"
@@ -248,7 +258,9 @@
                                 Margin="0,0,0,6"
                                 Style="{ThemeResource BodyStrongTextBlockStyle}"
                                 Text="Appearance" />
-                            <toolkit:SettingsCard Description="Show every tray set to Neutral using the Windows accent color." Header="Use Windows accent for neutral trays">
+                            <toolkit:SettingsCard
+                                Description="Show every tray set to Neutral using the Windows accent color."
+                                Header="Use Windows accent for neutral trays">
                                 <ToggleSwitch
                                     x:Name="UseSystemAccentForNeutralToggle"
                                     AutomationProperties.Name="Use Windows accent for neutral trays"
@@ -256,7 +268,9 @@
                                     OnContent="On"
                                     Toggled="OnUseSystemAccentForNeutralToggled" />
                             </toolkit:SettingsCard>
-                            <toolkit:SettingsCard Description="Used in the main popup and on the left and right edge shelves." Header="Vertical stack cards">
+                            <toolkit:SettingsCard
+                                Description="Used in the main popup and on the left and right edge shelves."
+                                Header="Vertical stack cards">
                                 <ComboBox
                                     MinWidth="{StaticResource SettingActionControlMinWidth}"
                                     AutomationProperties.Name="Vertical stack card style"
@@ -266,7 +280,8 @@
                                     <ComboBoxItem Content="Thumbnail icons" />
                                 </ComboBox>
                             </toolkit:SettingsCard>
-                            <toolkit:SettingsCard Description="Used on the top and bottom edge shelves." Header="Horizontal stack cards">
+                            <toolkit:SettingsCard Description="Used on the top and bottom edge shelves."
+                                                  Header="Horizontal stack cards">
                                 <ComboBox
                                     MinWidth="{StaticResource SettingActionControlMinWidth}"
                                     AutomationProperties.Name="Horizontal stack card style"
@@ -283,7 +298,9 @@
                                 Margin="0,0,0,6"
                                 Style="{ThemeResource BodyStrongTextBlockStyle}"
                                 Text="Drag behavior" />
-                            <toolkit:SettingsCard Description="While dragging files, text, images, or stack items, quickly shake the mouse to open a new tray under the pointer, then release to drop." Header="Shake to create a tray">
+                            <toolkit:SettingsCard
+                                Description="While dragging files, text, images, or stack items, quickly shake the mouse to open a new tray under the pointer, then release to drop."
+                                Header="Shake to create a tray">
                                 <ToggleSwitch
                                     x:Name="ShakeToCreateTrayToggle"
                                     AutomationProperties.Name="Shake the mouse while dragging to create a tray"
@@ -291,7 +308,9 @@
                                     OnContent="On"
                                     Toggled="OnShakeToCreateTrayToggled" />
                             </toolkit:SettingsCard>
-                            <toolkit:SettingsCard Description="Regular drags copy. When enabled, hold Shift as you start dragging original files to allow a move." Header="Allow Shift-drag to move original files">
+                            <toolkit:SettingsCard
+                                Description="Regular drags copy. When enabled, hold Shift as you start dragging original files to allow a move."
+                                Header="Allow Shift-drag to move original files">
                                 <ToggleSwitch
                                     x:Name="AllowMoveOnDragOutToggle"
                                     AutomationProperties.Name="Allow Shift-drag to move original files"
@@ -307,11 +326,15 @@
                                 Style="{ThemeResource BodyStrongTextBlockStyle}"
                                 Text="Edge trays" />
 
-                            <toolkit:SettingsExpander Description="Enable and arrange each edge tray independently. Settings apply on every connected display." Header="Edge tray layout">
+                            <toolkit:SettingsExpander
+                                Description="Enable and arrange each edge tray independently. Settings apply on every connected display."
+                                Header="Edge tray layout">
                                 <TextBlock Text="Per display" />
                                 <toolkit:SettingsExpander.Items>
-                                    <toolkit:SettingsCard Description="Configure the tray attached to the left edge." Header="Left edge">
-                                        <StackPanel MinWidth="{StaticResource SettingActionControlMinWidth}" Spacing="8">
+                                    <toolkit:SettingsCard Description="Configure the tray attached to the left edge."
+                                                          Header="Left edge">
+                                        <StackPanel MinWidth="{StaticResource SettingActionControlMinWidth}"
+                                                    Spacing="8">
                                             <ToggleSwitch
                                                 AutomationProperties.Name="Enable left edge window"
                                                 IsOn="{x:Bind ViewModel.LeftEdgeWindowEnabled, Mode=TwoWay}"
@@ -335,8 +358,10 @@
                                             </ComboBox>
                                         </StackPanel>
                                     </toolkit:SettingsCard>
-                                    <toolkit:SettingsCard Description="Configure the tray attached to the right edge." Header="Right edge">
-                                        <StackPanel MinWidth="{StaticResource SettingActionControlMinWidth}" Spacing="8">
+                                    <toolkit:SettingsCard Description="Configure the tray attached to the right edge."
+                                                          Header="Right edge">
+                                        <StackPanel MinWidth="{StaticResource SettingActionControlMinWidth}"
+                                                    Spacing="8">
                                             <ToggleSwitch
                                                 AutomationProperties.Name="Enable right edge window"
                                                 IsOn="{x:Bind ViewModel.RightEdgeWindowEnabled, Mode=TwoWay}"
@@ -360,8 +385,10 @@
                                             </ComboBox>
                                         </StackPanel>
                                     </toolkit:SettingsCard>
-                                    <toolkit:SettingsCard Description="Configure the tray attached to the top edge." Header="Top edge">
-                                        <StackPanel MinWidth="{StaticResource SettingActionControlMinWidth}" Spacing="8">
+                                    <toolkit:SettingsCard Description="Configure the tray attached to the top edge."
+                                                          Header="Top edge">
+                                        <StackPanel MinWidth="{StaticResource SettingActionControlMinWidth}"
+                                                    Spacing="8">
                                             <ToggleSwitch
                                                 AutomationProperties.Name="Enable top edge window"
                                                 IsOn="{x:Bind ViewModel.TopEdgeWindowEnabled, Mode=TwoWay}"
@@ -385,8 +412,10 @@
                                             </ComboBox>
                                         </StackPanel>
                                     </toolkit:SettingsCard>
-                                    <toolkit:SettingsCard Description="Configure the tray attached to the bottom edge." Header="Bottom edge">
-                                        <StackPanel MinWidth="{StaticResource SettingActionControlMinWidth}" Spacing="8">
+                                    <toolkit:SettingsCard Description="Configure the tray attached to the bottom edge."
+                                                          Header="Bottom edge">
+                                        <StackPanel MinWidth="{StaticResource SettingActionControlMinWidth}"
+                                                    Spacing="8">
                                             <ToggleSwitch
                                                 AutomationProperties.Name="Enable bottom edge window"
                                                 IsOn="{x:Bind ViewModel.BottomEdgeWindowEnabled, Mode=TwoWay}"
@@ -413,10 +442,14 @@
                                 </toolkit:SettingsExpander.Items>
                             </toolkit:SettingsExpander>
 
-                            <toolkit:SettingsExpander Description="Shared windows use one ordered tray. Enabling a switch merges content into its named destination; turning it off does not redistribute stacks." Header="Synchronize edge tray content">
+                            <toolkit:SettingsExpander
+                                Description="Shared windows use one ordered tray. Enabling a switch merges content into its named destination; turning it off does not redistribute stacks."
+                                Header="Synchronize edge tray content">
                                 <TextBlock Text="Optional" />
                                 <toolkit:SettingsExpander.Items>
-                                    <toolkit:SettingsCard Description="Show one tray on both sides. Enabling appends Right content to Left." Header="Left and right">
+                                    <toolkit:SettingsCard
+                                        Description="Show one tray on both sides. Enabling appends Right content to Left."
+                                        Header="Left and right">
                                         <ToggleSwitch
                                             AutomationProperties.Name="Synchronize left and right edge tray content"
                                             IsEnabled="{x:Bind ViewModel.CanConfigurePairedEdgeContentSync, Mode=OneWay}"
@@ -424,7 +457,9 @@
                                             OffContent="Separate"
                                             OnContent="Shared" />
                                     </toolkit:SettingsCard>
-                                    <toolkit:SettingsCard Description="Show one tray on both edges. Enabling appends Bottom content to Top." Header="Top and bottom">
+                                    <toolkit:SettingsCard
+                                        Description="Show one tray on both edges. Enabling appends Bottom content to Top."
+                                        Header="Top and bottom">
                                         <ToggleSwitch
                                             AutomationProperties.Name="Synchronize top and bottom edge tray content"
                                             IsEnabled="{x:Bind ViewModel.CanConfigurePairedEdgeContentSync, Mode=OneWay}"
@@ -432,7 +467,9 @@
                                             OffContent="Separate"
                                             OnContent="Shared" />
                                     </toolkit:SettingsCard>
-                                    <toolkit:SettingsCard Description="Show one tray on every edge. Enabling appends Right, Top, and Bottom content to Left." Header="All edge trays">
+                                    <toolkit:SettingsCard
+                                        Description="Show one tray on every edge. Enabling appends Right, Top, and Bottom content to Left."
+                                        Header="All edge trays">
                                         <ToggleSwitch
                                             AutomationProperties.Name="Synchronize all edge tray content"
                                             IsOn="{x:Bind ViewModel.SyncAllEdgeContent, Mode=TwoWay}"
@@ -476,7 +513,8 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Spacing="2">
-                                    <TextBlock Style="{ThemeResource BodyStrongTextBlockStyle}" Text="Configured commands" />
+                                    <TextBlock Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                               Text="Configured commands" />
                                     <TextBlock
                                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                         Text="Parameters and accepted content are shared everywhere the command appears."
@@ -542,7 +580,8 @@
                                                 Grid.Column="1"
                                                 VerticalAlignment="Center"
                                                 Spacing="1">
-                                                <TextBlock Style="{ThemeResource BodyStrongTextBlockStyle}" Text="{x:Bind Name, Mode=OneWay}" />
+                                                <TextBlock Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                                           Text="{x:Bind Name, Mode=OneWay}" />
                                                 <TextBlock
                                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                     Text="{x:Bind Summary, Mode=OneWay}"
@@ -673,7 +712,8 @@
                                                 Grid.Column="1"
                                                 VerticalAlignment="Center"
                                                 Spacing="1">
-                                                <TextBlock Style="{ThemeResource BodyStrongTextBlockStyle}" Text="{x:Bind DisplayName, Mode=OneWay}" />
+                                                <TextBlock Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                                           Text="{x:Bind DisplayName, Mode=OneWay}" />
                                                 <TextBlock
                                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                     Text="{x:Bind Summary, Mode=OneWay}"

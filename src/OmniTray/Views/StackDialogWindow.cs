@@ -5,6 +5,7 @@
 // ------------------------------------------------------------
 
 using System.Runtime.InteropServices;
+using Windows.Graphics;
 using Microsoft.UI.Windowing;
 using WinRT.Interop;
 
@@ -15,9 +16,9 @@ internal sealed partial class StackDialogWindow : TransparentWindow
     private const int DefaultHeightInDips = 272;
     private const int DefaultWidthInDips = 520;
     private const int GwlpHwndParent = -8;
+    private readonly nint _ownerHandle;
 
     private readonly Grid _root = new();
-    private readonly nint _ownerHandle;
     private bool _isClosed;
     private bool _isOwnerDisabled;
 
@@ -59,8 +60,12 @@ internal sealed partial class StackDialogWindow : TransparentWindow
     }
 
     internal static Task<bool> ShowContentAsync(
-        Window owner, string title, UIElement content, string primaryButtonText,
-        int heightInDips, Func<bool> onPrimary)
+        Window owner,
+        string title,
+        UIElement content,
+        string primaryButtonText,
+        int heightInDips,
+        Func<bool> onPrimary)
     {
         var window = new StackDialogWindow(owner, title, heightInDips);
         return window.ShowCoreAsync(title, content, primaryButtonText, onPrimary);
@@ -73,6 +78,7 @@ internal sealed partial class StackDialogWindow : TransparentWindow
         Func<bool>? onPrimary = null)
     {
         var loaded = new TaskCompletionSource<XamlRoot>();
+
         void OnLoaded(object sender, RoutedEventArgs args)
         {
             this._root.Loaded -= OnLoaded;
@@ -130,7 +136,7 @@ internal sealed partial class StackDialogWindow : TransparentWindow
         var width = WindowCoordinator.DipsToPixels(this, DefaultWidthInDips);
         var height = WindowCoordinator.DipsToPixels(this, heightInDips);
         var workArea = DisplayArea.GetFromWindowId(owner.AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
-        this.AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(
+        this.AppWindow.MoveAndResize(new RectInt32(
             workArea.X + ((workArea.Width - width) / 2),
             workArea.Y + ((workArea.Height - height) / 2),
             width,

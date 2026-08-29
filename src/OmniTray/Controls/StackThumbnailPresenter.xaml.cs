@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using Microsoft.UI.Xaml.Media;
@@ -100,12 +100,6 @@ public sealed partial class StackThumbnailPresenter : UserControl
         typeof(StackThumbnailPresenter),
         new PropertyMetadata(false, OnPresentationChanged));
 
-    public StackThumbnailPresenter()
-    {
-        this.InitializeComponent();
-        this.UpdatePresentation();
-    }
-
     public Brush? FrameBackground
     {
         get => (Brush?)this.GetValue(FrameBackgroundProperty);
@@ -194,6 +188,12 @@ public sealed partial class StackThumbnailPresenter : UserControl
     {
         get => (bool)this.GetValue(HasVideoFilmstripProperty);
         set => this.SetValue(HasVideoFilmstripProperty, value);
+    }
+
+    public StackThumbnailPresenter()
+    {
+        this.InitializeComponent();
+        this.UpdatePresentation();
     }
 
     private static void OnPresentationChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args) =>

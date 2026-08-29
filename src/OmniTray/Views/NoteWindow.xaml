@@ -45,13 +45,15 @@
                                 Opened="OnHeaderFlyoutOpened" Closed="OnHeaderFlyoutClosed">
                             <StackPanel MaxWidth="260" Spacing="8">
                                 <TextBlock x:Name="UpdatedText" FontSize="12" TextWrapping="Wrap" />
-                                <TextBlock x:Name="CreatedText" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                <TextBlock x:Name="CreatedText" FontSize="12"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                            TextWrapping="Wrap" />
                                 <HyperlinkButton Padding="0" HorizontalAlignment="Left" Click="OnLocationClick"
                                                  AutomationProperties.Name="Go to note location">
                                     <TextBlock x:Name="LocationText" FontSize="12" TextWrapping="Wrap" />
                                 </HyperlinkButton>
-                                <TextBlock x:Name="SaveStatusText" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                <TextBlock x:Name="SaveStatusText" FontSize="12"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                            Text="Changes save automatically" TextWrapping="Wrap" />
                             </StackPanel>
                         </Flyout>
@@ -64,61 +66,95 @@
                         <MenuFlyout Placement="BottomEdgeAlignedRight" Opening="OnColorMenuOpening"
                                     Opened="OnHeaderFlyoutOpened" Closed="OnHeaderFlyoutClosed">
                             <MenuFlyoutSubItem x:Name="ColorMenu" Text="Note color">
-                                <MenuFlyoutSubItem.Icon><SymbolIcon Symbol="Highlight" /></MenuFlyoutSubItem.Icon>
+                                <MenuFlyoutSubItem.Icon>
+                                    <SymbolIcon Symbol="Highlight" />
+                                </MenuFlyoutSubItem.Icon>
                             </MenuFlyoutSubItem>
                             <ToggleMenuFlyoutItem x:Name="KeepOnTopButton" Text="Keep on top" Click="OnKeepOnTopClick">
-                                <ToggleMenuFlyoutItem.Icon><SymbolIcon Symbol="Pin" /></ToggleMenuFlyoutItem.Icon>
+                                <ToggleMenuFlyoutItem.Icon>
+                                    <SymbolIcon Symbol="Pin" />
+                                </ToggleMenuFlyoutItem.Icon>
                             </ToggleMenuFlyoutItem>
                             <MenuFlyoutSeparator />
                             <MenuFlyoutItem Text="Append clipboard" Click="OnAppendClipboardClick">
-                                <MenuFlyoutItem.Icon><SymbolIcon Symbol="Paste" /></MenuFlyoutItem.Icon>
+                                <MenuFlyoutItem.Icon>
+                                    <SymbolIcon Symbol="Paste" />
+                                </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
-                            <MenuFlyoutItem Text="Append clipboard with timestamp" Click="OnAppendClipboardWithTimeClick" />
-                            <MenuFlyoutItem x:Name="ShowSourceButton" Text="Go to source item" Click="OnShowSourceClick" Visibility="Collapsed">
-                                <MenuFlyoutItem.Icon><SymbolIcon Symbol="Go" /></MenuFlyoutItem.Icon>
+                            <MenuFlyoutItem Text="Append clipboard with timestamp"
+                                            Click="OnAppendClipboardWithTimeClick" />
+                            <MenuFlyoutItem x:Name="ShowSourceButton" Text="Go to source item"
+                                            Click="OnShowSourceClick" Visibility="Collapsed">
+                                <MenuFlyoutItem.Icon>
+                                    <SymbolIcon Symbol="Go" />
+                                </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
-                            <MenuFlyoutItem x:Name="InspectSourceButton" Text="View original capture" Click="OnInspectSourceClick" Visibility="Collapsed">
-                                <MenuFlyoutItem.Icon><SymbolIcon Symbol="View" /></MenuFlyoutItem.Icon>
+                            <MenuFlyoutItem x:Name="InspectSourceButton" Text="View original capture"
+                                            Click="OnInspectSourceClick" Visibility="Collapsed">
+                                <MenuFlyoutItem.Icon>
+                                    <SymbolIcon Symbol="View" />
+                                </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
-                            <MenuFlyoutItem x:Name="UndoConversionButton" Text="Undo conversion" Click="OnUndoConversionClick" Visibility="Collapsed">
-                                <MenuFlyoutItem.Icon><SymbolIcon Symbol="Undo" /></MenuFlyoutItem.Icon>
+                            <MenuFlyoutItem x:Name="UndoConversionButton" Text="Undo conversion"
+                                            Click="OnUndoConversionClick" Visibility="Collapsed">
+                                <MenuFlyoutItem.Icon>
+                                    <SymbolIcon Symbol="Undo" />
+                                </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
                             <MenuFlyoutItem Text="Move or attach…" Click="OnMoveClick">
-                                <MenuFlyoutItem.Icon><SymbolIcon Symbol="MoveToFolder" /></MenuFlyoutItem.Icon>
+                                <MenuFlyoutItem.Icon>
+                                    <SymbolIcon Symbol="MoveToFolder" />
+                                </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
                             <MenuFlyoutItem x:Name="DetachButton" Text="Detach to stack item" Click="OnDetachClick">
-                                <MenuFlyoutItem.Icon><SymbolIcon Symbol="UnPin" /></MenuFlyoutItem.Icon>
+                                <MenuFlyoutItem.Icon>
+                                    <SymbolIcon Symbol="UnPin" />
+                                </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
                             <MenuFlyoutItem Text="Save now" Click="OnSaveClick">
-                                <MenuFlyoutItem.Icon><SymbolIcon Symbol="Save" /></MenuFlyoutItem.Icon>
+                                <MenuFlyoutItem.Icon>
+                                    <SymbolIcon Symbol="Save" />
+                                </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
                             <MenuFlyoutSeparator />
                             <MenuFlyoutItem Text="Delete note" Click="OnDeleteClick">
-                                <MenuFlyoutItem.Icon><SymbolIcon Symbol="Delete" /></MenuFlyoutItem.Icon>
+                                <MenuFlyoutItem.Icon>
+                                    <SymbolIcon Symbol="Delete" />
+                                </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
                         </MenuFlyout>
                     </Button.Flyout>
                 </Button>
                 <Button x:Name="MinimizeButton" Style="{StaticResource NoteHeaderButtonStyle}"
-                        AutomationProperties.Name="Minimize note" ToolTipService.ToolTip="Minimize" Click="OnMinimizeClick">
+                        AutomationProperties.Name="Minimize note" ToolTipService.ToolTip="Minimize"
+                        Click="OnMinimizeClick">
                     <FontIcon Glyph="&#xE921;" FontSize="10" />
                 </Button>
                 <Button x:Name="CloseButton" Style="{StaticResource NoteHeaderButtonStyle}"
-                        AutomationProperties.Name="Close note" ToolTipService.ToolTip="Close (Alt+F4)" Click="OnCloseClick">
+                        AutomationProperties.Name="Close note" ToolTipService.ToolTip="Close (Alt+F4)"
+                        Click="OnCloseClick">
                     <Button.Resources>
                         <ResourceDictionary>
                             <ResourceDictionary.ThemeDictionaries>
                                 <ResourceDictionary x:Key="Default">
-                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="{ThemeResource SystemFillColorCritical}" />
-                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="{ThemeResource SystemFillColorCritical}" />
-                                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="{ThemeResource TextOnAccentFillColorPrimary}" />
-                                    <SolidColorBrush x:Key="ButtonForegroundPressed" Color="{ThemeResource TextOnAccentFillColorPrimary}" />
+                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver"
+                                                     Color="{ThemeResource SystemFillColorCritical}" />
+                                    <SolidColorBrush x:Key="ButtonBackgroundPressed"
+                                                     Color="{ThemeResource SystemFillColorCritical}" />
+                                    <SolidColorBrush x:Key="ButtonForegroundPointerOver"
+                                                     Color="{ThemeResource TextOnAccentFillColorPrimary}" />
+                                    <SolidColorBrush x:Key="ButtonForegroundPressed"
+                                                     Color="{ThemeResource TextOnAccentFillColorPrimary}" />
                                 </ResourceDictionary>
                                 <ResourceDictionary x:Key="HighContrast">
-                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="{ThemeResource SystemColorHighlightColor}" />
-                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="{ThemeResource SystemColorHighlightColor}" />
-                                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="{ThemeResource SystemColorHighlightTextColor}" />
-                                    <SolidColorBrush x:Key="ButtonForegroundPressed" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver"
+                                                     Color="{ThemeResource SystemColorHighlightColor}" />
+                                    <SolidColorBrush x:Key="ButtonBackgroundPressed"
+                                                     Color="{ThemeResource SystemColorHighlightColor}" />
+                                    <SolidColorBrush x:Key="ButtonForegroundPointerOver"
+                                                     Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                    <SolidColorBrush x:Key="ButtonForegroundPressed"
+                                                     Color="{ThemeResource SystemColorHighlightTextColor}" />
                                 </ResourceDictionary>
                             </ResourceDictionary.ThemeDictionaries>
                         </ResourceDictionary>

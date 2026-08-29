@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using Windows.ApplicationModel.DataTransfer;
@@ -15,11 +15,17 @@ namespace OmniTray.Views.Organizer;
 
 public sealed partial class StackOverviewPage : Page
 {
+    internal event EventHandler<DropStackViewModel>? StackOpened;
+    internal event EventHandler? NewStackRequested;
+    internal event EventHandler? ClipboardStackRequested;
     private readonly MainViewModel _catalog;
     private readonly ListInsertionAdornerController _stackInsertionAdorner;
     private readonly PointerEventHandler _stackPointerMovedHandler;
-    private bool _isStackDragOperationActive;
     private bool _isRefreshing;
+    private bool _isStackDragOperationActive;
+
+    public StackOverviewViewModel ViewModel { get; }
+    internal Guid? SelectedStackId => (this.StackGrid.SelectedItem as DropStackViewModel)?.Model.Id;
 
     internal StackOverviewPage(MainViewModel catalog, StackOverviewViewModel viewModel)
     {
@@ -27,21 +33,18 @@ public sealed partial class StackOverviewPage : Page
         this.ViewModel = viewModel;
         this._stackPointerMovedHandler = this.OnStackPointerMoved;
         this.InitializeComponent();
-        this._stackInsertionAdorner = new(this.StackGrid, "StackInsertionAdorner", Orientation.Horizontal);
+        this._stackInsertionAdorner
+            = new ListInsertionAdornerController(this.StackGrid, "StackInsertionAdorner", Orientation.Horizontal);
         this._stackInsertionAdorner.SetLayout(Orientation.Horizontal, true);
         this.ApplyOverviewLayout(this.ViewModel.LayoutMode);
     }
 
-    public StackOverviewViewModel ViewModel { get; }
-    internal event EventHandler<DropStackViewModel>? StackOpened;
-    internal event EventHandler? NewStackRequested;
-    internal event EventHandler? ClipboardStackRequested;
-    internal Guid? SelectedStackId => (this.StackGrid.SelectedItem as DropStackViewModel)?.Model.Id;
     internal void ClearInsertionAdorner() => this._stackInsertionAdorner.Clear();
 
     internal void SelectStack(DropStackViewModel stack)
     {
         if (!this.ViewModel.VisibleStacks.Contains(stack)) { return; }
+
         this.StackGrid.SelectedItems.Clear();
         this.StackGrid.SelectedItem = stack;
         this.StackGrid.ScrollIntoView(stack);
@@ -62,6 +65,7 @@ public sealed partial class StackOverviewPage : Page
             }
         }
         finally { this._isRefreshing = false; }
+
         this.UpdateOverviewSelection();
     }
 
@@ -71,7 +75,8 @@ public sealed partial class StackOverviewPage : Page
         this.RefreshVisibleStacks();
     }
 
-    private void OnStackGridSelectionChanged(object sender, SelectionChangedEventArgs args) => this.UpdateOverviewSelection();
+    private void OnStackGridSelectionChanged(object sender, SelectionChangedEventArgs args) =>
+        this.UpdateOverviewSelection();
 
     private void UpdateOverviewSelection()
     {
@@ -82,9 +87,16 @@ public sealed partial class StackOverviewPage : Page
     }
 
     private void OpenStack(DropStackViewModel stack) => this.StackOpened?.Invoke(this, stack);
-    private void OnNewStackClick(object sender, RoutedEventArgs args) => this.NewStackRequested?.Invoke(this, EventArgs.Empty);
-    private void OnNewStackFromClipboardClick(object sender, RoutedEventArgs args) => this.ClipboardStackRequested?.Invoke(this, EventArgs.Empty);
-    private void OnNewNoteClick(object sender, RoutedEventArgs args) => App.Current.CreateQuickNote(this.SelectedStackId);
+
+    private void OnNewStackClick(object sender, RoutedEventArgs args) =>
+        this.NewStackRequested?.Invoke(this, EventArgs.Empty);
+
+    private void OnNewStackFromClipboardClick(object sender, RoutedEventArgs args) =>
+        this.ClipboardStackRequested?.Invoke(this, EventArgs.Empty);
+
+    private void OnNewNoteClick(object sender, RoutedEventArgs args) =>
+        App.Current.CreateQuickNote(this.SelectedStackId);
+
     private void OnBrowseNotesClick(object sender, RoutedEventArgs args) => App.Current.ShowNotes();
 
     private void OnManualSortClick(object sender, RoutedEventArgs args) =>
@@ -191,7 +203,7 @@ public sealed partial class StackOverviewPage : Page
         if (sender is UIElement source)
         {
             source.AddHandler(
-                UIElement.PointerMovedEvent,
+                PointerMovedEvent,
                 this._stackPointerMovedHandler,
                 true);
         }
@@ -201,7 +213,7 @@ public sealed partial class StackOverviewPage : Page
     {
         if (sender is UIElement source)
         {
-            source.RemoveHandler(UIElement.PointerMovedEvent, this._stackPointerMovedHandler);
+            source.RemoveHandler(PointerMovedEvent, this._stackPointerMovedHandler);
         }
     }
 
@@ -259,9 +271,10 @@ public sealed partial class StackOverviewPage : Page
             ? this._catalog.Stacks.FirstOrDefault(stack => stack.Model.Id == stackId)
             : null;
         var canMove = target is not null && (source is null ||
-            (this.ViewModel.ScopeSide is { } side
-                ? this._catalog.CanMoveStackToEdge(source, side, target.Value.InsertionIndex)
-                : this._catalog.CanMoveStack(source, target.Value.InsertionIndex)));
+                                             (this.ViewModel.ScopeSide is { } side
+                                                 ? this._catalog.CanMoveStackToEdge(source, side,
+                                                     target.Value.InsertionIndex)
+                                                 : this._catalog.CanMoveStack(source, target.Value.InsertionIndex)));
         if (!canMove)
         {
             this._stackInsertionAdorner.Clear();
@@ -400,7 +413,9 @@ public sealed partial class StackOverviewPage : Page
         var count = this.ViewModel.AssignSelectionToEdge(side);
         if (count > 0)
         {
-            App.Current.ShowToast($"Moved {count} {(count == 1 ? "stack" : "stacks")} to the {side.GetDisplayName().ToLowerInvariant()} edge.", InfoBarSeverity.Success);
+            App.Current.ShowToast(
+                $"Moved {count} {(count == 1 ? "stack" : "stacks")} to the {side.GetDisplayName().ToLowerInvariant()} edge.",
+                InfoBarSeverity.Success);
         }
     }
 
@@ -409,7 +424,8 @@ public sealed partial class StackOverviewPage : Page
         var count = this.ViewModel.AssignSelectionToEdge(null);
         if (count > 0)
         {
-            App.Current.ShowToast($"Removed {count} {(count == 1 ? "stack" : "stacks")} from the edge shelves.", InfoBarSeverity.Success);
+            App.Current.ShowToast($"Removed {count} {(count == 1 ? "stack" : "stacks")} from the edge shelves.",
+                InfoBarSeverity.Success);
         }
     }
 }

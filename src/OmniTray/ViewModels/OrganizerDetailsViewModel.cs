@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.ViewModels;
@@ -41,7 +41,9 @@ public sealed partial class OrganizerDetailsViewModel : ObservableObject
         this.StackName = stack?.Name ?? string.Empty;
         this.Added = item?.Model.CreatedAt.LocalDateTime.ToString("g") ?? string.Empty;
         this.HasSize = item?.Model.FileFacts?.Size is not null;
-        this.Size = item?.Model.FileFacts?.Size is { } size ? DataFormatInspectionText.FormatByteCount(size) : string.Empty;
+        this.Size = item?.Model.FileFacts?.Size is { } size
+            ? DataFormatInspectionText.FormatByteCount(size)
+            : string.Empty;
         (this.LocationLabel, this.Location) = item is not null ? GetLocation(item.Model) : (string.Empty, string.Empty);
     }
 
@@ -74,5 +76,4 @@ public sealed partial class OrganizerDetailsViewModel : ObservableObject
 
         return ("Storage", "Stored in OmniTray");
     }
-
 }

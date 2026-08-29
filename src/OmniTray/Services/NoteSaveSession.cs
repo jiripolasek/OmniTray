@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.Services;
@@ -33,10 +33,12 @@ internal sealed class NoteSaveSession(Func<Task> save)
                     this.LastError = exception;
                     return false;
                 }
+
                 Interlocked.Exchange(ref this._savedRevision, revision);
                 this.LastError = null;
                 // An edit during the awaited write needs another snapshot before close can succeed.
             }
+
             return true;
         }
         finally { this._saveGate.Release(); }

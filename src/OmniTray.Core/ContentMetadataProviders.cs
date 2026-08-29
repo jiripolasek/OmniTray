@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using OmniTray.Core.MetadataProviders;
@@ -40,8 +40,8 @@ public sealed record ContentMetadataComposition
 }
 
 /// <summary>
-/// Contributes representations, actions, and backing facts for captured content. Contributions
-/// are additive so providers remain independent and registration order cannot remove capabilities.
+///     Contributes representations, actions, and backing facts for captured content. Contributions
+///     are additive so providers remain independent and registration order cannot remove capabilities.
 /// </summary>
 public interface IContentMetadataProvider
 {
@@ -62,6 +62,7 @@ public sealed record ContentMetadataProviderDescriptor(
 
 public sealed class ContentMetadataProviderRegistry
 {
+    public event EventHandler? ProvidersChanged;
     private const int MaxProviderCount = 128;
     private const int MaxProviderIdLength = 128;
     private const int MaxProviderDisplayNameLength = 128;
@@ -71,8 +72,6 @@ public sealed class ContentMetadataProviderRegistry
     private long _nextSequence;
 
     public static ContentMetadataProviderRegistry Default { get; } = CreateDefault();
-
-    public event EventHandler? ProvidersChanged;
 
     public IReadOnlyList<ContentMetadataProviderDescriptor> Providers
     {

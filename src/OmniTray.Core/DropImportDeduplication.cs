@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.Core;
@@ -55,7 +55,8 @@ public static class DropImportDeduplication
         {
             return Path.TrimEndingDirectorySeparator(Path.GetFullPath(item.SourcePath));
         }
-        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException
+                                              or PathTooLongException)
         {
             return Path.TrimEndingDirectorySeparator(item.SourcePath.Trim());
         }

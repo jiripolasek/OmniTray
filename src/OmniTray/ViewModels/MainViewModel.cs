@@ -9,15 +9,15 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using Windows.UI;
 using Microsoft.UI;
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 
 namespace OmniTray.ViewModels;
 
 public partial class MainViewModel : BaseViewModel
 {
-    private bool _bottomEdgeWindowEnabled = true;
+    public event EventHandler? CatalogChanged;
     private EdgeWindowAlignment _bottomEdgeWindowAlignment = EdgeWindowAlignment.Center;
+    private bool _bottomEdgeWindowEnabled = true;
     private EdgeWindowSizeMode _bottomEdgeWindowSizeMode = EdgeWindowSizeMode.Reasonable;
     private bool _catalogChangePending;
     private int _catalogMutationDepth;
@@ -27,33 +27,19 @@ public partial class MainViewModel : BaseViewModel
     private StackCardDisplayMode _horizontalStackCardDisplayMode = StackCardDisplayMode.LargeList;
     private bool _isGameModeSuppressing;
     private bool _isRestoring;
-    private bool _leftEdgeWindowEnabled = true;
     private EdgeWindowAlignment _leftEdgeWindowAlignment = EdgeWindowAlignment.Center;
+    private bool _leftEdgeWindowEnabled = true;
     private EdgeWindowSizeMode _leftEdgeWindowSizeMode = EdgeWindowSizeMode.Reasonable;
-    private bool _rightEdgeWindowEnabled = true;
     private EdgeWindowAlignment _rightEdgeWindowAlignment = EdgeWindowAlignment.Center;
+    private bool _rightEdgeWindowEnabled = true;
     private EdgeWindowSizeMode _rightEdgeWindowSizeMode = EdgeWindowSizeMode.Reasonable;
     private bool _syncAllEdgeContent;
     private bool _syncLeftAndRightEdgeContent;
     private bool _syncTopAndBottomEdgeContent;
-    private bool _topEdgeWindowEnabled = true;
     private EdgeWindowAlignment _topEdgeWindowAlignment = EdgeWindowAlignment.Center;
+    private bool _topEdgeWindowEnabled = true;
     private EdgeWindowSizeMode _topEdgeWindowSizeMode = EdgeWindowSizeMode.Reasonable;
     private StackCardDisplayMode _verticalStackCardDisplayMode = StackCardDisplayMode.LargeList;
-
-    public MainViewModel()
-        : base("OmniTray")
-    {
-        this.Stacks.CollectionChanged += this.OnStacksChanged;
-        this.LeftEdgeStacks.CollectionChanged += (_, args) =>
-            this.OnEdgeStacksChanged(EdgeShelfSide.Left, this.LeftEdgeStacks, args);
-        this.RightEdgeStacks.CollectionChanged += (_, args) =>
-            this.OnEdgeStacksChanged(EdgeShelfSide.Right, this.RightEdgeStacks, args);
-        this.TopEdgeStacks.CollectionChanged
-            += (_, args) => this.OnEdgeStacksChanged(EdgeShelfSide.Top, this.TopEdgeStacks, args);
-        this.BottomEdgeStacks.CollectionChanged += (_, args) =>
-            this.OnEdgeStacksChanged(EdgeShelfSide.Bottom, this.BottomEdgeStacks, args);
-    }
 
     [ObservableProperty]
     public partial string PopupTitle { get; set; } = "OmniTray";
@@ -286,7 +272,19 @@ public partial class MainViewModel : BaseViewModel
 
     public bool CanConfigurePairedEdgeContentSync => !this.SyncAllEdgeContent;
 
-    public event EventHandler? CatalogChanged;
+    public MainViewModel()
+        : base("OmniTray")
+    {
+        this.Stacks.CollectionChanged += this.OnStacksChanged;
+        this.LeftEdgeStacks.CollectionChanged += (_, args) =>
+            this.OnEdgeStacksChanged(EdgeShelfSide.Left, this.LeftEdgeStacks, args);
+        this.RightEdgeStacks.CollectionChanged += (_, args) =>
+            this.OnEdgeStacksChanged(EdgeShelfSide.Right, this.RightEdgeStacks, args);
+        this.TopEdgeStacks.CollectionChanged
+            += (_, args) => this.OnEdgeStacksChanged(EdgeShelfSide.Top, this.TopEdgeStacks, args);
+        this.BottomEdgeStacks.CollectionChanged += (_, args) =>
+            this.OnEdgeStacksChanged(EdgeShelfSide.Bottom, this.BottomEdgeStacks, args);
+    }
 
     public ObservableCollection<DropStackViewModel> GetEdgeStacks(EdgeShelfSide side)
     {
@@ -991,25 +989,13 @@ public partial class MainViewModel : BaseViewModel
 
 public sealed class DropStackViewModel : ObservableObject
 {
+    public event EventHandler? ModelChanged;
     private readonly HashSet<DropItemViewModel> _previewItems = [];
     private EdgeShelfSide? _assignedEdge;
     private StackCardDisplayMode _horizontalStackCardDisplayMode = StackCardDisplayMode.LargeList;
     private bool _isSynchronizingItems;
     private DropStack _model;
     private StackCardDisplayMode _verticalStackCardDisplayMode = StackCardDisplayMode.LargeList;
-
-    public DropStackViewModel(DropStack model)
-    {
-        this._model = model;
-        this.Items = new ObservableCollection<DropItemViewModel>(
-            model.Items.Select(static item => new DropItemViewModel(item)));
-        this.Items.CollectionChanged += this.OnItemsCollectionChanged;
-        this.SynchronizePreviewSubscriptions();
-        var tintColor = this.TintColor;
-        this.TintBrush = new SolidColorBrush(tintColor);
-        this.TintForegroundBrush = new SolidColorBrush(
-            GetContrastingForeground(tintColor));
-    }
 
     public DropStack Model
     {
@@ -1167,7 +1153,18 @@ public sealed class DropStackViewModel : ObservableObject
             ? $"{side.GetDisplayName()} edge"
             : "Not on an edge";
 
-    public event EventHandler? ModelChanged;
+    public DropStackViewModel(DropStack model)
+    {
+        this._model = model;
+        this.Items = new ObservableCollection<DropItemViewModel>(
+            model.Items.Select(static item => new DropItemViewModel(item)));
+        this.Items.CollectionChanged += this.OnItemsCollectionChanged;
+        this.SynchronizePreviewSubscriptions();
+        var tintColor = this.TintColor;
+        this.TintBrush = new SolidColorBrush(tintColor);
+        this.TintForegroundBrush = new SolidColorBrush(
+            GetContrastingForeground(tintColor));
+    }
 
     public int AppendDroppedItems(IEnumerable<DropItem> items)
     {
@@ -1294,7 +1291,8 @@ public sealed class DropStackViewModel : ObservableObject
         this._isSynchronizingItems = true;
         try
         {
-            if (this.Items.Select(static item => item.Model.Id).SequenceEqual(model.Items.Select(static item => item.Id)))
+            if (this.Items.Select(static item => item.Model.Id)
+                .SequenceEqual(model.Items.Select(static item => item.Id)))
             {
                 // Note edits must not reset every list and its selection on each keystroke.
                 for (var index = 0; index < model.Items.Count; index++)
@@ -1317,7 +1315,8 @@ public sealed class DropStackViewModel : ObservableObject
                 this.Items.Clear();
                 foreach (var item in model.Items)
                 {
-                    this.Items.Add(existingItems.TryGetValue(item.Id, out var existing) && ReferenceEquals(existing.Model, item)
+                    this.Items.Add(existingItems.TryGetValue(item.Id, out var existing) &&
+                                   ReferenceEquals(existing.Model, item)
                         ? existing
                         : new DropItemViewModel(item));
                 }
@@ -1505,7 +1504,7 @@ public sealed class StackCardLayoutMetrics
         TextColumn = 1,
         TextColumnSpan = 1,
         TextVerticalAlignment = VerticalAlignment.Center,
-        TextAlignment = Microsoft.UI.Xaml.TextAlignment.Left,
+        TextAlignment = TextAlignment.Left,
         TextMargin = new Thickness(0),
         HorizontalPanelCollapsedHeight = 122,
         HorizontalPanelExpandedHeight = 340,
@@ -1532,7 +1531,7 @@ public sealed class StackCardLayoutMetrics
         HorizontalTextColumn = 1,
         HorizontalTextColumnSpan = 1,
         HorizontalTextVerticalAlignment = VerticalAlignment.Center,
-        HorizontalTextAlignment = Microsoft.UI.Xaml.TextAlignment.Left,
+        HorizontalTextAlignment = TextAlignment.Left,
         HorizontalTextMargin = new Thickness(0),
         HorizontalActionWidth = 84,
         HorizontalActionHeight = 104,
@@ -1569,7 +1568,7 @@ public sealed class StackCardLayoutMetrics
         TextColumn = 1,
         TextColumnSpan = 1,
         TextVerticalAlignment = VerticalAlignment.Center,
-        TextAlignment = Microsoft.UI.Xaml.TextAlignment.Left,
+        TextAlignment = TextAlignment.Left,
         TextMargin = new Thickness(0),
         HorizontalPanelCollapsedHeight = 122,
         HorizontalPanelExpandedHeight = 340,
@@ -1596,7 +1595,7 @@ public sealed class StackCardLayoutMetrics
         HorizontalTextColumn = 1,
         HorizontalTextColumnSpan = 1,
         HorizontalTextVerticalAlignment = VerticalAlignment.Center,
-        HorizontalTextAlignment = Microsoft.UI.Xaml.TextAlignment.Left,
+        HorizontalTextAlignment = TextAlignment.Left,
         HorizontalTextMargin = new Thickness(0),
         HorizontalActionWidth = 84,
         HorizontalActionHeight = 104,
@@ -1633,7 +1632,7 @@ public sealed class StackCardLayoutMetrics
         TextColumn = 0,
         TextColumnSpan = 3,
         TextVerticalAlignment = VerticalAlignment.Top,
-        TextAlignment = Microsoft.UI.Xaml.TextAlignment.Center,
+        TextAlignment = TextAlignment.Center,
         TextMargin = new Thickness(0, 4, 0, 0),
         HorizontalPanelCollapsedHeight = 160,
         HorizontalPanelExpandedHeight = 378,
@@ -1660,16 +1659,12 @@ public sealed class StackCardLayoutMetrics
         HorizontalTextColumn = 0,
         HorizontalTextColumnSpan = 2,
         HorizontalTextVerticalAlignment = VerticalAlignment.Top,
-        HorizontalTextAlignment = Microsoft.UI.Xaml.TextAlignment.Center,
+        HorizontalTextAlignment = TextAlignment.Center,
         HorizontalTextMargin = new Thickness(0, 5, 0, 0),
         HorizontalActionWidth = 84,
         HorizontalActionHeight = 144,
         HorizontalActionNameWidth = 76
     };
-
-    private StackCardLayoutMetrics()
-    {
-    }
 
     public double HeaderMinHeight { get; private init; }
 
@@ -1791,6 +1786,10 @@ public sealed class StackCardLayoutMetrics
 
     public double HorizontalActionNameWidth { get; private init; }
 
+    private StackCardLayoutMetrics()
+    {
+    }
+
     public static StackCardLayoutMetrics Resolve(StackCardDisplayMode displayMode) => displayMode switch
     {
         StackCardDisplayMode.SmallList => SmallList,
@@ -1802,34 +1801,12 @@ public sealed class StackCardLayoutMetrics
 public sealed class DropItemViewModel : ObservableObject
 {
     private string _leadingGlyph = "\uE7B8";
-    private ImageSource? _thumbnailSource;
     private string _thumbnailAccessibleLabel = "Content";
     private ContentThumbnailChrome _thumbnailChrome;
     private string _thumbnailProviderId = string.Empty;
-
-    public DropItemViewModel(DropItem model)
-    {
-        this.Model = model;
-        var fallback = ContentThumbnailFallback.For(model.Kind);
-        this._leadingGlyph = fallback.Glyph!;
-        this._thumbnailAccessibleLabel = fallback.AccessibleLabel;
-        _ = this.LoadThumbnailAsync();
-    }
+    private ImageSource? _thumbnailSource;
 
     public DropItem Model { get; private set; }
-
-    internal void UpdateNoteModel(DropItem model)
-    {
-        if (model.Id != this.Model.Id || model.Note is null || this.Model.Note is null)
-        {
-            throw new ArgumentException("Only an existing note item can be updated in place.", nameof(model));
-        }
-        this.Model = model;
-        this.OnPropertyChanged(nameof(this.Model));
-        this.OnPropertyChanged(nameof(this.DisplayName));
-        this.OnPropertyChanged(nameof(this.KindLabel));
-        this.OnPropertyChanged(nameof(this.AccessibleName));
-    }
 
     public Visibility NoteVisibility => this.Model.Note is null ? Visibility.Collapsed : Visibility.Visible;
 
@@ -1983,6 +1960,29 @@ public sealed class DropItemViewModel : ObservableObject
 
     public Visibility VideoFilmstripVisibility =>
         this.ThumbnailHasVideoFilmstrip ? Visibility.Visible : Visibility.Collapsed;
+
+    public DropItemViewModel(DropItem model)
+    {
+        this.Model = model;
+        var fallback = ContentThumbnailFallback.For(model.Kind);
+        this._leadingGlyph = fallback.Glyph!;
+        this._thumbnailAccessibleLabel = fallback.AccessibleLabel;
+        _ = this.LoadThumbnailAsync();
+    }
+
+    internal void UpdateNoteModel(DropItem model)
+    {
+        if (model.Id != this.Model.Id || model.Note is null || this.Model.Note is null)
+        {
+            throw new ArgumentException("Only an existing note item can be updated in place.", nameof(model));
+        }
+
+        this.Model = model;
+        this.OnPropertyChanged(nameof(this.Model));
+        this.OnPropertyChanged(nameof(this.DisplayName));
+        this.OnPropertyChanged(nameof(this.KindLabel));
+        this.OnPropertyChanged(nameof(this.AccessibleName));
+    }
 
     private async Task LoadThumbnailAsync()
     {

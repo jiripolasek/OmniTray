@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.Collections.ObjectModel;
@@ -13,17 +13,17 @@ namespace OmniTray.ViewModels;
 
 internal sealed class DropCommandCatalogViewModel : ObservableObject
 {
+    public event EventHandler? CatalogChanged;
+
     private readonly Dictionary<string, DropCommandSurfaceLayout> _layouts =
         new(StringComparer.Ordinal);
+
+    public ObservableCollection<DropCommandViewModel> Commands { get; } = [];
 
     public DropCommandCatalogViewModel()
     {
         this.EnsureDefaultLayouts();
     }
-
-    public ObservableCollection<DropCommandViewModel> Commands { get; } = [];
-
-    public event EventHandler? CatalogChanged;
 
     public void Restore(DropCommandCatalogState state)
     {
@@ -289,13 +289,13 @@ internal sealed class DropCommandCatalogViewModel : ObservableObject
             openWindows);
 
     public IReadOnlyList<string> GetSurfaceIds() =>
-        [
-            DropCommandSurfaceIds.Popup,
-            DropCommandSurfaceIds.ForEdge(EdgeShelfSide.Left),
-            DropCommandSurfaceIds.ForEdge(EdgeShelfSide.Right),
-            DropCommandSurfaceIds.ForEdge(EdgeShelfSide.Top),
-            DropCommandSurfaceIds.ForEdge(EdgeShelfSide.Bottom)
-        ];
+    [
+        DropCommandSurfaceIds.Popup,
+        DropCommandSurfaceIds.ForEdge(EdgeShelfSide.Left),
+        DropCommandSurfaceIds.ForEdge(EdgeShelfSide.Right),
+        DropCommandSurfaceIds.ForEdge(EdgeShelfSide.Top),
+        DropCommandSurfaceIds.ForEdge(EdgeShelfSide.Bottom)
+    ];
 
     internal void RefreshSystemColors()
     {
@@ -468,14 +468,6 @@ internal sealed class DropCommandCatalogViewModel : ObservableObject
 
 public sealed class DropCommandViewModel : ObservableObject
 {
-    internal DropCommandViewModel(DropCommandInstance model)
-    {
-        this.Model = model;
-        var tintColor = this.TintColor;
-        this.TintBrush = new SolidColorBrush(tintColor);
-        this.TintForegroundBrush = new SolidColorBrush(GetContrastingForeground(tintColor));
-    }
-
     public DropCommandInstance Model { get; private set; }
 
     public Guid Id => this.Model.Id;
@@ -507,6 +499,14 @@ public sealed class DropCommandViewModel : ObservableObject
     public bool IsConfigured => DropCommandTemplates.IsConfigured(this.Model);
 
     public bool IsEnabled => this.Model.IsEnabled && this.IsAvailable && this.IsConfigured;
+
+    internal DropCommandViewModel(DropCommandInstance model)
+    {
+        this.Model = model;
+        var tintColor = this.TintColor;
+        this.TintBrush = new SolidColorBrush(tintColor);
+        this.TintForegroundBrush = new SolidColorBrush(GetContrastingForeground(tintColor));
+    }
 
     internal void Update(DropCommandInstance model)
     {
@@ -547,28 +547,6 @@ public sealed class DropCommandViewModel : ObservableObject
 
 public sealed class DropCommandPlacementViewModel : ObservableObject
 {
-    private DropCommandPlacementViewModel(
-        string surfaceId,
-        Guid nodeId,
-        Guid? parentId,
-        int depth,
-        string displayName,
-        string summary,
-        string glyph,
-        bool isFolder,
-        DropCommandViewModel? command)
-    {
-        this.SurfaceId = surfaceId;
-        this.NodeId = nodeId;
-        this.ParentId = parentId;
-        this.Depth = depth;
-        this.DisplayName = displayName;
-        this.Summary = summary;
-        this.Glyph = glyph;
-        this.IsFolder = isFolder;
-        this.Command = command;
-    }
-
     public string SurfaceId { get; }
 
     public Guid NodeId { get; }
@@ -596,6 +574,28 @@ public sealed class DropCommandPlacementViewModel : ObservableObject
     public Visibility CommandVisibility => this.IsFolder ? Visibility.Collapsed : Visibility.Visible;
 
     public DropCommandViewModel? Command { get; }
+
+    private DropCommandPlacementViewModel(
+        string surfaceId,
+        Guid nodeId,
+        Guid? parentId,
+        int depth,
+        string displayName,
+        string summary,
+        string glyph,
+        bool isFolder,
+        DropCommandViewModel? command)
+    {
+        this.SurfaceId = surfaceId;
+        this.NodeId = nodeId;
+        this.ParentId = parentId;
+        this.Depth = depth;
+        this.DisplayName = displayName;
+        this.Summary = summary;
+        this.Glyph = glyph;
+        this.IsFolder = isFolder;
+        this.Command = command;
+    }
 
     internal static DropCommandPlacementViewModel ForFolder(
         string surfaceId,

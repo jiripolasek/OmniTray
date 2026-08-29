@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.Text.Json;
@@ -17,7 +17,7 @@ public sealed class StackCatalogJsonTests
     {
         var annotation = StickyNote.Create("Annotation Ω", @"{\rtf1 Annotation}", NoteColor.Blue);
         var source = DropItem.CreateText("Original Ω", @"C:\fixtures\capture.txt", true,
-            "<b>Original Ω</b>", @"{\rtf1\b Original}", "https://example.com/source", "Fixture browser")
+                "<b>Original Ω</b>", @"{\rtf1\b Original}", "https://example.com/source", "Fixture browser")
             .WithCustomFormats([DropItemDataFormat.CreateBinary("fixture", new byte[] { 1, 2, 3, 255 })])
             .WithAttachedNotes([annotation]);
         var original = DropStack.Create([source]);
@@ -47,49 +47,66 @@ public sealed class StackCatalogJsonTests
         Assert.AreEqual(note, restored.Stacks.Single().Items.First().Note);
         Assert.AreEqual(deleted, restored.DeletedNotes.Single());
         Assert.AreEqual(tray, restored.OpenTrayWindows.Single());
-        Assert.AreEqual(stack.Id, restored.EdgeShelves.Single(shelf => shelf.Side == EdgeShelfSide.Left).StackIds.Single());
+        Assert.AreEqual(stack.Id,
+            restored.EdgeShelves.Single(shelf => shelf.Side == EdgeShelfSide.Left).StackIds.Single());
     }
 
     [TestMethod]
     public void ProductionSerializerLoadsLegacyCatalogWithoutNoteHistory()
     {
-        var document = JsonSerializer.Deserialize("{\"stacks\":[]}", StackCatalogJsonContext.Default.StackCatalogDocument)!;
+        var document
+            = JsonSerializer.Deserialize("{\"stacks\":[]}", StackCatalogJsonContext.Default.StackCatalogDocument)!;
         var restored = StackCatalogJson.Restore(document);
         Assert.HasCount(0, restored.NoteHistory);
         Assert.HasCount(0, restored.DeletedNotes);
         Assert.HasCount(0, restored.Stacks);
     }
+
     [TestMethod]
     public void LegacyStackNotesMigrateOnceAndPreserveItemsHistoryAndTimestamps()
     {
         var source = DropItem.CreateText("Existing capture");
         var stack = DropStack.Create([source], "Project");
-        var note = StickyNote.Create("Legacy Ω", @"{\rtf1 Legacy}", NoteColor.Lavender).Update("Edited Ω", @"{\rtf1\b Edited}", NoteColor.Pink);
+        var note = StickyNote.Create("Legacy Ω", @"{\rtf1 Legacy}", NoteColor.Lavender)
+            .Update("Edited Ω", @"{\rtf1\b Edited}", NoteColor.Pink);
         var deleted = new DeletedNote(StickyNote.Create("Deleted"), new NoteTarget(stack.Id, NotePlacement.LegacyStack),
             stack.Name, null, DateTimeOffset.UtcNow);
         var document = StackCatalogJson.CreateDocument(new StackCatalogState([stack], [], [], [], []));
         document.Stacks[0].AttachedNotes = [note];
         document.DeletedNotes = [deleted];
-        document.NoteHistory = [new NoteHistoryDocument
-        {
-            NoteId = note.Id, SourceStackId = stack.Id, SourceStackName = stack.Name,
-            SourceItem = document.Stacks[0].Items[0], SourceIndex = 0, IsConversion = false
-        }];
+        document.NoteHistory =
+        [
+            new NoteHistoryDocument
+            {
+                NoteId = note.Id,
+                SourceStackId = stack.Id,
+                SourceStackName = stack.Name,
+                SourceItem = document.Stacks[0].Items[0],
+                SourceIndex = 0,
+                IsConversion = false
+            }
+        ];
         var legacyJson = JsonSerializer.Serialize(document, StackCatalogJsonContext.Default.StackCatalogDocument);
-        var restored = StackCatalogJson.Restore(JsonSerializer.Deserialize(legacyJson, StackCatalogJsonContext.Default.StackCatalogDocument)!);
+        var restored
+            = StackCatalogJson.Restore(JsonSerializer.Deserialize(legacyJson,
+                StackCatalogJsonContext.Default.StackCatalogDocument)!);
         Assert.AreEqual(source.Id, restored.Stacks[0].Items[0].Id);
         Assert.AreEqual(note, restored.Stacks[0].Items[1].Note);
         Assert.AreEqual(note.Id, restored.NoteHistory.Single().NoteId);
         Assert.AreEqual(source.Id, restored.NoteHistory.Single().SourceItem.Id);
-        Assert.AreEqual(deleted with { Target = new NoteTarget(stack.Id, NotePlacement.StackItem) }, restored.DeletedNotes.Single());
+        Assert.AreEqual(deleted with { Target = new NoteTarget(stack.Id, NotePlacement.StackItem) },
+            restored.DeletedNotes.Single());
         // The Command Palette's independent reader uses the same restore boundary.
         Assert.AreEqual(note, StackCatalogReader.ReadStacks(legacyJson).Single().Items[1].Note);
-        var saved = JsonSerializer.Serialize(StackCatalogJson.CreateDocument(restored), StackCatalogJsonContext.Default.StackCatalogDocument);
+        var saved = JsonSerializer.Serialize(StackCatalogJson.CreateDocument(restored),
+            StackCatalogJsonContext.Default.StackCatalogDocument);
         using var savedDocument = JsonDocument.Parse(saved);
         Assert.IsFalse(savedDocument.RootElement.GetProperty("stacks")[0].TryGetProperty("attachedNotes", out _));
-        var reloaded = StackCatalogJson.Restore(JsonSerializer.Deserialize(saved, StackCatalogJsonContext.Default.StackCatalogDocument)!);
-        CollectionAssert.AreEqual(restored.Stacks[0].Items.Select(item => item.Id).ToArray(), reloaded.Stacks[0].Items.Select(item => item.Id).ToArray());
+        var reloaded
+            = StackCatalogJson.Restore(JsonSerializer.Deserialize(saved,
+                StackCatalogJsonContext.Default.StackCatalogDocument)!);
+        CollectionAssert.AreEqual(restored.Stacks[0].Items.Select(item => item.Id).ToArray(),
+            reloaded.Stacks[0].Items.Select(item => item.Id).ToArray());
         Assert.AreEqual(note, reloaded.Stacks[0].Items[1].Note);
     }
-
 }

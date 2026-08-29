@@ -1,15 +1,19 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.Collections.ObjectModel;
+using WinRT;
 
 namespace OmniTray.ViewModels.Organizer;
 
-[WinRT.GeneratedBindableCustomProperty]
-public sealed partial class StackSearchResultViewModel(DropStackViewModel stack, DropItemViewModel? item, string preview,
+[GeneratedBindableCustomProperty]
+public sealed partial class StackSearchResultViewModel(
+    DropStackViewModel stack,
+    DropItemViewModel? item,
+    string preview,
     StickyNote? note = null)
 {
     public DropStackViewModel Stack { get; } = stack;
@@ -22,18 +26,22 @@ public sealed partial class StackSearchResultViewModel(DropStackViewModel stack,
 
     public string Location => this.Note is not null
         ? $"Note · {this.Stack.Name}" + (this.Item is not null && this.Item.Model.Kind != DropItemKind.Note
-            ? $" · {this.Item.DisplayName}" : "")
+            ? $" · {this.Item.DisplayName}"
+            : "")
         : this.Item is null
-        ? $"Stack · {this.Stack.ItemCountText} · {this.Stack.EdgePlacementText}"
-        : $"{this.Item.KindLabel} · {this.Stack.Name} · {this.Stack.EdgePlacementText}";
+            ? $"Stack · {this.Stack.ItemCountText} · {this.Stack.EdgePlacementText}"
+            : $"{this.Item.KindLabel} · {this.Stack.Name} · {this.Stack.EdgePlacementText}";
 
     public string Preview { get; } = preview;
 
-    public Visibility StackVisibility => this.Item is null && this.Note is null ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility StackVisibility =>
+        this.Item is null && this.Note is null ? Visibility.Visible : Visibility.Collapsed;
 
-    public Visibility ItemVisibility => this.Item is null || this.Note is not null ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility ItemVisibility =>
+        this.Item is null || this.Note is not null ? Visibility.Collapsed : Visibility.Visible;
 
-    public Visibility PreviewVisibility => string.IsNullOrWhiteSpace(this.Preview) ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility PreviewVisibility =>
+        string.IsNullOrWhiteSpace(this.Preview) ? Visibility.Collapsed : Visibility.Visible;
 
     public string AccessibleName => $"{this.Title}, {this.Location}";
 

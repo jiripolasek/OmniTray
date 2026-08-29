@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using Microsoft.UI.Xaml.Media;
@@ -41,12 +41,6 @@ public sealed partial class ThumbnailImagePresenter : UserControl
         typeof(ThumbnailImagePresenter),
         new PropertyMetadata(32d, OnPresentationChanged));
 
-    public ThumbnailImagePresenter()
-    {
-        this.InitializeComponent();
-        this.UpdatePresentation();
-    }
-
     public ImageSource? Source
     {
         get => (ImageSource?)this.GetValue(SourceProperty);
@@ -75,6 +69,12 @@ public sealed partial class ThumbnailImagePresenter : UserControl
     {
         get => (double)this.GetValue(ShellIconSizeProperty);
         set => this.SetValue(ShellIconSizeProperty, value);
+    }
+
+    public ThumbnailImagePresenter()
+    {
+        this.InitializeComponent();
+        this.UpdatePresentation();
     }
 
     private static void OnPresentationChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args) =>

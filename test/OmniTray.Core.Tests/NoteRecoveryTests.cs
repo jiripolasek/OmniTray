@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.Text.Json;
@@ -37,7 +37,8 @@ public sealed class NoteRecoveryTests
         var restored = NoteRecovery.UndoConversion(edited, capture);
         var deleted = NoteRecovery.FindRemoved(edited, restored, DateTimeOffset.UtcNow);
         var (convertedAgain, nextNote) = NoteOperations.ConvertTextItem(restored.Single(), source.Id, false);
-        var (nextDeleted, nextHistory) = NoteRecovery.RecordCapture(deleted, [capture], capture with { NoteId = nextNote.Id });
+        var (nextDeleted, nextHistory)
+            = NoteRecovery.RecordCapture(deleted, [capture], capture with { NoteId = nextNote.Id });
         NoteOperations.Validate([convertedAgain]);
         NoteRecovery.ValidateHistory([convertedAgain], nextDeleted, nextHistory);
         var oldEdits = nextDeleted.Single().Note;
@@ -56,8 +57,10 @@ public sealed class NoteRecoveryTests
         var itemNote = StickyNote.Create("Item note");
         var attached = StickyNote.Create("Annotation");
         var stackNote = StickyNote.Create("Stack note");
-        var stack = DropStack.Create([DropItem.CreateNote(itemNote),
-            DropItem.CreateText("Parent").WithAttachedNotes([attached])]).Append([DropItem.CreateNote(stackNote)]);
+        var stack = DropStack.Create([
+            DropItem.CreateNote(itemNote),
+            DropItem.CreateText("Parent").WithAttachedNotes([attached])
+        ]).Append([DropItem.CreateNote(stackNote)]);
         var removed = NoteRecovery.FindRemoved([stack], [], DateTimeOffset.UtcNow);
         Assert.HasCount(3, removed);
         Assert.AreEqual("Parent", removed.Single(entry => entry.Note.Id == attached.Id).ItemName);
@@ -180,7 +183,8 @@ public sealed class NoteRecoveryTests
         converted = StackOperations.MoveItemsWithin(converted, [annotation.Id], 0);
         var restored = NoteRecovery.UndoConversion([converted],
             new NoteCaptureHistory(note.Id, stack.Id, stack.Name, source, 1, true));
-        CollectionAssert.AreEqual(new[] { before.Id, source.Id, after.Id }, restored.Single().Items.Select(item => item.Id).ToArray());
+        CollectionAssert.AreEqual(new[] { before.Id, source.Id, after.Id },
+            restored.Single().Items.Select(item => item.Id).ToArray());
     }
 
     [TestMethod]
@@ -200,6 +204,7 @@ public sealed class NoteRecoveryTests
         Assert.AreEqual(direct.Id, matches.Single(match => match.NoteId == direct.Id).ItemId);
         Assert.IsTrue(matches.All(match => match.StackId == stack.Id && match.Preview.Contains("Needle")));
     }
+
     [TestMethod]
     public void LegacyDeletedStackNoteRestoresAsAnOrdinaryItem()
     {
@@ -211,5 +216,4 @@ public sealed class NoteRecoveryTests
         Assert.AreSame(note, stacks.Single().Items.Single().Note);
         Assert.AreEqual(NotePlacement.StackItem, NoteOperations.Find(stacks, note.Id)!.Target.Placement);
     }
-
 }

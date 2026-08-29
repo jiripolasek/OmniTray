@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -11,13 +11,20 @@ namespace OmniTray.Controls;
 
 internal static class AutoSuggestBoxGrouping
 {
-    public static void Enable(AutoSuggestBox searchBox, FrameworkElement? footer = null, FrameworkElement? emptyState = null)
+    public static void Enable(
+        AutoSuggestBox searchBox,
+        FrameworkElement? footer = null,
+        FrameworkElement? emptyState = null)
     {
         searchBox.Loaded += (_, _) => UpdateSuggestionGrouping(searchBox, footer, emptyState);
-        searchBox.RegisterPropertyChangedCallback(ItemsControl.ItemsSourceProperty, (_, _) => UpdateSuggestionGrouping(searchBox, footer, emptyState));
+        searchBox.RegisterPropertyChangedCallback(ItemsControl.ItemsSourceProperty,
+            (_, _) => UpdateSuggestionGrouping(searchBox, footer, emptyState));
     }
 
-    private static void UpdateSuggestionGrouping(AutoSuggestBox searchBox, FrameworkElement? footer, FrameworkElement? emptyState)
+    private static void UpdateSuggestionGrouping(
+        AutoSuggestBox searchBox,
+        FrameworkElement? footer,
+        FrameworkElement? emptyState)
     {
         if (FindSuggestionsList(searchBox) is not { } list)
         {

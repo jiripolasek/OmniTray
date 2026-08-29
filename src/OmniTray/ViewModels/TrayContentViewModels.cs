@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.ComponentModel;
@@ -33,12 +33,6 @@ internal abstract class TrayContentViewModel : ObservableObject, IDisposable
 
 internal sealed class StackTrayContentViewModel : TrayContentViewModel
 {
-    public StackTrayContentViewModel(DropStackViewModel stack)
-    {
-        this.Stack = stack ?? throw new ArgumentNullException(nameof(stack));
-        this.Stack.PropertyChanged += this.OnStackPropertyChanged;
-    }
-
     internal DropStackViewModel Stack { get; }
 
     public override string Name => this.Stack.Name;
@@ -55,6 +49,12 @@ internal sealed class StackTrayContentViewModel : TrayContentViewModel
 
     public override SolidColorBrush TintForegroundBrush => this.Stack.TintForegroundBrush;
 
+    public StackTrayContentViewModel(DropStackViewModel stack)
+    {
+        this.Stack = stack ?? throw new ArgumentNullException(nameof(stack));
+        this.Stack.PropertyChanged += this.OnStackPropertyChanged;
+    }
+
     public override void ChangeTint(string tint) => this.Stack.ChangeTint(tint);
 
     public override void Dispose() => this.Stack.PropertyChanged -= this.OnStackPropertyChanged;
@@ -66,15 +66,6 @@ internal sealed class StackTrayContentViewModel : TrayContentViewModel
 internal sealed class DropCommandTrayContentViewModel : TrayContentViewModel
 {
     private readonly Action<DropCommandInstance> _updateCommand;
-
-    public DropCommandTrayContentViewModel(
-        DropCommandViewModel command,
-        Action<DropCommandInstance> updateCommand)
-    {
-        this.Command = command ?? throw new ArgumentNullException(nameof(command));
-        this._updateCommand = updateCommand ?? throw new ArgumentNullException(nameof(updateCommand));
-        this.Command.PropertyChanged += this.OnCommandPropertyChanged;
-    }
 
     internal DropCommandViewModel Command { get; }
 
@@ -91,6 +82,15 @@ internal sealed class DropCommandTrayContentViewModel : TrayContentViewModel
     public override SolidColorBrush TintBrush => this.Command.TintBrush;
 
     public override SolidColorBrush TintForegroundBrush => this.Command.TintForegroundBrush;
+
+    public DropCommandTrayContentViewModel(
+        DropCommandViewModel command,
+        Action<DropCommandInstance> updateCommand)
+    {
+        this.Command = command ?? throw new ArgumentNullException(nameof(command));
+        this._updateCommand = updateCommand ?? throw new ArgumentNullException(nameof(updateCommand));
+        this.Command.PropertyChanged += this.OnCommandPropertyChanged;
+    }
 
     public override void ChangeTint(string tint) =>
         this._updateCommand(this.Command.Model.ChangeTint(tint));

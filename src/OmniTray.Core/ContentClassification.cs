@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using OmniTray.Core.ClassifierProviders;
@@ -9,22 +9,11 @@ using OmniTray.Core.ClassifierProviders;
 namespace OmniTray.Core;
 
 /// <summary>
-/// An immutable view of captured content supplied to classifiers. Providers must inspect only
-/// this in-memory state and must not perform blocking I/O on the calling thread.
+///     An immutable view of captured content supplied to classifiers. Providers must inspect only
+///     this in-memory state and must not perform blocking I/O on the calling thread.
 /// </summary>
 public sealed class ContentInspectionContext
 {
-    public ContentInspectionContext(DropItem item)
-    {
-        ArgumentNullException.ThrowIfNull(item);
-        this.Item = item;
-        this.AvailableFormatIds = (item.Capture?.Formats ?? [])
-            .Select(static format => format.FormatId)
-            .Concat(item.CustomFormats.Select(static format => format.FormatId))
-            .Where(static formatId => !string.IsNullOrWhiteSpace(formatId))
-            .ToHashSet(StringComparer.Ordinal);
-    }
-
     public DropItem Item { get; }
 
     public string? Text => this.Item.Text;
@@ -46,10 +35,21 @@ public sealed class ContentInspectionContext
     public DropFileFacts? FileFacts => this.Item.FileFacts;
 
     public IReadOnlySet<string> AvailableFormatIds { get; }
+
+    public ContentInspectionContext(DropItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        this.Item = item;
+        this.AvailableFormatIds = (item.Capture?.Formats ?? [])
+            .Select(static format => format.FormatId)
+            .Concat(item.CustomFormats.Select(static format => format.FormatId))
+            .Where(static formatId => !string.IsNullOrWhiteSpace(formatId))
+            .ToHashSet(StringComparer.Ordinal);
+    }
 }
 
 /// <summary>
-/// A stable, opaque tag contributed by a classifier. Third-party tag IDs should be namespaced.
+///     A stable, opaque tag contributed by a classifier. Third-party tag IDs should be namespaced.
 /// </summary>
 public sealed record ContentTag
 {
@@ -88,7 +88,7 @@ public sealed record ContentClassification
 }
 
 /// <summary>
-/// A fast, deterministic classifier over content already captured by OmniTray.
+///     A fast, deterministic classifier over content already captured by OmniTray.
 /// </summary>
 public interface IContentClassifierProvider
 {
@@ -111,12 +111,13 @@ public sealed record ContentClassifierProviderDescriptor(
     bool IsEnabled);
 
 /// <summary>
-/// Thread-safe registry for built-in and future externally supplied classifiers.
-/// Assembly discovery, trust policy, activation, and version compatibility remain host concerns;
-/// registering a provider does not load external code by itself.
+///     Thread-safe registry for built-in and future externally supplied classifiers.
+///     Assembly discovery, trust policy, activation, and version compatibility remain host concerns;
+///     registering a provider does not load external code by itself.
 /// </summary>
 public sealed class ContentClassifierRegistry
 {
+    public event EventHandler? ProvidersChanged;
     private const int MaxProviderCount = 128;
     private const int MaxProviderIdLength = 128;
     private const int MaxProviderDisplayNameLength = 128;
@@ -130,8 +131,6 @@ public sealed class ContentClassifierRegistry
     private long _nextSequence;
 
     public static ContentClassifierRegistry Default { get; } = CreateDefault();
-
-    public event EventHandler? ProvidersChanged;
 
     public IReadOnlyList<ContentClassifierProviderDescriptor> Providers
     {
@@ -334,12 +333,7 @@ public sealed class ContentClassifierRegistry
             }
         }
 
-        return new ContentClassification
-        {
-            Facets = facets,
-            Tags = tags,
-            Failures = failures
-        };
+        return new ContentClassification { Facets = facets, Tags = tags, Failures = failures };
     }
 
     private ProviderRegistration[] GetOrderedRegistrations() => this._registrations

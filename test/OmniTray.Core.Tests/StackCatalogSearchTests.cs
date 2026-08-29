@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.Core.Tests;
@@ -26,7 +26,11 @@ public sealed class StackCatalogSearchTests
         var second = DropStack.CreateEmpty("Travel plans");
 
         CollectionAssert.AreEqual(
-            new[] { new StackSearchMatch(second.Id, null, ""), new StackSearchMatch(first.Id, item.Id, "Travel checklist") },
+            new[]
+            {
+                new StackSearchMatch(second.Id, null, ""),
+                new StackSearchMatch(first.Id, item.Id, "Travel checklist")
+            },
             StackCatalogSearch.Find([first, second], "travel").ToArray());
     }
 
@@ -114,7 +118,8 @@ public sealed class StackCatalogSearchTests
     public void Find_SearchesHtmlTextWithoutSearchingMarkupOrScripts()
     {
         var item = DropItem.CreateRichText(null,
-            "<p class='hiddenclass'>Blue &amp; green suitcase</p><script>secretScript()</script><style>.privateStyle { color: red }</style>", null);
+            "<p class='hiddenclass'>Blue &amp; green suitcase</p><script>secretScript()</script><style>.privateStyle { color: red }</style>",
+            null);
         var stack = DropStack.Create([item], "Notes");
 
         Assert.AreEqual(item.Id, StackCatalogSearch.Find([stack], "green &").Single().ItemId);

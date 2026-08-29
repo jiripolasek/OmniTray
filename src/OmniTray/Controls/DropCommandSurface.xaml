@@ -230,7 +230,8 @@
                                 Tag="{x:Bind}">
                                 <StackPanel Height="84" Spacing="5">
                                     <Grid Width="52" Height="46">
-                                        <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="8">
+                                        <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                                CornerRadius="8">
                                             <FontIcon FontSize="21" Glyph="{x:Bind Glyph}" />
                                         </Border>
                                         <FontIcon

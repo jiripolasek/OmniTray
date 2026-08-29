@@ -14,22 +14,11 @@ namespace OmniTray.Controls;
 
 public sealed partial class TrayInspector : UserControl
 {
-    private TrayInspectorMode _mode;
+    internal event EventHandler? DeleteRequested;
     private string? _customizeOriginalTint;
     private bool _isDisposed;
     private bool _isSynchronizingViewSelection;
-
-    public TrayInspector(DropStackViewModel viewModel, Window dialogOwner)
-    {
-        this.ViewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
-        ArgumentNullException.ThrowIfNull(dialogOwner);
-        this.InitializeComponent();
-        this.ViewModel.PropertyChanged += this.OnViewModelPropertyChanged;
-        this.RestoreViewSelection();
-        this.InspectorViewSelector.SelectionChanged += this.OnViewSelectionChanged;
-        this.InspectorOrganizer.DialogOwner = dialogOwner;
-        App.Current.StackCatalogViewModel.Stacks.CollectionChanged += this.OnCatalogStacksChanged;
-    }
+    private TrayInspectorMode _mode;
 
     public DropStackViewModel ViewModel { get; }
 
@@ -49,7 +38,17 @@ public sealed partial class TrayInspector : UserControl
         set => this.InspectorTintOverlay.Background = value;
     }
 
-    internal event EventHandler? DeleteRequested;
+    public TrayInspector(DropStackViewModel viewModel, Window dialogOwner)
+    {
+        this.ViewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
+        ArgumentNullException.ThrowIfNull(dialogOwner);
+        this.InitializeComponent();
+        this.ViewModel.PropertyChanged += this.OnViewModelPropertyChanged;
+        this.RestoreViewSelection();
+        this.InspectorViewSelector.SelectionChanged += this.OnViewSelectionChanged;
+        this.InspectorOrganizer.DialogOwner = dialogOwner;
+        App.Current.StackCatalogViewModel.Stacks.CollectionChanged += this.OnCatalogStacksChanged;
+    }
 
     internal void Open(TrayInspectorMode mode)
     {
@@ -130,9 +129,9 @@ public sealed partial class TrayInspector : UserControl
 
     private void UpdateRenameEditIconVisibility() =>
         this.RenameEditIcon.Opacity = this.RenameTitleButton.IsPointerOver ||
-            this.RenameTitleButton.FocusState != FocusState.Unfocused
-                ? 1
-                : 0;
+                                      this.RenameTitleButton.FocusState != FocusState.Unfocused
+            ? 1
+            : 0;
 
     private void OnDeleteClick(object sender, RoutedEventArgs args) =>
         this.DeleteRequested?.Invoke(this, EventArgs.Empty);
@@ -258,8 +257,8 @@ public sealed partial class TrayInspector : UserControl
     }
 
     private void UpdateStackCommands() =>
-        this.CombineStacksMenuItem.IsEnabled = App.Current.StackCatalogViewModel.Stacks.Any(
-            stack => !ReferenceEquals(stack, this.ViewModel));
+        this.CombineStacksMenuItem.IsEnabled
+            = App.Current.StackCatalogViewModel.Stacks.Any(stack => !ReferenceEquals(stack, this.ViewModel));
 
     private bool UpdateCombineTargets()
     {
@@ -268,8 +267,8 @@ public sealed partial class TrayInspector : UserControl
             .Where(stack => !ReferenceEquals(stack, this.ViewModel))
             .ToArray();
         this.CombineTargetBox.ItemsSource = choices;
-        this.CombineTargetBox.SelectedItem = choices.FirstOrDefault(
-            stack => stack.Model.Id == selectedStackId) ?? choices.FirstOrDefault();
+        this.CombineTargetBox.SelectedItem = choices.FirstOrDefault(stack => stack.Model.Id == selectedStackId) ??
+                                             choices.FirstOrDefault();
         return choices.Length > 0;
     }
 }

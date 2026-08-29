@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using Microsoft.UI.Dispatching;
@@ -12,13 +12,18 @@ namespace OmniTray.Controls;
 
 public sealed partial class NoteEditorPane : UserControl, IDisposable
 {
-    private readonly DispatcherQueueTimer _saveTimer;
+    internal event EventHandler? SaveStateChanged;
     private readonly NoteSaveSession _saveSession = new(() => App.Current.SaveNotesAsync());
-    private MainViewModel? _catalog;
-    private StickyNote? _note;
-    private bool _editingEnabled = true;
-    private bool _disposed;
+    private readonly DispatcherQueueTimer _saveTimer;
     private (NoteColor Color, ElementTheme Theme, bool HighContrast)? _appliedColor;
+    private MainViewModel? _catalog;
+    private bool _disposed;
+    private bool _editingEnabled = true;
+    private StickyNote? _note;
+    internal Guid? NoteId => this._note?.Id;
+    internal bool HasUnsavedChanges => this._saveSession.HasUnsavedChanges;
+    internal Exception? LastSaveError => this._saveSession.LastError;
+    internal bool HasEditingFocus => this.Editor.HasEditingFocus;
 
     public NoteEditorPane()
     {
@@ -28,12 +33,6 @@ public sealed partial class NoteEditorPane : UserControl, IDisposable
         this._saveTimer.IsRepeating = false;
         this._saveTimer.Tick += this.OnSaveTimerTick;
     }
-
-    internal event EventHandler? SaveStateChanged;
-    internal Guid? NoteId => this._note?.Id;
-    internal bool HasUnsavedChanges => this._saveSession.HasUnsavedChanges;
-    internal Exception? LastSaveError => this._saveSession.LastError;
-    internal bool HasEditingFocus => this.Editor.HasEditingFocus;
 
     internal void Initialize(MainViewModel catalog)
     {
@@ -45,6 +44,7 @@ public sealed partial class NoteEditorPane : UserControl, IDisposable
     internal void SetNote(Guid? noteId)
     {
         if (this._disposed) { return; }
+
         this._note = noteId is { } id ? this._catalog?.FindNote(id)?.Note : null;
         this.FormatErrorBar.IsOpen = this.Editor.SetNote(this._note) is not null;
         this.Editor.SetEditingEnabled(this._editingEnabled && this._note is not null);
@@ -65,10 +65,12 @@ public sealed partial class NoteEditorPane : UserControl, IDisposable
 
     private void OnTextChanged(object? sender, EventArgs args)
     {
-        if (this._disposed || !this._editingEnabled || this._note is not { } note || this._catalog?.FindNote(note.Id) is not { } location)
+        if (this._disposed || !this._editingEnabled || this._note is not { } note ||
+            this._catalog?.FindNote(note.Id) is not { } location)
         {
             return;
         }
+
         var (text, rtf) = this.Editor.ReadContent();
         this._catalog.UpdateNote(note.Id, text, rtf, location.Note.Color);
         this.FormatErrorBar.IsOpen = false;
@@ -92,6 +94,7 @@ public sealed partial class NoteEditorPane : UserControl, IDisposable
         this._saveTimer.Stop();
         var saved = await this._saveSession.FlushAsync();
         if (!this._disposed) { this.UpdateSaveState(); }
+
         return saved;
     }
 
@@ -111,6 +114,7 @@ public sealed partial class NoteEditorPane : UserControl, IDisposable
             this.CreatedText.Text = $"Created {note.CreatedAt.ToLocalTime():g}";
             this.ApplyColor();
         }
+
         this.UpdateSaveState();
     }
 
@@ -132,8 +136,10 @@ public sealed partial class NoteEditorPane : UserControl, IDisposable
     private void ApplyColor()
     {
         if (this._disposed || this._note is not { } note || this.Editor is null) { return; }
+
         var appearance = (note.Color, this.RootGrid.ActualTheme, App.Current.IsHighContrast);
         if (this._appliedColor == appearance) { return; }
+
         this._appliedColor = appearance;
         var background = App.Current.IsHighContrast
             ? (SolidColorBrush)Application.Current.Resources["ApplicationPageBackgroundThemeBrush"]
@@ -152,6 +158,7 @@ public sealed partial class NoteEditorPane : UserControl, IDisposable
         var menu = (MenuFlyout)sender;
         menu.Items.Clear();
         if (this._note is not { } note) { return; }
+
         foreach (var color in Enum.GetValues<NoteColor>())
         {
             var item = new RadioMenuFlyoutItem
@@ -159,11 +166,15 @@ public sealed partial class NoteEditorPane : UserControl, IDisposable
                 Text = color.ToString(),
                 GroupName = "PreviewNoteColor",
                 IsChecked = note.Color == color,
-                Icon = new FontIcon { Glyph = "\uE91F", Foreground = new SolidColorBrush(NotePalette.Resolve(color, false)) }
+                Icon = new FontIcon
+                {
+                    Glyph = "\uE91F", Foreground = new SolidColorBrush(NotePalette.Resolve(color, false))
+                }
             };
             item.Click += (_, _) =>
             {
-                if (!this._disposed && this._editingEnabled && this.NoteId == note.Id && this._catalog?.FindNote(note.Id) is { } location)
+                if (!this._disposed && this._editingEnabled && this.NoteId == note.Id &&
+                    this._catalog?.FindNote(note.Id) is { } location)
                 {
                     this._catalog.UpdateNote(note.Id, location.Note.Text, location.Note.Rtf, color);
                     this.ScheduleSave();
@@ -176,10 +187,12 @@ public sealed partial class NoteEditorPane : UserControl, IDisposable
     public void Dispose()
     {
         if (this._disposed) { return; }
+
         this._disposed = true;
         this._saveTimer.Stop();
         this._saveTimer.Tick -= this.OnSaveTimerTick;
         if (this._catalog is not null) { this._catalog.CatalogChanged -= this.OnCatalogChanged; }
+
         App.Current.SystemColorsChanged -= this.OnSystemColorsChanged;
     }
 }

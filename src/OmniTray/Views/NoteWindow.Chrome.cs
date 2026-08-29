@@ -1,28 +1,28 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
+using Windows.Foundation;
+using Windows.Graphics;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Windows.Foundation;
-using Windows.Graphics;
 
 namespace OmniTray.Views;
 
 public sealed partial class NoteWindow
 {
-    private InputNonClientPointerSource? _nonClientPointerSource;
-    private bool _isWindowActive;
-    private bool _isHeaderHovered;
+    private bool _chromeRefreshQueued;
     private bool _isCaptionHovered;
     private bool _isHeaderFlyoutOpen;
-    private bool _chromeRefreshQueued;
+    private bool _isHeaderHovered;
+    private bool _isWindowActive;
+    private InputNonClientPointerSource? _nonClientPointerSource;
 
     private void InitializeChrome()
     {
@@ -46,6 +46,7 @@ public sealed partial class NoteWindow
             source.PointerExited -= this.OnCaptionPointerExited;
             this._nonClientPointerSource = null;
         }
+
         this.Activated -= this.OnWindowActivated;
         if (this.RootGrid.XamlRoot is { } root) { root.Changed -= this.OnXamlRootChanged; }
     }
@@ -83,6 +84,7 @@ public sealed partial class NoteWindow
             this._isHeaderHovered = false;
             this._isCaptionHovered = false;
         }
+
         this.QueueChromeRefresh();
     }
 
@@ -91,6 +93,7 @@ public sealed partial class NoteWindow
     private void QueueChromeRefresh()
     {
         if (this._isClosed || this._chromeRefreshQueued) { return; }
+
         this._chromeRefreshQueued = true;
         // LostFocus precedes GotFocus. Wait for the new target so clicking a formatting
         // button cannot collapse the bar before the button receives its click.
@@ -98,6 +101,7 @@ public sealed partial class NoteWindow
         {
             this._chromeRefreshQueued = false;
             if (this._isClosed) { return; }
+
             this.Editor.SetHostActive(this._isWindowActive);
             this.UpdateHeaderActions();
         });
@@ -108,11 +112,14 @@ public sealed partial class NoteWindow
     private bool HasFocusWithin(DependencyObject ancestor)
     {
         if (this.RootGrid.XamlRoot is not { } root) { return false; }
+
         for (var element = FocusManager.GetFocusedElement(root) as DependencyObject;
-             element is not null; element = VisualTreeHelper.GetParent(element))
+             element is not null;
+             element = VisualTreeHelper.GetParent(element))
         {
             if (ReferenceEquals(element, ancestor)) { return true; }
         }
+
         return false;
     }
 
@@ -120,6 +127,7 @@ public sealed partial class NoteWindow
     {
         if (this.HasEditingFocus()) { this.NoteDetailsButton.Focus(FocusState.Keyboard); }
         else { this.Editor.FocusText(FocusState.Keyboard); }
+
         args.Handled = true;
     }
 
@@ -162,11 +170,15 @@ public sealed partial class NoteWindow
     private void UpdateHeaderActions()
     {
         if (this._isClosed || this.HeaderActions is null) { return; }
+
         var show = App.Current.IsHighContrast || this._isHeaderHovered || this._isCaptionHovered
-            || this._isHeaderFlyoutOpen
-            || (this._isWindowActive && this.RootGrid.XamlRoot is { } root
-                && FocusManager.GetFocusedElement(root) is Control { FocusState: FocusState.Keyboard }
-                && this.HasFocusWithin(this.HeaderActions));
+                   || this._isHeaderFlyoutOpen
+                   || (this._isWindowActive && this.RootGrid.XamlRoot is { } root
+                                            && FocusManager.GetFocusedElement(root) is Control
+                                            {
+                                                FocusState: FocusState.Keyboard
+                                            }
+                                            && this.HasFocusWithin(this.HeaderActions));
         // Opacity keeps the header's layout, pointer targets, and keyboard tab stops
         // stable. Focus reveals the controls before a keyboard user operates them.
         this.HeaderActions.Opacity = show ? 1 : 0;

@@ -1,3 +1,9 @@
+// ------------------------------------------------------------
+// 
+// Copyright (c) Jiří Polášek. All rights reserved.
+// 
+// ------------------------------------------------------------
+
 namespace OmniTray.Core.ClassifierProviders;
 
 internal abstract class SingleTagContentClassifierProvider(
@@ -24,11 +30,7 @@ internal abstract class SingleTagContentClassifierProvider(
                 Facets = facet,
                 Tags =
                 [
-                    new ContentTag
-                    {
-                        Id = tagId,
-                        DisplayName = tagDisplayName
-                    }
+                    new ContentTag { Id = tagId, DisplayName = tagDisplayName }
                 ]
             }
             : ContentClassifierOutput.Empty;

@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.Diagnostics;
@@ -22,10 +22,11 @@ public partial class App
         if (stackId is { } id)
         {
             return this.StackCatalogViewModel.Stacks.FirstOrDefault(stack => stack.Model.Id == id)
-                ?? throw new ArgumentException("That stack is no longer available.");
+                   ?? throw new ArgumentException("That stack is no longer available.");
         }
+
         return this.StackCatalogViewModel.Stacks.FirstOrDefault(stack => stack.Name == "Inbox")
-            ?? this.StackCatalogViewModel.AddStack(DropStack.CreateEmpty("Inbox"));
+               ?? this.StackCatalogViewModel.AddStack(DropStack.CreateEmpty("Inbox"));
     }
 
     internal void CreateQuickNote(Guid? stackId = null)
@@ -68,8 +69,8 @@ public partial class App
     internal async Task ConvertTextToNoteAsync(Guid stackId, Guid itemId, bool duplicate)
     {
         var source = this.StackCatalogViewModel.Stacks.SingleOrDefault(stack => stack.Model.Id == stackId)
-            ?.Model.Items.SingleOrDefault(item => item.Id == itemId && item.Kind == DropItemKind.Text)
-            ?? throw new ArgumentException("The text item is no longer available.", nameof(itemId));
+                         ?.Model.Items.SingleOrDefault(item => item.Id == itemId && item.Kind == DropItemKind.Text)
+                     ?? throw new ArgumentException("The text item is no longer available.", nameof(itemId));
         string? plainText = null;
         if (source.Text is null && !string.IsNullOrWhiteSpace(source.Rtf))
         {
@@ -87,7 +88,8 @@ public partial class App
         catch (Exception exception)
         {
             Debug.WriteLine($"OmniTray could not save the converted note: {exception}");
-            this.ShowToast("The note is open, but saving failed. Original captured files were kept. Use Save now in the note to retry.",
+            this.ShowToast(
+                "The note is open, but saving failed. Original captured files were kept. Use Save now in the note to retry.",
                 InfoBarSeverity.Error);
         }
     }
@@ -102,9 +104,11 @@ public partial class App
         catch (Exception exception) when (!reportFailureToCaller)
         {
             Debug.WriteLine($"OmniTray could not save removal: {exception}");
-            this.ShowToast("The removal could not be saved. Captured files were kept. Try saving again before exiting.", InfoBarSeverity.Error);
+            this.ShowToast("The removal could not be saved. Captured files were kept. Try saving again before exiting.",
+                InfoBarSeverity.Error);
             return;
         }
+
         var retained = this.StackCatalogViewModel.NoteHistory.Select(history => history.SourceItem)
             .Concat(this.StackCatalogViewModel.Stacks.SelectMany(stack => stack.Model.Items));
         await ContentStore.DeleteOwnedAsync(items, retained);
@@ -114,6 +118,7 @@ public partial class App
     {
         var deleted = this.StackCatalogViewModel.DeletedNotes.FirstOrDefault(entry => entry.Note.Id == noteId);
         if (deleted is null) { return; }
+
         var history = this.StackCatalogViewModel.NoteHistory.Where(entry => entry.NoteId == noteId).ToArray();
         this.StackCatalogViewModel.PermanentlyDeleteNote(noteId);
         try

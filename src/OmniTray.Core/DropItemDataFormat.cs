@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.Core;
@@ -16,6 +16,14 @@ public sealed class DropItemDataFormat
 {
     private readonly byte[]? _binaryData;
 
+    public string FormatId { get; }
+
+    public DropItemDataFormatKind Kind { get; }
+
+    public string? Text { get; }
+
+    public int ByteLength => this._binaryData?.Length ?? 0;
+
     private DropItemDataFormat(
         string formatId,
         DropItemDataFormatKind kind,
@@ -28,14 +36,6 @@ public sealed class DropItemDataFormat
         this.Text = text;
         this._binaryData = binaryData is null ? null : [.. binaryData];
     }
-
-    public string FormatId { get; }
-
-    public DropItemDataFormatKind Kind { get; }
-
-    public string? Text { get; }
-
-    public int ByteLength => this._binaryData?.Length ?? 0;
 
     public static DropItemDataFormat CreateText(string formatId, string text)
     {

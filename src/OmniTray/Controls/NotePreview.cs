@@ -1,12 +1,12 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
+using Windows.Foundation;
 using Microsoft.UI;
 using Microsoft.UI.Xaml.Media;
-using Windows.Foundation;
 using Color = Windows.UI.Color;
 using XamlPath = Microsoft.UI.Xaml.Shapes.Path;
 
@@ -16,14 +16,31 @@ public sealed partial class NotePreview : UserControl
 {
     public static readonly DependencyProperty NoteProperty = DependencyProperty.Register(nameof(Note),
         typeof(StickyNote), typeof(NotePreview), new PropertyMetadata(null, OnChanged));
+
     public static readonly DependencyProperty CompactProperty = DependencyProperty.Register(nameof(Compact),
         typeof(bool), typeof(NotePreview), new PropertyMetadata(false, OnChanged));
-    private readonly Grid _surface = new();
-    private readonly XamlPath _paper = new() { StrokeThickness = 1 };
+
     private readonly XamlPath _fold = new() { StrokeThickness = 1 };
     private readonly FontIcon _glyph = new() { Glyph = "\uE70B", FontSize = 19 };
-    private readonly TextBlock _text = new() { FontSize = 11, TextWrapping = TextWrapping.Wrap,
-        TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 3 };
+    private readonly XamlPath _paper = new() { StrokeThickness = 1 };
+    private readonly Grid _surface = new();
+
+    private readonly TextBlock _text = new()
+    {
+        FontSize = 11, TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 3
+    };
+
+    public StickyNote? Note
+    {
+        get => (StickyNote?)this.GetValue(NoteProperty);
+        set => this.SetValue(NoteProperty, value);
+    }
+
+    public bool Compact
+    {
+        get => (bool)this.GetValue(CompactProperty);
+        set => this.SetValue(CompactProperty, value);
+    }
 
     public NotePreview()
     {
@@ -46,19 +63,8 @@ public sealed partial class NotePreview : UserControl
         this.Visibility = Visibility.Collapsed;
     }
 
-    public StickyNote? Note
-    {
-        get => (StickyNote?)this.GetValue(NoteProperty);
-        set => this.SetValue(NoteProperty, value);
-    }
-
-    public bool Compact
-    {
-        get => (bool)this.GetValue(CompactProperty);
-        set => this.SetValue(CompactProperty, value);
-    }
-
-    private static void OnChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args) => ((NotePreview)sender).Refresh();
+    private static void OnChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args) =>
+        ((NotePreview)sender).Refresh();
 
     private void OnSystemColorsChanged(object? sender, EventArgs args) => this.Refresh();
 
@@ -69,6 +75,7 @@ public sealed partial class NotePreview : UserControl
         {
             return;
         }
+
         var dark = this.ActualTheme == ElementTheme.Dark;
         var highContrast = App.Current.IsHighContrast;
         this._paper.Fill = highContrast
@@ -78,9 +85,11 @@ public sealed partial class NotePreview : UserControl
             ? (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"]
             : new SolidColorBrush(dark ? Colors.White : Colors.Black);
         var ink = dark ? Colors.White : Colors.Black;
-        this._paper.Stroke = highContrast ? this._text.Foreground
+        this._paper.Stroke = highContrast
+            ? this._text.Foreground
             : new SolidColorBrush(Color.FromArgb(36, ink.R, ink.G, ink.B));
-        this._fold.Fill = highContrast ? this._text.Foreground
+        this._fold.Fill = highContrast
+            ? this._text.Foreground
             : new SolidColorBrush(Color.FromArgb(28, ink.R, ink.G, ink.B));
         this._fold.Stroke = this._paper.Stroke;
         this._glyph.Foreground = this._text.Foreground;
@@ -109,7 +118,10 @@ public sealed partial class NotePreview : UserControl
             new LineSegment { Point = new Point(right, bottom - fold) },
             new LineSegment { Point = new Point(right - fold, bottom) },
             new LineSegment { Point = new Point(inset + corner, bottom) },
-            new QuadraticBezierSegment { Point1 = new Point(inset, bottom), Point2 = new Point(inset, bottom - corner) },
+            new QuadraticBezierSegment
+            {
+                Point1 = new Point(inset, bottom), Point2 = new Point(inset, bottom - corner)
+            },
             new LineSegment { Point = new Point(inset, inset + corner) },
             new QuadraticBezierSegment { Point1 = new Point(inset, inset), Point2 = new Point(inset + corner, inset) });
         this._fold.Data = ClosedShape(new Point(right, bottom - fold),
@@ -123,6 +135,7 @@ public sealed partial class NotePreview : UserControl
     {
         var figure = new PathFigure { StartPoint = start, IsClosed = true };
         foreach (var segment in segments) { figure.Segments.Add(segment); }
+
         var geometry = new PathGeometry();
         geometry.Figures.Add(figure);
         return geometry;

@@ -1,10 +1,8 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
-
-using OmniTray.Core;
 
 namespace OmniTray.ViewModels;
 
@@ -43,6 +41,7 @@ public sealed class StackOrganizerNavigationState
     public void OpenStack(Guid stackId, bool fromSearch = false)
     {
         if (!fromSearch) { this.ClearSearch(); }
+
         this.OpenedFromSearch = fromSearch;
         this.StackId = stackId;
         this.Page = StackOrganizerPage.Stack;
@@ -52,10 +51,12 @@ public sealed class StackOrganizerNavigationState
     {
         query = query.Trim();
         if (query.Length == 0) { return false; }
+
         if (this.Page != StackOrganizerPage.Search && !this.OpenedFromSearch)
         {
-            this.SearchOrigin = new(this.Page, this.StackId, selectedItemId);
+            this.SearchOrigin = new StackOrganizerSearchOrigin(this.Page, this.StackId, selectedItemId);
         }
+
         this.SearchQuery = query;
         this.LastSearchStackId = null;
         this.LastSearchItemId = null;
@@ -73,7 +74,7 @@ public sealed class StackOrganizerNavigationState
     {
         this.LastSearchStackId = stackId;
         this.LastSearchItemId = itemId;
-        this.OpenStack(stackId, fromSearch: true);
+        this.OpenStack(stackId, true);
     }
 
     private void ClearSearch()

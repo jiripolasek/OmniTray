@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.Runtime.InteropServices;
@@ -20,15 +20,18 @@ internal static unsafe partial class PackagedAppService
     private static readonly Guid IidShellItem2 = new("7E9FB0D3-919F-4307-AB2E-9B1860310C93");
     private static readonly Guid IidEnumShellItems = new("70629033-E363-4A28-A567-0DB78006E6D7");
     private static readonly Guid BhidEnumItems = new("94F60519-2850-4924-AA5A-D15E84868039");
+
     private static readonly Guid ClsidApplicationActivationManager =
         new("45BA127D-10A8-46EA-8AB7-56EA9078943C");
+
     private static readonly Guid IidApplicationActivationManager =
         new("2E941141-7F97-4756-BA1D-9DECDE894A3D");
+
     private static readonly PropertyKey AppUserModelIdKey =
         new(new Guid("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3"), 5);
 
     public static Task<IReadOnlyList<PackagedAppDescriptor>> GetInstalledAppsAsync() =>
-        Task.Run<IReadOnlyList<PackagedAppDescriptor>>(GetInstalledApps);
+        Task.Run(GetInstalledApps);
 
     public static Task ActivateFilesAsync(string appUserModelId, IReadOnlyList<string> paths)
     {
@@ -313,10 +316,8 @@ internal static unsafe partial class PackagedAppService
         }
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private readonly record struct PropertyKey(Guid FormatId, uint PropertyId);
-
-    [LibraryImport("shell32.dll", EntryPoint = "SHCreateItemFromParsingName", StringMarshalling = StringMarshalling.Utf16)]
+    [LibraryImport("shell32.dll", EntryPoint = "SHCreateItemFromParsingName",
+        StringMarshalling = StringMarshalling.Utf16)]
     private static partial int SHCreateItemFromParsingName(
         string parsingName,
         nint bindContext,
@@ -353,4 +354,7 @@ internal static unsafe partial class PackagedAppService
         uint context,
         in Guid interfaceId,
         out nint instance);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private readonly record struct PropertyKey(Guid FormatId, uint PropertyId);
 }

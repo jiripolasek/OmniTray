@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.Collections.ObjectModel;
@@ -32,26 +32,49 @@ internal enum DockSizePreset
 
 internal sealed class DockResizeDeltaEventArgs : EventArgs
 {
+    public double Change { get; }
+
     public DockResizeDeltaEventArgs(double change)
     {
         this.Change = change;
     }
-
-    public double Change { get; }
 }
 
 internal sealed class DockResizePresetEventArgs : EventArgs
 {
+    public DockSizePreset Preset { get; }
+
     public DockResizePresetEventArgs(DockSizePreset preset)
     {
         this.Preset = preset;
     }
-
-    public DockSizePreset Preset { get; }
 }
 
 public sealed partial class EdgeWindow : TransparentWindow
 {
+    public event EventHandler? CollapseRequested;
+
+    public event EventHandler? PointerInteractionStarted;
+
+    public event EventHandler? PointerInteractionEnded;
+
+    public event EventHandler? ExternalDragEntered;
+
+    public event EventHandler? ExternalDragLeft;
+
+    public event EventHandler? DropCompleted;
+
+    internal event EventHandler? DockToggled;
+
+    internal event EventHandler? DockResizeStarted;
+
+    internal event EventHandler<DockResizeDeltaEventArgs>? DockResizeDelta;
+
+    internal event EventHandler? DockResizeCompleted;
+
+    internal event EventHandler<DockResizePresetEventArgs>? DockResizePresetRequested;
+
+    internal event EventHandler? HorizontalDetailExpansionChanged;
     internal const double HintThickness = 48;
     private const float ShadowElevation = 32;
     private static readonly TimeSpan RevealAnimationDuration = TimeSpan.FromMilliseconds(220);
@@ -62,9 +85,9 @@ public sealed partial class EdgeWindow : TransparentWindow
     private readonly AutoSuggestBox _filterBox;
     private readonly ObservableCollection<DropStackViewModel> _filteredEdgeStacks = [];
     private readonly ListInsertionAdornerController _horizontalStackInsertionAdorner;
-    private readonly PointerEventHandler _stackPointerMovedHandler;
-    private readonly Flyout _searchFlyout;
     private readonly TrayInspectorPopupHost _inspectorPopupHost;
+    private readonly Flyout _searchFlyout;
+    private readonly PointerEventHandler _stackPointerMovedHandler;
     private readonly HashSet<DropStackViewModel> _trackedStacks = [];
     private readonly ListInsertionAdornerController _verticalStackInsertionAdorner;
     private ListView _activeStackList = null!;
@@ -73,15 +96,25 @@ public sealed partial class EdgeWindow : TransparentWindow
     private FrameworkElement? _expandedVerticalOrganizer;
     private ScalarKeyFrameAnimation? _hintRailAnimation;
     private DropStackViewModel? _horizontalExpandedStack;
+    private bool _isDocked;
     private bool _isExpandedTarget;
     private bool _isFilterApplied;
-    private bool _isDocked;
     private bool _isStackDragOperationActive;
     private double _panelHeight;
     private double _panelWidth;
     private Vector3KeyFrameAnimation? _revealAnimation;
     private int _revealGeneration;
     private ScrollViewer? _stackScrollViewer;
+
+    public MainViewModel ViewModel { get; }
+
+    public EdgeShelfSide Side { get; }
+
+    public ObservableCollection<DropStackViewModel> EdgeStacks { get; }
+
+    internal bool IsHorizontalDetailExpanded => this._horizontalExpandedStack is not null;
+
+    internal bool IsDocked => this._isDocked;
 
     public EdgeWindow(MainViewModel viewModel, EdgeShelfSide side)
     {
@@ -93,16 +126,13 @@ public sealed partial class EdgeWindow : TransparentWindow
         this._inspectorPopupHost = new TrayInspectorPopupHost(this, this.StackInspectorPopup);
         this._filterBox = new AutoSuggestBox
         {
-            Width = 280,
-            PlaceholderText = "Filter stacks",
-            QueryIcon = new SymbolIcon(Symbol.Find)
+            Width = 280, PlaceholderText = "Filter stacks", QueryIcon = new SymbolIcon(Symbol.Find)
         };
         AutomationProperties.SetName(this._filterBox, "Filter stacks on this shelf");
         this._filterBox.TextChanged += this.OnFilterBoxTextChanged;
         this._searchFlyout = new Flyout
         {
-            Content = this._filterBox,
-            Placement = FlyoutPlacementMode.BottomEdgeAlignedRight
+            Content = this._filterBox, Placement = FlyoutPlacementMode.BottomEdgeAlignedRight
         };
         this._searchFlyout.Opened += this.OnSearchFlyoutOpened;
         this._searchFlyout.Closed += this.OnSearchFlyoutClosed;
@@ -139,40 +169,6 @@ public sealed partial class EdgeWindow : TransparentWindow
         this.HorizontalStackList.Loaded += (_, _) => this.CacheActiveStackScrollViewer(this.HorizontalStackList);
         this.UpdateEmptyState();
     }
-
-    public MainViewModel ViewModel { get; }
-
-    public EdgeShelfSide Side { get; }
-
-    public ObservableCollection<DropStackViewModel> EdgeStacks { get; }
-
-    internal bool IsHorizontalDetailExpanded => this._horizontalExpandedStack is not null;
-
-    internal bool IsDocked => this._isDocked;
-
-    public event EventHandler? CollapseRequested;
-
-    public event EventHandler? PointerInteractionStarted;
-
-    public event EventHandler? PointerInteractionEnded;
-
-    public event EventHandler? ExternalDragEntered;
-
-    public event EventHandler? ExternalDragLeft;
-
-    public event EventHandler? DropCompleted;
-
-    internal event EventHandler? DockToggled;
-
-    internal event EventHandler? DockResizeStarted;
-
-    internal event EventHandler<DockResizeDeltaEventArgs>? DockResizeDelta;
-
-    internal event EventHandler? DockResizeCompleted;
-
-    internal event EventHandler<DockResizePresetEventArgs>? DockResizePresetRequested;
-
-    internal event EventHandler? HorizontalDetailExpansionChanged;
 
     internal void SetDockedState(bool docked)
     {
@@ -1292,11 +1288,7 @@ public sealed partial class EdgeWindow : TransparentWindow
     {
         var flyout = new MenuFlyout();
         var sizeMode = this.ViewModel.GetEdgeWindowSizeMode(this.Side);
-        var sizeMenu = new MenuFlyoutSubItem
-        {
-            Text = "Size",
-            IsEnabled = !this.IsDocked
-        };
+        var sizeMenu = new MenuFlyoutSubItem { Text = "Size", IsEnabled = !this.IsDocked };
         sizeMenu.Items.Add(CreateRadioMenuItem(
             "Reasonable",
             "EdgeShelfSize",
@@ -1312,8 +1304,7 @@ public sealed partial class EdgeWindow : TransparentWindow
         var alignment = this.ViewModel.GetEdgeWindowAlignment(this.Side);
         var positionMenu = new MenuFlyoutSubItem
         {
-            Text = "Position",
-            IsEnabled = !this.IsDocked && sizeMode == EdgeWindowSizeMode.Reasonable
+            Text = "Position", IsEnabled = !this.IsDocked && sizeMode == EdgeWindowSizeMode.Reasonable
         };
         var startText = this.Side.IsVertical() ? "Top" : "Left";
         var endText = this.Side.IsVertical() ? "Bottom" : "Right";
@@ -1356,11 +1347,7 @@ public sealed partial class EdgeWindow : TransparentWindow
         flyout.Items.Add(layoutMenu);
 
         flyout.Items.Add(new MenuFlyoutSeparator());
-        var dockItem = new ToggleMenuFlyoutItem
-        {
-            Text = "Dock",
-            IsChecked = this.IsDocked
-        };
+        var dockItem = new ToggleMenuFlyoutItem { Text = "Dock", IsChecked = this.IsDocked };
         AutomationProperties.SetHelpText(
             dockItem,
             "Keep this shelf visible and reserve its screen edge on this display.");
@@ -1380,11 +1367,7 @@ public sealed partial class EdgeWindow : TransparentWindow
         flyout.Items.Add(sweepItem);
 
         flyout.Items.Add(new MenuFlyoutSeparator());
-        var settingsItem = new MenuFlyoutItem
-        {
-            Text = "Settings",
-            Icon = new FontIcon { Glyph = "\uE713" }
-        };
+        var settingsItem = new MenuFlyoutItem { Text = "Settings", Icon = new FontIcon { Glyph = "\uE713" } };
         settingsItem.Click += (_, _) => App.Current.ShowSettings();
         flyout.Items.Add(settingsItem);
         return flyout;
@@ -1396,12 +1379,7 @@ public sealed partial class EdgeWindow : TransparentWindow
         bool isChecked,
         Action selected)
     {
-        var item = new RadioMenuFlyoutItem
-        {
-            Text = text,
-            GroupName = groupName,
-            IsChecked = isChecked
-        };
+        var item = new RadioMenuFlyoutItem { Text = text, GroupName = groupName, IsChecked = isChecked };
         item.Click += (_, _) => selected();
         return item;
     }

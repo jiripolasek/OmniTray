@@ -27,14 +27,17 @@
             </Grid.ColumnDefinitions>
             <TextBlock Text="Note" VerticalAlignment="Center" Style="{ThemeResource BodyStrongTextBlockStyle}" />
             <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <Button x:Name="DetailsButton" Style="{StaticResource NotePaneButtonStyle}" AutomationProperties.Name="Note details">
+                <Button x:Name="DetailsButton" Style="{StaticResource NotePaneButtonStyle}"
+                        AutomationProperties.Name="Note details">
                     <FontIcon Glyph="&#xE946;" FontSize="14" />
                     <Button.Flyout>
                         <Flyout Placement="BottomEdgeAlignedRight">
                             <StackPanel Spacing="8" MaxWidth="260">
                                 <TextBlock x:Name="UpdatedText" FontSize="12" TextWrapping="Wrap" />
-                                <TextBlock x:Name="CreatedText" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                <TextBlock x:Name="SaveStatusText" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <TextBlock x:Name="CreatedText" FontSize="12" TextWrapping="Wrap"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <TextBlock x:Name="SaveStatusText" FontSize="12" TextWrapping="Wrap"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                             </StackPanel>
                         </Flyout>
                     </Button.Flyout>

@@ -1,21 +1,32 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.Core;
 
-public sealed record DeletedNote(StickyNote Note, NoteTarget Target, string StackName,
-    string? ItemName, DateTimeOffset DeletedAt);
+public sealed record DeletedNote(
+    StickyNote Note,
+    NoteTarget Target,
+    string StackName,
+    string? ItemName,
+    DateTimeOffset DeletedAt);
 
-public sealed record NoteCaptureHistory(Guid NoteId, Guid SourceStackId, string SourceStackName,
-    DropItem SourceItem, int SourceIndex, bool IsConversion);
+public sealed record NoteCaptureHistory(
+    Guid NoteId,
+    Guid SourceStackId,
+    string SourceStackName,
+    DropItem SourceItem,
+    int SourceIndex,
+    bool IsConversion);
 
 public static class NoteRecovery
 {
     public static (IReadOnlyList<DeletedNote> DeletedNotes, IReadOnlyList<NoteCaptureHistory> History) RecordCapture(
-        IReadOnlyList<DeletedNote> deleted, IReadOnlyList<NoteCaptureHistory> history, NoteCaptureHistory capture)
+        IReadOnlyList<DeletedNote> deleted,
+        IReadOnlyList<NoteCaptureHistory> history,
+        NoteCaptureHistory capture)
     {
         var entries = deleted.ToList();
         var sources = history.ToList();
@@ -31,17 +42,22 @@ public static class NoteRecovery
             {
                 Note = new StickyNote(id, note.Text, note.Rtf, note.Color, note.CreatedAt, note.UpdatedAt)
             };
-            sources = sources.Select(source => source.NoteId == note.Id ? source with { NoteId = id } : source).ToList();
+            sources = sources.Select(source => source.NoteId == note.Id ? source with { NoteId = id } : source)
+                .ToList();
         }
+
         if (sources.Any(source => source.NoteId == capture.NoteId))
         {
             throw new ArgumentException("Capture history already exists for this note.", nameof(capture));
         }
+
         sources.Add(capture);
         return (entries, sources);
     }
 
-    public static void ValidateHistory(IReadOnlyList<DropStack> stacks, IReadOnlyList<DeletedNote> deleted,
+    public static void ValidateHistory(
+        IReadOnlyList<DropStack> stacks,
+        IReadOnlyList<DeletedNote> deleted,
         IReadOnlyList<NoteCaptureHistory> history)
     {
         var noteIds = NoteOperations.Enumerate(stacks).Select(location => location.Note.Id).ToHashSet();
@@ -53,6 +69,7 @@ public static class NoteRecovery
                 throw new ArgumentException("Invalid or duplicate deleted note.", nameof(deleted));
             }
         }
+
         var historyIds = new HashSet<Guid>();
         foreach (var entry in history)
         {
@@ -65,7 +82,9 @@ public static class NoteRecovery
     }
 
     public static IReadOnlyList<DeletedNote> FindRemoved(
-        IReadOnlyList<DropStack> before, IReadOnlyList<DropStack> after, DateTimeOffset deletedAt)
+        IReadOnlyList<DropStack> before,
+        IReadOnlyList<DropStack> after,
+        DateTimeOffset deletedAt)
     {
         var remaining = NoteOperations.Enumerate(after).Select(location => location.Note.Id).ToHashSet();
         return NoteOperations.Enumerate(before).Where(location => !remaining.Contains(location.Note.Id))
@@ -78,7 +97,8 @@ public static class NoteRecovery
     }
 
     public static (IReadOnlyList<DropStack> Stacks, StickyNote Note) Restore(
-        IReadOnlyList<DropStack> stacks, DeletedNote deleted)
+        IReadOnlyList<DropStack> stacks,
+        DeletedNote deleted)
     {
         var result = stacks.ToList();
         var stack = result.SingleOrDefault(stack => stack.Id == deleted.Target.StackId);
@@ -107,14 +127,17 @@ public static class NoteRecovery
     }
 
     public static IReadOnlyList<DropStack> UndoConversion(
-        IReadOnlyList<DropStack> stacks, NoteCaptureHistory history)
+        IReadOnlyList<DropStack> stacks,
+        NoteCaptureHistory history)
     {
         var location = NoteOperations.Find(stacks, history.NoteId)
-            ?? throw new ArgumentException("The converted note is no longer available.", nameof(history));
+                       ?? throw new ArgumentException("The converted note is no longer available.", nameof(history));
         if (!history.IsConversion || history.SourceItem.Kind != DropItemKind.Text ||
-            stacks.Any(stack => stack.Items.Any(item => item.Id == history.SourceItem.Id && item.Note?.Id != history.NoteId)))
+            stacks.Any(stack =>
+                stack.Items.Any(item => item.Id == history.SourceItem.Id && item.Note?.Id != history.NoteId)))
         {
-            throw new ArgumentException("The original capture is already present or cannot be restored.", nameof(history));
+            throw new ArgumentException("The original capture is already present or cannot be restored.",
+                nameof(history));
         }
 
         var targetStack = stacks.Single(stack => stack.Id == location.Target.StackId);

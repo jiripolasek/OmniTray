@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using OmniTray.ViewModels;
@@ -33,7 +33,8 @@ public sealed class StackOrganizerNavigationTests
         navigation.ShowSearch();
 
         Assert.AreEqual("document", navigation.SearchQuery);
-        Assert.AreEqual(new StackOrganizerSearchOrigin(StackOrganizerPage.Stack, originStack, originItem), navigation.SearchOrigin);
+        Assert.AreEqual(new StackOrganizerSearchOrigin(StackOrganizerPage.Stack, originStack, originItem),
+            navigation.SearchOrigin);
         Assert.AreEqual(resultStack, navigation.LastSearchStackId);
         Assert.AreEqual(resultItem, navigation.LastSearchItemId);
         Assert.AreEqual(EdgeShelfSide.Left, navigation.ScopeSide);

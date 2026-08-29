@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 using System.Collections.ObjectModel;
@@ -15,15 +15,6 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     private readonly MainViewModel _main;
     private string _commandSurfaceId = DropCommandSurfaceIds.Popup;
     private bool _isDisposed;
-
-    internal SettingsViewModel(MainViewModel main, DropCommandCatalogViewModel commands)
-    {
-        this._main = main ?? throw new ArgumentNullException(nameof(main));
-        this._commands = commands ?? throw new ArgumentNullException(nameof(commands));
-        this._main.PropertyChanged += this.OnMainPropertyChanged;
-        this._commands.CatalogChanged += this.OnCommandCatalogChanged;
-        this.RefreshCommandPlacements();
-    }
 
     public ObservableCollection<DropCommandViewModel> CommandDefinitions => this._commands.Commands;
 
@@ -191,6 +182,15 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
 
     public bool CanConfigurePairedEdgeContentSync => this._main.CanConfigurePairedEdgeContentSync;
 
+    internal SettingsViewModel(MainViewModel main, DropCommandCatalogViewModel commands)
+    {
+        this._main = main ?? throw new ArgumentNullException(nameof(main));
+        this._commands = commands ?? throw new ArgumentNullException(nameof(commands));
+        this._main.PropertyChanged += this.OnMainPropertyChanged;
+        this._commands.CatalogChanged += this.OnCommandCatalogChanged;
+        this.RefreshCommandPlacements();
+    }
+
     internal void SetCommandSurface(string surfaceId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(surfaceId);
@@ -252,10 +252,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         ArgumentNullException.ThrowIfNull(placement);
         var allPlacements = this._commands.GetFlattened(this.CommandSurfaceId);
         var placementsById = allPlacements.ToDictionary(static item => item.NodeId);
-        var options = new List<DropCommandFolderOption>
-        {
-            new(null, "Top level")
-        };
+        var options = new List<DropCommandFolderOption> { new(null, "Top level") };
         options.AddRange(allPlacements
             .Where(candidate => candidate.IsFolder &&
                                 candidate.NodeId != placement.NodeId &&

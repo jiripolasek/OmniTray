@@ -1,7 +1,7 @@
 // ------------------------------------------------------------
-//
+// 
 // Copyright (c) Jiří Polášek. All rights reserved.
-//
+// 
 // ------------------------------------------------------------
 
 namespace OmniTray.Views;
@@ -23,7 +23,8 @@ internal static class NotePlacementDialog
 
         var placement = new ComboBox
         {
-            Header = "Placement", HorizontalAlignment = HorizontalAlignment.Stretch,
+            Header = "Placement",
+            HorizontalAlignment = HorizontalAlignment.Stretch,
             ItemsSource = new[] { "Note in stack", "Attached to item" },
             SelectedIndex = location.Target.Placement == NotePlacement.Item ? 1 : 0
         };
@@ -64,7 +65,9 @@ internal static class NotePlacementDialog
                 }
 
                 var kind = placement.SelectedIndex == 1 ? NotePlacement.Item : NotePlacement.StackItem;
-                var itemId = kind == NotePlacement.Item && items.SelectedItem is ComboBoxItem { Tag: Guid id } ? id : (Guid?)null;
+                var itemId = kind == NotePlacement.Item && items.SelectedItem is ComboBoxItem { Tag: Guid id }
+                    ? id
+                    : (Guid?)null;
                 catalog.MoveNote(noteId, new NoteTarget(stackId, kind, itemId));
                 return true;
             }
