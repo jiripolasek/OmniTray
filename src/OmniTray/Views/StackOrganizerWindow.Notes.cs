@@ -25,14 +25,16 @@ public sealed partial class StackOrganizerWindow
         this.Navigation.ShowNotes();
         if (this._notesPage is null)
         {
-            this._notesPage = new NoteLibraryPage(this.ViewModel.Catalog, this);
+            this._notesPage = new NoteLibraryPage(this.ViewModel.Catalog);
             this._notesPage.SelectedNoteChanged += this.OnLibraryNoteSelected;
+            this._notesPage.DetailsPaneToggleRequested += this.OnDetailsPaneToggleRequested;
         }
 
         this.DetailsPane.ShowEmpty("Select a note",
             "Edit it here or open it in a window. Restore deleted notes before editing.");
         this.PageHost.Content = this._notesPage;
         this._notesPage.SetActive(true);
+        this.UpdateDetailsPaneLayout(this.BrowserContent.ActualWidth);
         this.RefreshDetailsPane();
     }
 

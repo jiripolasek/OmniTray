@@ -475,7 +475,7 @@
                         <FontIcon
                             FontSize="40"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Glyph="&#xE7B8;" />
+                            Glyph="&#xE81E;" />
                         <TextBlock
                             HorizontalAlignment="Center"
                             Style="{ThemeResource SubtitleTextBlockStyle}"

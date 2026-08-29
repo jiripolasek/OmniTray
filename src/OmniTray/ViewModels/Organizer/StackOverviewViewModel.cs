@@ -16,7 +16,7 @@ public sealed partial class StackOverviewViewModel(MainViewModel catalog) : Obse
     public EdgeShelfSide? ScopeSide { get; internal set; }
     public string FilterText { get; internal set; } = string.Empty;
     public StackOrganizerSortMode SortMode { get; internal set; }
-    public StackOrganizerLayoutMode LayoutMode { get; internal set; } = StackOrganizerLayoutMode.Medium;
+    public OrganizerCollectionViewMode LayoutMode { get; internal set; } = OrganizerCollectionViewMode.Medium;
     internal bool IsApplyingScopeCommand { get; private set; }
 
     [ObservableProperty]
@@ -139,5 +139,3 @@ public sealed partial class StackOverviewViewModel(MainViewModel catalog) : Obse
 }
 
 public enum StackOrganizerSortMode { Manual, Name, ItemCount }
-
-public enum StackOrganizerLayoutMode { Compact, Medium, Large }

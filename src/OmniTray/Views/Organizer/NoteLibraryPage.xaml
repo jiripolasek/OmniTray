@@ -4,6 +4,260 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:OmniTray.Controls"
     xmlns:viewModels="using:OmniTray.ViewModels.Organizer">
+    <Page.Resources>
+        <ItemsPanelTemplate x:Key="NoteListItemsPanel">
+            <ItemsStackPanel Orientation="Vertical" />
+        </ItemsPanelTemplate>
+        <ItemsPanelTemplate x:Key="NoteThumbnailItemsPanel">
+            <ItemsWrapGrid
+                HorizontalAlignment="Stretch"
+                ItemHeight="230"
+                ItemWidth="220"
+                Orientation="Horizontal" />
+        </ItemsPanelTemplate>
+        <Style x:Key="NoteListItemContainerStyle" TargetType="GridViewItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Margin" Value="0,0,0,2" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+        <Style x:Key="NoteThumbnailItemContainerStyle" TargetType="GridViewItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Margin" Value="0,0,10,10" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+        <DataTemplate x:Key="NoteListItemTemplate" x:DataType="viewModels:NoteLibraryEntry">
+            <Grid
+                MinHeight="82"
+                AutomationProperties.Name="{x:Bind Note.DisplayName}"
+                Background="Transparent"
+                ColumnSpacing="12"
+                ContextRequested="OnNoteRowContextRequested"
+                PointerEntered="OnNoteRowPointerEntered"
+                PointerExited="OnNoteRowPointerExited"
+                Tag="{x:Bind}">
+                <Grid.ContextFlyout>
+                    <MenuFlyout Opening="OnNoteContextMenuOpening">
+                        <MenuFlyoutItem
+                            Click="OnOpenTaggedNoteClick"
+                            KeyboardAcceleratorTextOverride="Enter"
+                            Tag="{x:Bind}"
+                            Text="{x:Bind OpenLabel}">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE8A9;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem
+                            Click="OnGoToTaggedNoteStackClick"
+                            KeyboardAcceleratorTextOverride="Ctrl+E"
+                            Tag="{x:Bind}"
+                            Text="Go to stack"
+                            Visibility="{x:Bind CanGoToStack}">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE81E;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutSubItem
+                            Tag="note-color"
+                            Text="Change color"
+                            Visibility="{x:Bind CanChangeColor}">
+                            <MenuFlyoutSubItem.Icon>
+                                <SymbolIcon Symbol="Highlight" />
+                            </MenuFlyoutSubItem.Icon>
+                        </MenuFlyoutSubItem>
+                        <MenuFlyoutSeparator />
+                        <MenuFlyoutItem
+                            Click="OnDeleteTaggedNoteClick"
+                            Icon="Delete"
+                            KeyboardAcceleratorTextOverride="Delete"
+                            Tag="{x:Bind}"
+                            Text="{x:Bind DeleteLabel}" />
+                    </MenuFlyout>
+                </Grid.ContextFlyout>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="44" />
+                    <ColumnDefinition Width="84" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border
+                    x:Name="NoteCardSurface"
+                    Grid.ColumnSpan="3"
+                    Margin="2"
+                    Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+                    CornerRadius="8"
+                    IsHitTestVisible="False"
+                    Opacity="0" />
+                <controls:NotePreview
+                    Grid.Column="1"
+                    Width="64"
+                    Height="64"
+                    Margin="10,8"
+                    Note="{x:Bind Note}" />
+                <StackPanel
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Spacing="2">
+                    <TextBlock
+                        FontWeight="SemiBold"
+                        MaxLines="1"
+                        Text="{x:Bind Note.DisplayName}"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        MaxLines="1"
+                        Text="{x:Bind Preview}"
+                        TextTrimming="CharacterEllipsis" />
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            MaxLines="1"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Text="{x:Bind Location}"
+                            TextTrimming="CharacterEllipsis" />
+                        <TextBlock
+                            Grid.Column="1"
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Text="{x:Bind TimeText}" />
+                    </Grid>
+                </StackPanel>
+                <CheckBox
+                    x:Name="NoteSelectionCheckBox"
+                    Grid.Column="0"
+                    Width="24"
+                    Height="24"
+                    MinWidth="0"
+                    MinHeight="0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    AutomationProperties.HelpText="Select or clear this note"
+                    AutomationProperties.Name="{x:Bind Note.DisplayName}"
+                    Click="OnNoteSelectionCheckBoxClick"
+                    Loaded="OnNoteSelectionCheckBoxLoaded"
+                    PointerPressed="OnNoteSelectionCheckBoxPointerPressed"
+                    Tag="{x:Bind}"
+                    Visibility="Collapsed" />
+                <Border
+                    x:Name="NoteSelectionBorder"
+                    Grid.ColumnSpan="3"
+                    Margin="2"
+                    BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                    BorderThickness="2"
+                    CornerRadius="8"
+                    IsHitTestVisible="False"
+                    Visibility="Collapsed" />
+            </Grid>
+        </DataTemplate>
+        <DataTemplate x:Key="NoteThumbnailItemTemplate" x:DataType="viewModels:NoteLibraryEntry">
+            <Grid
+                AutomationProperties.Name="{x:Bind Note.DisplayName}"
+                Background="Transparent"
+                ContextRequested="OnNoteRowContextRequested"
+                PointerEntered="OnNoteRowPointerEntered"
+                PointerExited="OnNoteRowPointerExited"
+                Tag="{x:Bind}">
+                <Grid.ContextFlyout>
+                    <MenuFlyout Opening="OnNoteContextMenuOpening">
+                        <MenuFlyoutItem
+                            Click="OnOpenTaggedNoteClick"
+                            KeyboardAcceleratorTextOverride="Enter"
+                            Tag="{x:Bind}"
+                            Text="{x:Bind OpenLabel}">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE8A9;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem
+                            Click="OnGoToTaggedNoteStackClick"
+                            KeyboardAcceleratorTextOverride="Ctrl+E"
+                            Tag="{x:Bind}"
+                            Text="Go to stack"
+                            Visibility="{x:Bind CanGoToStack}">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE81E;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutSubItem
+                            Tag="note-color"
+                            Text="Change color"
+                            Visibility="{x:Bind CanChangeColor}">
+                            <MenuFlyoutSubItem.Icon>
+                                <SymbolIcon Symbol="Highlight" />
+                            </MenuFlyoutSubItem.Icon>
+                        </MenuFlyoutSubItem>
+                        <MenuFlyoutSeparator />
+                        <MenuFlyoutItem
+                            Click="OnDeleteTaggedNoteClick"
+                            Icon="Delete"
+                            KeyboardAcceleratorTextOverride="Delete"
+                            Tag="{x:Bind}"
+                            Text="{x:Bind DeleteLabel}" />
+                    </MenuFlyout>
+                </Grid.ContextFlyout>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Border
+                    x:Name="NoteCardSurface"
+                    Grid.RowSpan="2"
+                    Margin="2"
+                    Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+                    CornerRadius="8"
+                    IsHitTestVisible="False"
+                    Opacity="0" />
+                <controls:NotePreview Margin="16,12,16,8" Note="{x:Bind Note}" />
+                <CheckBox
+                    x:Name="NoteSelectionCheckBox"
+                    Width="24"
+                    Height="24"
+                    MinWidth="0"
+                    MinHeight="0"
+                    Margin="12,10"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    AutomationProperties.HelpText="Select or clear this note"
+                    AutomationProperties.Name="{x:Bind Note.DisplayName}"
+                    Click="OnNoteSelectionCheckBoxClick"
+                    Loaded="OnNoteSelectionCheckBoxLoaded"
+                    PointerPressed="OnNoteSelectionCheckBoxPointerPressed"
+                    Tag="{x:Bind}"
+                    Visibility="Collapsed" />
+                <StackPanel
+                    Grid.Row="1"
+                    Margin="12,0,12,10"
+                    Spacing="1">
+                    <TextBlock
+                        FontWeight="SemiBold"
+                        MaxLines="1"
+                        Text="{x:Bind Note.DisplayName}"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        MaxLines="1"
+                        Style="{ThemeResource CaptionTextBlockStyle}"
+                        Text="{x:Bind Location}"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Style="{ThemeResource CaptionTextBlockStyle}"
+                        Text="{x:Bind TimeText}" />
+                </StackPanel>
+                <Border
+                    x:Name="NoteSelectionBorder"
+                    Grid.RowSpan="2"
+                    Margin="2"
+                    BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                    BorderThickness="2"
+                    CornerRadius="8"
+                    IsHitTestVisible="False"
+                    Visibility="Collapsed" />
+            </Grid>
+        </DataTemplate>
+    </Page.Resources>
     <Grid
         x:Name="RootGrid"
         Padding="20"
@@ -37,92 +291,102 @@
                 PlaceholderText="Search notes and their locations"
                 TextChanged="OnSearchChanged" />
         </Grid>
-        <CommandBar
-            x:Name="Commands"
+        <controls:OrganizerToolbar
+            x:Name="CommandToolbar"
             Grid.Row="2"
-            Background="Transparent"
-            DefaultLabelPosition="Right"
-            IsEnabled="{x:Bind ViewModel.CanUseCommands, Mode=OneWay}">
-            <AppBarButton Click="OnNewClick" Label="New note">
-                <AppBarButton.Icon>
-                    <FontIcon Glyph="&#xE70B;" />
-                </AppBarButton.Icon>
-            </AppBarButton>
-            <AppBarButton
-                Click="OnClipboardClick"
-                Icon="Paste"
-                Label="Clipboard → note" />
-            <AppBarButton
-                x:Name="OpenButton"
-                Click="OnOpenClick"
-                IsEnabled="{x:Bind ViewModel.CanOpenSelection, Mode=OneWay}"
-                Label="{x:Bind ViewModel.OpenLabel, Mode=OneWay}">
-                <AppBarButton.Icon>
-                    <FontIcon Glyph="&#xE70B;" />
-                </AppBarButton.Icon>
-            </AppBarButton>
-            <CommandBar.SecondaryCommands>
+            ClearSelectionRequested="OnClearSelectionClick"
+            CollectionViewModeChanged="OnCollectionViewModeChanged"
+            DetailsPaneToggleRequested="OnDetailsPaneToggleClick"
+            SelectionSummary="{x:Bind ViewModel.SelectionSummary, Mode=OneWay}">
+            <controls:OrganizerToolbar.PermanentCommands>
+                <AppBarButton
+                    AccessKey="N"
+                    Click="OnNewClick"
+                    IsEnabled="{x:Bind ViewModel.CanUseCommands, Mode=OneWay}"
+                    Label="New note">
+                    <AppBarButton.Icon>
+                        <FontIcon Glyph="&#xE70B;" />
+                    </AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarButton
+                    AccessKey="F"
+                    Click="OnClipboardClick"
+                    Icon="Paste"
+                    IsEnabled="{x:Bind ViewModel.CanUseCommands, Mode=OneWay}"
+                    Label="From clipboard" />
+            </controls:OrganizerToolbar.PermanentCommands>
+            <controls:OrganizerToolbar.SelectionCommands>
+                <AppBarButton
+                    x:Name="OpenButton"
+                    AccessKey="O"
+                    Click="OnOpenClick"
+                    IsEnabled="{x:Bind ViewModel.CanUseCommands, Mode=OneWay}"
+                    Label="{x:Bind ViewModel.OpenLabel, Mode=OneWay}"
+                    Visibility="{x:Bind ViewModel.CanOpenSelection, Mode=OneWay}">
+                    <AppBarButton.Icon>
+                        <FontIcon Glyph="&#xE70B;" />
+                    </AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarButton
+                    x:Name="GoToStackButton"
+                    AccessKey="G"
+                    AutomationProperties.Name="Go to the stack containing the selected note"
+                    Click="OnGoToSelectedNoteStackClick"
+                    IsEnabled="{x:Bind ViewModel.CanUseCommands, Mode=OneWay}"
+                    Label="Go to stack"
+                    ToolTipService.ToolTip="Go to stack (Ctrl+E)"
+                    Visibility="{x:Bind ViewModel.CanGoToSelection, Mode=OneWay}">
+                    <AppBarButton.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="E" Modifiers="Control" />
+                    </AppBarButton.KeyboardAccelerators>
+                    <AppBarButton.Icon>
+                        <FontIcon Glyph="&#xE81E;" />
+                    </AppBarButton.Icon>
+                </AppBarButton>
                 <AppBarButton
                     x:Name="DeleteButton"
-                    Click="OnPurgeClick"
+                    AccessKey="D"
+                    Click="OnDeleteClick"
                     Icon="Delete"
-                    IsEnabled="{x:Bind ViewModel.CanOpenSelection, Mode=OneWay}"
-                    Label="Delete permanently"
-                    Visibility="{x:Bind ViewModel.ShowDeleted, Mode=OneWay}" />
-            </CommandBar.SecondaryCommands>
-        </CommandBar>
-        <ListView
+                    IsEnabled="{x:Bind ViewModel.CanUseCommands, Mode=OneWay}"
+                    Label="{x:Bind ViewModel.DeleteLabel, Mode=OneWay}"
+                    ToolTipService.ToolTip="Delete (Delete)"
+                    Visibility="{x:Bind ViewModel.HasSelection, Mode=OneWay}">
+                    <AppBarButton.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="Delete" />
+                    </AppBarButton.KeyboardAccelerators>
+                </AppBarButton>
+            </controls:OrganizerToolbar.SelectionCommands>
+        </controls:OrganizerToolbar>
+        <GridView
             x:Name="NotesList"
             Grid.Row="3"
+            AutomationProperties.HelpText="Press Space to toggle selection, Ctrl+E to go to the containing stack, or Delete to delete selected notes."
             AutomationProperties.Name="Notes"
             DoubleTapped="OnNotesDoubleTapped"
+            ItemContainerStyle="{StaticResource NoteListItemContainerStyle}"
+            ItemTemplate="{StaticResource NoteListItemTemplate}"
             ItemsSource="{x:Bind ViewModel.Entries}"
+            ItemsPanel="{StaticResource NoteListItemsPanel}"
+            IsItemClickEnabled="False"
+            IsMultiSelectCheckBoxEnabled="False"
             KeyDown="OnNotesKeyDown"
-            SelectedItem="{x:Bind ViewModel.SelectedEntry, Mode=OneWay}"
             SelectionChanged="OnSelectionChanged"
-            SelectionMode="Single">
-            <ListView.ItemContainerStyle>
-                <Style TargetType="ListViewItem">
-                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                </Style>
-            </ListView.ItemContainerStyle>
-            <ListView.ItemTemplate>
-                <DataTemplate x:DataType="viewModels:NoteLibraryEntry">
-                    <Grid Padding="4,8" ColumnSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="40" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <controls:NotePreview
-                            Width="40"
-                            Height="40"
-                            VerticalAlignment="Top"
-                            Compact="True"
-                            Note="{x:Bind Note}" />
-                        <StackPanel Grid.Column="1" Spacing="3">
-                            <TextBlock
-                                FontWeight="SemiBold"
-                                Text="{x:Bind Note.DisplayName}"
-                                TextTrimming="CharacterEllipsis" />
-                            <TextBlock
-                                MaxLines="2"
-                                Text="{x:Bind Preview}"
-                                TextTrimming="CharacterEllipsis"
-                                TextWrapping="Wrap" />
-                            <TextBlock
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Style="{ThemeResource CaptionTextBlockStyle}"
-                                Text="{x:Bind Location}"
-                                TextTrimming="CharacterEllipsis" />
-                            <TextBlock
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Style="{ThemeResource CaptionTextBlockStyle}"
-                                Text="{x:Bind TimeText}" />
-                        </StackPanel>
-                    </Grid>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+            SelectionMode="Extended"
+            SizeChanged="OnNotesListSizeChanged">
+            <GridView.Resources>
+                <StaticResource x:Key="GridViewItemBackgroundPointerOver" ResourceKey="SystemControlTransparentBrush" />
+                <StaticResource x:Key="GridViewItemBackgroundPressed" ResourceKey="SystemControlTransparentBrush" />
+                <StaticResource x:Key="GridViewItemBackgroundSelected" ResourceKey="SystemControlTransparentBrush" />
+                <StaticResource x:Key="GridViewItemBackgroundSelectedPointerOver" ResourceKey="SystemControlTransparentBrush" />
+                <StaticResource x:Key="GridViewItemBackgroundSelectedPressed" ResourceKey="SystemControlTransparentBrush" />
+                <StaticResource x:Key="GridViewItemPointerOverBorderBrush" ResourceKey="SystemControlTransparentBrush" />
+                <StaticResource x:Key="GridViewItemSelectedBorderBrush" ResourceKey="SystemControlTransparentBrush" />
+                <StaticResource x:Key="GridViewItemSelectedPointerOverBorderBrush" ResourceKey="SystemControlTransparentBrush" />
+                <StaticResource x:Key="GridViewItemSelectedPressedBorderBrush" ResourceKey="SystemControlTransparentBrush" />
+                <StaticResource x:Key="GridViewItemSelectedInnerBorderBrush" ResourceKey="SystemControlTransparentBrush" />
+            </GridView.Resources>
+        </GridView>
         <TextBlock
             x:Name="SummaryText"
             Grid.Row="4"

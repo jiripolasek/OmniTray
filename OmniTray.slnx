@@ -8,11 +8,11 @@
       <Platform Project="x64" />
     </Project>
     <Project Path="src/OmniTray.CommandPalette.Package/OmniTray.CommandPalette.Package.wapproj" Type="c7167f0d-bc9f-4e6e-afe1-012c56b48db5">
-      <Platform Project="x64" />
-      <Build Solution="*|x64" Project="false" />
+      <Build Project="false" />
     </Project>
     <Project Path="src/OmniTray/OmniTray.csproj">
       <Platform Project="x64" />
+      <Deploy Solution="Debug|*" />
     </Project>
   </Folder>
   <Folder Name="/test/">

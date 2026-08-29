@@ -5,13 +5,18 @@
 // ------------------------------------------------------------
 
 using System.Collections.Specialized;
+using System.Numerics;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
 using Windows.System;
 using Microsoft.UI.Input;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
+using OmniTray.ViewModels.Organizer;
 using DispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue;
+using DispatcherQueuePriority = Microsoft.UI.Dispatching.DispatcherQueuePriority;
 using DispatcherQueueTimer = Microsoft.UI.Dispatching.DispatcherQueueTimer;
 
 namespace OmniTray.Controls;
@@ -19,6 +24,20 @@ namespace OmniTray.Controls;
 public sealed partial class StackItemsOrganizer : UserControl
 {
     private static readonly TimeSpan CommandHoverDelay = TimeSpan.FromMilliseconds(400);
+    private static readonly string[] OrganizerItemChromeResourceKeys =
+    [
+        "ListViewItemBackgroundPointerOver",
+        "ListViewItemBackgroundPressed",
+        "ListViewItemBackgroundSelected",
+        "ListViewItemBackgroundSelectedPointerOver",
+        "ListViewItemBackgroundSelectedPressed",
+        "ListViewItemPointerOverBorderBrush",
+        "ListViewItemSelectedBorderBrush",
+        "ListViewItemSelectedPointerOverBorderBrush",
+        "ListViewItemSelectedPressedBorderBrush",
+        "ListViewItemSelectedInnerBorderBrush"
+    ];
+    private const float ItemHoverElevation = 16;
 
     public static readonly DependencyProperty StackProperty = DependencyProperty.Register(
         nameof(Stack),
@@ -52,6 +71,18 @@ public sealed partial class StackItemsOrganizer : UserControl
             OmniTray.Core.StackCardDisplayMode.SmallList,
             OnStackCardDisplayModeChanged));
 
+    public static readonly DependencyProperty ShowCommandFlyoutOnHoverProperty = DependencyProperty.Register(
+        nameof(ShowCommandFlyoutOnHover),
+        typeof(bool),
+        typeof(StackItemsOrganizer),
+        new PropertyMetadata(true, OnShowCommandFlyoutOnHoverChanged));
+
+    public static readonly DependencyProperty UseOrganizerCardPresentationProperty = DependencyProperty.Register(
+        nameof(UseOrganizerCardPresentation),
+        typeof(bool),
+        typeof(StackItemsOrganizer),
+        new PropertyMetadata(false, OnUseOrganizerCardPresentationChanged));
+
     private readonly DispatcherQueueTimer _commandHoverTimer;
     private readonly ListInsertionAdornerController _itemInsertionAdorner;
     private FrameworkElement? _commandFlyoutAnchor;
@@ -60,6 +91,7 @@ public sealed partial class StackItemsOrganizer : UserControl
     private bool _isHoverFlyout;
     private bool _isRemovalDialogOpen;
     private bool _isThumbnailView;
+    private OrganizerCollectionViewMode _organizerViewMode = OrganizerCollectionViewMode.Medium;
     private FrameworkElement? _pendingHoverRow;
 
     public StackItemsOrganizer()
@@ -109,6 +141,18 @@ public sealed partial class StackItemsOrganizer : UserControl
         set => this.SetValue(StackCardDisplayModeProperty, value);
     }
 
+    public bool ShowCommandFlyoutOnHover
+    {
+        get => (bool)this.GetValue(ShowCommandFlyoutOnHoverProperty);
+        set => this.SetValue(ShowCommandFlyoutOnHoverProperty, value);
+    }
+
+    public bool UseOrganizerCardPresentation
+    {
+        get => (bool)this.GetValue(UseOrganizerCardPresentationProperty);
+        set => this.SetValue(UseOrganizerCardPresentationProperty, value);
+    }
+
     internal Window? DialogOwner { get; set; }
 
     internal DropItemViewModel? PrimarySelectedItem =>
@@ -117,6 +161,40 @@ public sealed partial class StackItemsOrganizer : UserControl
     internal int SelectedItemCount => this.ItemList.SelectedItems.Count;
 
     internal event EventHandler? SelectedItemsChanged;
+    internal event EventHandler? SelectionCommandsChanged;
+
+    internal bool CanOpenSelectedItem => this.GetSelectedItems() is [var item] &&
+                                         Has(ContentMetadataPolicy.GetMetadata(item).Actions,
+                                             ContentActions.Open);
+
+    internal bool CanOpenSelectedItemContainer => this.GetSelectedItems() is [var item] &&
+                                                  Has(ContentMetadataPolicy.GetMetadata(item).Actions,
+                                                      ContentActions.Reveal);
+
+    internal bool CanCopySelectedItems => this.GetSelectedItems() is { Length: > 0 } items &&
+                                          items.All(static item =>
+                                              ContentMetadataPolicy.HasAction(item, ContentActions.Copy));
+
+    internal bool CanCutSelectedItems => this.GetSelectedItems() is { Length: > 0 } items &&
+                                         items.All(static item =>
+                                             ContentMetadataPolicy.HasAction(item, ContentActions.Cut));
+
+    internal bool CanDeleteSelectedItemsFromDisk => this.GetSelectedItems() is { Length: > 0 } items &&
+                                                    items.All(static item =>
+                                                        ContentMetadataPolicy.HasAction(item,
+                                                            ContentActions.Delete));
+
+    internal bool CanMoveSelectedItemsUp => this.Stack is { } stack &&
+                                            stack.CanMoveItems(this.GetSelectedItemIds(), -1);
+
+    internal bool CanMoveSelectedItemsDown => this.Stack is { } stack &&
+                                              stack.CanMoveItems(this.GetSelectedItemIds(), 1);
+
+    internal bool CanSplitSelectedItems => this.Stack is { } stack &&
+                                           this.SelectedItemCount > 0 &&
+                                           this.SelectedItemCount < stack.Items.Count;
+
+    internal bool CanChangeSelectedItems => this.SelectedItemCount > 0 && !this._isRemovalDialogOpen;
 
     internal bool SelectItem(Guid itemId)
     {
@@ -179,6 +257,7 @@ public sealed partial class StackItemsOrganizer : UserControl
 
             organizer.UpdateEmptyState();
             organizer.UpdateSelectionCommands();
+            organizer.UpdateSelectionIndicators();
         }
     }
 
@@ -222,18 +301,112 @@ public sealed partial class StackItemsOrganizer : UserControl
         }
     }
 
+    private static void OnShowCommandFlyoutOnHoverChanged(
+        DependencyObject sender,
+        DependencyPropertyChangedEventArgs args)
+    {
+        if (sender is not StackItemsOrganizer organizer)
+        {
+            return;
+        }
+
+        var showOnHover = (bool)args.NewValue;
+        AutomationProperties.SetHelpText(
+            organizer.ItemList,
+            showOnHover
+                ? "Hover with a mouse, or use the context menu, to show commands. Press Space to toggle selection. Drag to reorder or move; hold Control while dragging to copy."
+                : "Use the context menu to show item commands. Press Space to toggle selection. Drag to reorder or move; hold Control while dragging to copy.");
+        if (showOnHover)
+        {
+            return;
+        }
+
+        organizer._commandHoverTimer.Stop();
+        organizer._pendingHoverRow = null;
+        if (organizer._isHoverFlyout)
+        {
+            organizer.SelectionCommandsFlyout.Hide();
+        }
+    }
+
+    internal void SetOrganizerViewMode(OrganizerCollectionViewMode viewMode)
+    {
+        this.ResetCommandFlyout(true);
+        this._organizerViewMode = viewMode;
+        this._isThumbnailView = viewMode != OrganizerCollectionViewMode.List;
+        this.UpdateItemPresentation();
+        this._itemInsertionAdorner.SetLayout(
+            this._isThumbnailView ? Orientation.Horizontal : Orientation.Vertical,
+            this._isThumbnailView);
+        if (this._isThumbnailView)
+        {
+            this.QueueThumbnailLayoutRefresh();
+        }
+    }
+
+    private static void OnUseOrganizerCardPresentationChanged(
+        DependencyObject sender,
+        DependencyPropertyChangedEventArgs args)
+    {
+        if (sender is StackItemsOrganizer organizer)
+        {
+            organizer.ResetCommandFlyout(true);
+            organizer.UpdateItemPresentation();
+            organizer.UpdateKeyboardShortcutText();
+        }
+    }
+
+    private void UpdateKeyboardShortcutText()
+    {
+        var showOrganizerShortcuts = this.UseOrganizerCardPresentation;
+        this.OpenContainingFolderButton.KeyboardAcceleratorTextOverride =
+            showOrganizerShortcuts ? "Ctrl+E" : string.Empty;
+        this.CopySelectionButton.KeyboardAcceleratorTextOverride =
+            showOrganizerShortcuts ? "Ctrl+C" : string.Empty;
+    }
+
     private void UpdateItemPresentation()
     {
+        var useOrganizerPresentation = this.UseOrganizerCardPresentation;
+        var useOrganizerGrid = this._isThumbnailView && useOrganizerPresentation;
         var templateKey = this._isThumbnailView
-            ? "ThumbnailItemTemplate"
+            ? useOrganizerGrid ? "OrganizerThumbnailItemTemplate" : "ThumbnailItemTemplate"
+            : useOrganizerPresentation
+                ? "OrganizerListItemTemplate"
             : this.StackCardDisplayMode == OmniTray.Core.StackCardDisplayMode.SmallList
                 ? "SmallListItemTemplate"
                 : "LargeListItemTemplate";
+        this.UpdateItemContainerChrome(useOrganizerPresentation);
         this.ItemList.ItemTemplate = (DataTemplate)this.Resources[templateKey];
         this.ItemList.ItemsPanel = (ItemsPanelTemplate)this.Resources[
-            this._isThumbnailView ? "ThumbnailItemsPanel" : "ListItemsPanel"];
+            this._isThumbnailView
+                ? useOrganizerGrid ? "OrganizerThumbnailItemsPanel" : "ThumbnailItemsPanel"
+                : "ListItemsPanel"];
         this.ItemList.ItemContainerStyle = (Style)this.Resources[
-            this._isThumbnailView ? "ThumbnailItemContainerStyle" : "ListItemContainerStyle"];
+            this._isThumbnailView
+                ? useOrganizerGrid ? "OrganizerThumbnailItemContainerStyle" : "ThumbnailItemContainerStyle"
+                : useOrganizerPresentation ? "OrganizerListItemContainerStyle"
+                : "ListItemContainerStyle"];
+        _ = this.DispatcherQueue.TryEnqueue(this.UpdateSelectionIndicators);
+    }
+
+    private void UpdateItemContainerChrome(bool useOrganizerPresentation)
+    {
+        if (useOrganizerPresentation)
+        {
+            var transparentBrush = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            foreach (var key in OrganizerItemChromeResourceKeys)
+            {
+                this.ItemList.Resources[key] = transparentBrush;
+            }
+
+            return;
+        }
+
+        foreach (var key in OrganizerItemChromeResourceKeys)
+        {
+            this.ItemList.Resources.Remove(key);
+        }
     }
 
     private void ApplyScrollingLayout()
@@ -254,6 +427,7 @@ public sealed partial class StackItemsOrganizer : UserControl
     {
         this.UpdateEmptyState();
         this.UpdateSelectionCommands();
+        this.UpdateSelectionIndicators();
         if (this._isThumbnailView)
         {
             _ = this.DispatcherQueue.TryEnqueue(this.UpdateThumbnailItemWidth);
@@ -262,6 +436,25 @@ public sealed partial class StackItemsOrganizer : UserControl
 
     private void OnItemListSizeChanged(object sender, SizeChangedEventArgs args) =>
         this.UpdateThumbnailItemWidth();
+
+    private void QueueThumbnailLayoutRefresh()
+    {
+        _ = this.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            if (!this._isThumbnailView || !this.IsLoaded)
+            {
+                return;
+            }
+
+            // A view-mode change can reuse the same ItemsPanelTemplate. Materialize the current
+            // panel first, then apply its new dimensions and consume that invalidation now instead
+            // of waiting for a pointer/focus event to trigger another layout pass.
+            this.ItemList.InvalidateMeasure();
+            this.ItemList.UpdateLayout();
+            this.UpdateThumbnailItemWidth();
+            this.ItemList.UpdateLayout();
+        });
+    }
 
     private void UpdateThumbnailItemWidth()
     {
@@ -275,10 +468,41 @@ public sealed partial class StackItemsOrganizer : UserControl
         var availableWidth = this.ItemList.ActualWidth -
                              this.ItemList.Padding.Left -
                              this.ItemList.Padding.Right;
-        var itemWidth = StackThumbnailLayout.GetItemWidth(availableWidth, this.ThumbnailItemWidth);
+        var preferredItemWidth = this.UseOrganizerCardPresentation
+            ? this._organizerViewMode switch
+            {
+                OrganizerCollectionViewMode.Small => 160,
+                OrganizerCollectionViewMode.Large => 300,
+                _ => 220
+            }
+            : this.ThumbnailItemWidth;
+        var itemWidth = StackThumbnailLayout.GetItemWidth(availableWidth, preferredItemWidth);
+        var layoutChanged = false;
         if (itemWidth > 0 && itemsPanel.ItemWidth != itemWidth)
         {
             itemsPanel.ItemWidth = itemWidth;
+            layoutChanged = true;
+        }
+
+        if (this.UseOrganizerCardPresentation)
+        {
+            var itemHeight = this._organizerViewMode switch
+            {
+                OrganizerCollectionViewMode.Small => 190,
+                OrganizerCollectionViewMode.Large => 290,
+                _ => 230
+            };
+            if (itemsPanel.ItemHeight != itemHeight)
+            {
+                itemsPanel.ItemHeight = itemHeight;
+                layoutChanged = true;
+            }
+        }
+
+        if (layoutChanged)
+        {
+            itemsPanel.InvalidateMeasure();
+            this.ItemList.InvalidateMeasure();
         }
     }
 
@@ -294,6 +518,7 @@ public sealed partial class StackItemsOrganizer : UserControl
 
         this.UpdateEmptyState();
         this.UpdateSelectionCommands();
+        this.UpdateSelectionIndicators();
         if (this._isThumbnailView)
         {
             _ = this.DispatcherQueue.TryEnqueue(this.UpdateThumbnailItemWidth);
@@ -490,14 +715,27 @@ public sealed partial class StackItemsOrganizer : UserControl
     private void OnItemRowPointerEntered(object sender, PointerRoutedEventArgs args)
     {
         if (args.Pointer.PointerDeviceType != PointerDeviceType.Mouse ||
-            sender is not FrameworkElement { Tag: DropItemViewModel } row ||
+            sender is not FrameworkElement { Tag: DropItemViewModel } row)
+        {
+            return;
+        }
+
+        if (this._hoveredItemRow is { } previousRow && !ReferenceEquals(previousRow, row))
+        {
+            this.UpdateItemHoverShadow(previousRow, false);
+            this.UpdateSelectionIndicator(previousRow, false);
+        }
+
+        this._hoveredItemRow = row;
+        this.UpdateSelectionIndicator(row, true);
+        this.UpdateItemHoverShadow(row, true);
+        if (!this.ShowCommandFlyoutOnHover ||
             this._isRemovalDialogOpen ||
             DragDropDataService.ActiveItemReference is not null)
         {
             return;
         }
 
-        this._hoveredItemRow = row;
         if (this.SelectionCommandsFlyout.IsOpen)
         {
             if (!this._isHoverFlyout || ReferenceEquals(this._commandFlyoutAnchor, row))
@@ -521,6 +759,12 @@ public sealed partial class StackItemsOrganizer : UserControl
         }
 
         this._hoveredItemRow = null;
+        if (sender is FrameworkElement row)
+        {
+            this.UpdateItemHoverShadow(row, false);
+            this.UpdateSelectionIndicator(row, false);
+        }
+
         if (ReferenceEquals(this._pendingHoverRow, sender))
         {
             this._pendingHoverRow = null;
@@ -533,7 +777,8 @@ public sealed partial class StackItemsOrganizer : UserControl
         sender.Stop();
         var row = this._pendingHoverRow;
         this._pendingHoverRow = null;
-        if (row is null ||
+        if (!this.ShowCommandFlyoutOnHover ||
+            row is null ||
             !ReferenceEquals(row, this._hoveredItemRow) ||
             row.Tag is not DropItemViewModel item ||
             row.XamlRoot is null || this._isRemovalDialogOpen)
@@ -564,19 +809,181 @@ public sealed partial class StackItemsOrganizer : UserControl
 
     internal void FocusItemList() => this.ItemList.Focus(FocusState.Keyboard);
 
+    internal void ClearSelection() => this.ItemList.SelectedItems.Clear();
+
+    private void OnSelectionCheckBoxLoaded(object sender, RoutedEventArgs args)
+    {
+        if (sender is CheckBox checkBox)
+        {
+            this.UpdateSelectionCheckBox(checkBox, ReferenceEquals(this.FindItemRow(checkBox), this._hoveredItemRow));
+        }
+    }
+
+    private void OnSelectionCheckBoxPointerPressed(object sender, PointerRoutedEventArgs args) =>
+        args.Handled = true;
+
+    private void OnSelectionCheckBoxClick(object sender, RoutedEventArgs args)
+    {
+        if (sender is not CheckBox { Tag: DropItemViewModel item } checkBox ||
+            this.Stack?.Items.Contains(item) != true)
+        {
+            return;
+        }
+
+        if (checkBox.IsChecked == true)
+        {
+            if (!this.ItemList.SelectedItems.Contains(item))
+            {
+                this.ItemList.SelectedItems.Add(item);
+            }
+        }
+        else
+        {
+            this.ItemList.SelectedItems.Remove(item);
+        }
+
+        this.UpdateSelectionIndicators();
+    }
+
     private void OnItemSelectionChanged(object sender, SelectionChangedEventArgs args)
     {
         this.UpdateSelectionCommands();
+        this.UpdateSelectionIndicators();
         this.SelectedItemsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void UpdateSelectionIndicators()
+    {
+        foreach (var checkBox in FindDescendants<CheckBox>(this.ItemList)
+                     .Where(static candidate => candidate.Name == "ItemSelectionCheckBox"))
+        {
+            var row = this.FindItemRow(checkBox);
+            this.UpdateSelectionCheckBox(checkBox, ReferenceEquals(row, this._hoveredItemRow));
+        }
+    }
+
+    private void UpdateSelectionIndicator(FrameworkElement row, bool isHovered)
+    {
+        var checkBox = FindDescendants<CheckBox>(row)
+            .FirstOrDefault(static candidate => candidate.Name == "ItemSelectionCheckBox");
+        if (checkBox is not null)
+        {
+            this.UpdateSelectionCheckBox(checkBox, isHovered);
+        }
+    }
+
+    private void UpdateSelectionCheckBox(CheckBox checkBox, bool isHovered)
+    {
+        if (checkBox.Tag is not DropItemViewModel item)
+        {
+            return;
+        }
+
+        var isSelected = this.ItemList.SelectedItems.Contains(item);
+        checkBox.IsChecked = isSelected;
+        checkBox.Visibility = this.SelectedItemCount > 0 || isHovered
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        var row = this.FindItemRow(checkBox);
+        var border = row is null
+            ? null
+            : FindDescendants<Border>(row)
+                .FirstOrDefault(static candidate => candidate.Name == "ItemSelectionBorder");
+        if (border is not null)
+        {
+            border.Visibility = isSelected ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        var surface = row is null
+            ? null
+            : FindDescendants<Border>(row)
+                .FirstOrDefault(static candidate => candidate.Name == "ItemCardSurface");
+        if (surface is not null)
+        {
+            surface.Opacity = isSelected || isHovered ? 1 : 0;
+        }
+    }
+
+    private FrameworkElement? FindItemRow(DependencyObject child)
+    {
+        var current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(child);
+        while (current is not null && current != this.ItemList)
+        {
+            if (current is FrameworkElement { Tag: DropItemViewModel })
+            {
+                return (FrameworkElement)current;
+            }
+
+            current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current);
+        }
+
+        return null;
+    }
+
+    private void UpdateItemHoverShadow(DependencyObject row, bool isHovered)
+    {
+        var container = this.FindItemContainer(row);
+        var surface = FindDescendants<Border>(row)
+            .FirstOrDefault(static candidate => candidate.Name == "ItemCardSurface");
+        if (container is null || surface is null)
+        {
+            return;
+        }
+
+        var translation = surface.Translation;
+        surface.Translation = new Vector3(
+            translation.X,
+            translation.Y,
+            isHovered ? ItemHoverElevation : 0);
+        surface.Shadow = isHovered ? new ThemeShadow() : null;
+        Canvas.SetZIndex(container, isHovered ? 1 : 0);
+    }
+
+    private ListViewItem? FindItemContainer(DependencyObject child)
+    {
+        for (var current = child;
+             current is not null && current != this.ItemList;
+             current = VisualTreeHelper.GetParent(current))
+        {
+            if (current is ListViewItem container)
+            {
+                return container;
+            }
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<T> FindDescendants<T>(DependencyObject root)
+        where T : DependencyObject
+    {
+        var childCount = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root);
+        for (var index = 0; index < childCount; index++)
+        {
+            var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, index);
+            if (child is T match)
+            {
+                yield return match;
+            }
+
+            foreach (var descendant in FindDescendants<T>(child))
+            {
+                yield return descendant;
+            }
+        }
     }
 
     private void OnMoveSelectionUpClick(object sender, RoutedEventArgs args) => this.MoveSelection(-1);
 
     private void OnMoveSelectionDownClick(object sender, RoutedEventArgs args) => this.MoveSelection(1);
 
-    private void MoveSelection(int direction)
+    internal void MoveSelectedItems(int direction) => this.MoveItems(this.GetSelectedItemIds(), direction);
+
+    private void MoveSelection(int direction) => this.MoveItems(this.GetCommandItemIds(), direction);
+
+    private void MoveItems(Guid[] selectedIds, int direction)
     {
-        var selectedIds = this.GetCommandItemIds();
         if (this.Stack is not null && this.Stack.MoveItems(selectedIds, direction))
         {
             ShowStatus(
@@ -588,8 +995,12 @@ public sealed partial class StackItemsOrganizer : UserControl
     }
 
     private void OnSplitSelectionClick(object sender, RoutedEventArgs args)
+        => this.SplitItems(this.GetCommandItemIds());
+
+    internal void SplitSelectedItems() => this.SplitItems(this.GetSelectedItemIds());
+
+    private void SplitItems(Guid[] selectedIds)
     {
-        var selectedIds = this.GetCommandItemIds();
         if (this.Stack is null || selectedIds.Length == 0 || selectedIds.Length == this.Stack.Items.Count)
         {
             return;
@@ -605,9 +1016,13 @@ public sealed partial class StackItemsOrganizer : UserControl
     }
 
     private async void OnDuplicateSelectionClick(object sender, RoutedEventArgs args)
+        => await this.DuplicateItemsAsync(this.GetCommandItemIds());
+
+    internal Task DuplicateSelectedItemsAsync() => this.DuplicateItemsAsync(this.GetSelectedItemIds());
+
+    private async Task DuplicateItemsAsync(Guid[] selectedIds)
     {
         var stack = this.Stack;
-        var selectedIds = this.GetCommandItemIds();
         if (stack is null || selectedIds.Length == 0)
         {
             return;
@@ -688,8 +1103,13 @@ public sealed partial class StackItemsOrganizer : UserControl
     }
 
     private async void OnOpenSelectionClick(object sender, RoutedEventArgs args)
+        => await this.OpenItemsAsync(this.GetCommandItems());
+
+    internal Task OpenSelectedItemAsync() => this.OpenItemsAsync(this.GetSelectedItems());
+
+    private async Task OpenItemsAsync(DropItem[] items)
     {
-        var item = this.GetCommandItems().SingleOrDefault();
+        var item = items.SingleOrDefault();
         if (item is null)
         {
             return;
@@ -731,9 +1151,17 @@ public sealed partial class StackItemsOrganizer : UserControl
         }
     }
 
-    private async void OnOpenContainingFolderClick(object sender, RoutedEventArgs args)
+    private async void OnOpenContainingFolderClick(object sender, RoutedEventArgs args) =>
+        await OpenContainingFolderAsync(this.GetCommandItems().SingleOrDefault());
+
+    internal Task OpenSelectedItemContainerAsync()
     {
-        var item = this.GetCommandItems().SingleOrDefault();
+        var selected = this.GetSelectedItems();
+        return this.OpenContainingFolderAsync(selected is [var item] ? item : null);
+    }
+
+    private async Task OpenContainingFolderAsync(DropItem? item)
+    {
         if (item is null)
         {
             return;
@@ -768,8 +1196,12 @@ public sealed partial class StackItemsOrganizer : UserControl
     }
 
     private void OnCopySelectionClick(object sender, RoutedEventArgs args)
+        => CopyItems(this.GetCommandItems());
+
+    internal void CopySelectedItems() => CopyItems(this.GetSelectedItems());
+
+    private static void CopyItems(DropItem[] items)
     {
-        var items = this.GetCommandItems();
         if (items.Length == 0)
         {
             return;
@@ -789,8 +1221,12 @@ public sealed partial class StackItemsOrganizer : UserControl
     }
 
     private void OnCutSelectionClick(object sender, RoutedEventArgs args)
+        => CutItems(this.GetCommandItems());
+
+    internal void CutSelectedItems() => CutItems(this.GetSelectedItems());
+
+    private static void CutItems(DropItem[] items)
     {
-        var items = this.GetCommandItems();
         if (items.Length == 0)
         {
             return;
@@ -837,9 +1273,13 @@ public sealed partial class StackItemsOrganizer : UserControl
     }
 
     private async void OnDeleteFromDiskClick(object sender, RoutedEventArgs args)
+        => await this.DeleteItemsFromDiskAsync(this.GetCommandItems());
+
+    internal Task DeleteSelectedItemsFromDiskAsync() => this.DeleteItemsFromDiskAsync(this.GetSelectedItems());
+
+    private async Task DeleteItemsFromDiskAsync(DropItem[] requestedItems)
     {
         var source = this.Stack;
-        var requestedItems = this.GetCommandItems();
         var dialogOwner = this.DialogOwner;
         var xamlRoot = this.XamlRoot;
         if (source is null ||
@@ -898,16 +1338,45 @@ public sealed partial class StackItemsOrganizer : UserControl
     }
 
     private async void OnRemoveSelectionClick(object sender, RoutedEventArgs args)
+        => await this.RemoveItemsAsync(this.GetCommandItemIds());
+
+    internal Task RemoveSelectedItemsAsync() => this.RemoveItemsAsync(this.GetSelectedItemIds());
+
+    private Task RemoveItemsAsync(Guid[] selectedIds)
     {
-        var selectedIds = this.GetCommandItemIds();
         if (this.Stack is not null && selectedIds.Length > 0)
         {
-            await this.RequestRemovalAsync(this.Stack, selectedIds);
+            return this.RequestRemovalAsync(this.Stack, selectedIds);
         }
+
+        return Task.CompletedTask;
     }
 
     private async void OnItemListKeyDown(object sender, KeyRoutedEventArgs args)
     {
+        if (args.Key == VirtualKey.Escape && this.SelectedItemCount > 0)
+        {
+            args.Handled = true;
+            this.ClearSelection();
+            return;
+        }
+
+        if (args.Key == VirtualKey.Space && this.GetFocusedItem() is { } focusedItem)
+        {
+            args.Handled = true;
+            if (this.ItemList.SelectedItems.Contains(focusedItem))
+            {
+                this.ItemList.SelectedItems.Remove(focusedItem);
+            }
+            else
+            {
+                this.ItemList.SelectedItems.Add(focusedItem);
+            }
+
+            this.UpdateSelectionIndicators();
+            return;
+        }
+
         if (args.Key == VirtualKey.Enter && this.GetCommandItems() is [{ Note: { } note }])
         {
             args.Handled = true;
@@ -927,6 +1396,21 @@ public sealed partial class StackItemsOrganizer : UserControl
             args.Handled = true;
             await this.RequestRemovalAsync(this.Stack, selectedIds);
         }
+    }
+
+    private DropItemViewModel? GetFocusedItem()
+    {
+        for (var element = FocusManager.GetFocusedElement(this.XamlRoot) as DependencyObject;
+             element is not null && !ReferenceEquals(element, this.ItemList);
+             element = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(element))
+        {
+            if (element is ListViewItem container)
+            {
+                return this.ItemList.ItemFromContainer(container) as DropItemViewModel;
+            }
+        }
+
+        return this.ItemList.SelectedItem as DropItemViewModel;
     }
 
     private async Task RequestRemovalAsync(DropStackViewModel source, IEnumerable<Guid> itemIds)
@@ -1023,6 +1507,14 @@ public sealed partial class StackItemsOrganizer : UserControl
             .Select(static item => item.Model.Id)
             .ToArray();
 
+    private DropItem[] GetSelectedItems()
+    {
+        var selectedIds = this.GetSelectedItemIds().ToHashSet();
+        return this.Stack?.Model.Items
+                   .Where(item => selectedIds.Contains(item.Id))
+                   .ToArray() ?? [];
+    }
+
     private Guid[] GetCommandItemIds()
     {
         if (this._commandTargetItem is { } target && this.Stack?.Items.Contains(target) == true &&
@@ -1045,6 +1537,12 @@ public sealed partial class StackItemsOrganizer : UserControl
     private void ResetCommandFlyout(bool hideFlyout)
     {
         this._commandHoverTimer.Stop();
+        if (this._hoveredItemRow is { } hoveredRow)
+        {
+            this.UpdateItemHoverShadow(hoveredRow, false);
+            this.UpdateSelectionIndicator(hoveredRow, false);
+        }
+
         this._hoveredItemRow = null;
         this._pendingHoverRow = null;
         this._commandFlyoutAnchor = null;
@@ -1112,6 +1610,7 @@ public sealed partial class StackItemsOrganizer : UserControl
             ? Visibility.Visible
             : Visibility.Collapsed;
         this.DeleteFromDiskButton.IsEnabled = !this._isRemovalDialogOpen;
+        this.SelectionCommandsChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private static bool Has(ContentActions actions, ContentActions requested) =>

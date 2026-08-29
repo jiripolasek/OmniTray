@@ -1,0 +1,131 @@
+<UserControl
+    x:Class="OmniTray.Controls.OrganizerToolbar"
+    x:Name="ToolbarRoot"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Height="58">
+    <Grid ColumnSpacing="8">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <Border
+            x:Name="SelectionBackground"
+            Grid.ColumnSpan="2"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="8"
+            IsHitTestVisible="False"
+            Opacity="0"
+            RenderTransformOrigin="0.5,0.5">
+            <Border.RenderTransform>
+                <ScaleTransform x:Name="SelectionBackgroundScale" />
+            </Border.RenderTransform>
+            <Border.Shadow>
+                <ThemeShadow />
+            </Border.Shadow>
+        </Border>
+        <CommandBar
+            x:Name="ActionCommandsBar"
+            Grid.Column="0"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Center"
+            AutomationProperties.Name="Page actions"
+            Background="Transparent"
+            DefaultLabelPosition="Right"
+            IsDynamicOverflowEnabled="True" />
+        <StackPanel
+            Grid.Column="1"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Center"
+            Orientation="Horizontal">
+            <Button
+                x:Name="SelectionInfoButton"
+                AccessKey="X"
+                Height="32"
+                Padding="10,0"
+                VerticalAlignment="Center"
+                AutomationProperties.HelpText="Clear selection"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                Click="OnClearSelectionClick"
+                CornerRadius="16"
+                ToolTipService.ToolTip="Clear selection"
+                Visibility="Collapsed">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <SymbolIcon Symbol="Cancel" />
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        AutomationProperties.LiveSetting="Polite"
+                        Text="{x:Bind SelectionSummary, Mode=OneWay}" />
+                </StackPanel>
+            </Button>
+            <Border
+                x:Name="SelectionInfoSeparator"
+                Width="1"
+                Height="24"
+                Margin="8,0,4,0"
+                VerticalAlignment="Center"
+                Background="{ThemeResource DividerStrokeColorDefaultBrush}"
+                Visibility="Collapsed" />
+            <CommandBar
+                x:Name="ViewCommandsBar"
+                VerticalAlignment="Center"
+                AutomationProperties.Name="View commands"
+                Background="Transparent"
+                IsDynamicOverflowEnabled="False">
+                <CommandBar.PrimaryCommands>
+                    <AppBarButton
+                        x:Name="CollectionViewModeButton"
+                        AccessKey="V"
+                        AutomationProperties.Name="Choose collection view"
+                        ToolTipService.ToolTip="View: Medium thumbnails">
+                        <AppBarButton.Icon>
+                            <FontIcon x:Name="CollectionViewModeIcon" Glyph="&#xE8A9;" />
+                        </AppBarButton.Icon>
+                        <AppBarButton.Flyout>
+                            <MenuFlyout>
+                                <RadioMenuFlyoutItem
+                                    x:Name="ListViewModeItem"
+                                    Click="OnListViewModeClick"
+                                    GroupName="OrganizerCollectionViewMode"
+                                    Text="List" />
+                                <RadioMenuFlyoutItem
+                                    x:Name="SmallViewModeItem"
+                                    Click="OnSmallViewModeClick"
+                                    GroupName="OrganizerCollectionViewMode"
+                                    Text="Small thumbnails" />
+                                <RadioMenuFlyoutItem
+                                    x:Name="MediumViewModeItem"
+                                    Click="OnMediumViewModeClick"
+                                    GroupName="OrganizerCollectionViewMode"
+                                    IsChecked="True"
+                                    Text="Medium thumbnails" />
+                                <RadioMenuFlyoutItem
+                                    x:Name="LargeViewModeItem"
+                                    Click="OnLargeViewModeClick"
+                                    GroupName="OrganizerCollectionViewMode"
+                                    Text="Large thumbnails" />
+                            </MenuFlyout>
+                        </AppBarButton.Flyout>
+                    </AppBarButton>
+                    <AppBarButton
+                        x:Name="DetailsPaneButton"
+                        AccessKey="P"
+                        AutomationProperties.Name="Close preview pane"
+                        Click="OnDetailsPaneClick"
+                        Label="Preview pane"
+                        ToolTipService.ToolTip="Close preview pane (Alt+P)">
+                        <AppBarButton.Icon>
+                            <FontIcon
+                                x:Name="DetailsPaneIcon"
+                                FontFamily="Segoe Fluent Icons"
+                                Glyph="&#xE89F;" />
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                </CommandBar.PrimaryCommands>
+            </CommandBar>
+        </StackPanel>
+    </Grid>
+</UserControl>

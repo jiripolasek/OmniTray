@@ -37,6 +37,147 @@
                 <Setter Property="Width" Value="300" />
                 <Setter Property="Height" Value="270" />
             </Style>
+            <Style x:Key="OrganizerListStackItemStyle" TargetType="GridViewItem">
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="Margin" Value="0,0,0,2" />
+                <Setter Property="Padding" Value="0" />
+            </Style>
+            <ItemsPanelTemplate x:Key="OrganizerStackListItemsPanel">
+                <ItemsStackPanel Orientation="Vertical" />
+            </ItemsPanelTemplate>
+            <DataTemplate x:Key="OrganizerStackListTemplate" x:DataType="viewModels:DropStackViewModel">
+                <Grid
+                    MinHeight="82"
+                    AllowDrop="True"
+                    Background="Transparent"
+                    ColumnSpacing="12"
+                    DragLeave="OnStackCombineDragLeave"
+                    DragOver="OnStackCombineDragOver"
+                    DragStarting="OnStackDragStarting"
+                    Drop="OnStackCombineDrop"
+                    Loaded="OnStackDragSurfaceLoaded"
+                    PointerEntered="OnStackRowPointerEntered"
+                    PointerExited="OnStackRowPointerExited"
+                    Tag="{x:Bind}"
+                    Unloaded="OnStackDragSurfaceUnloaded">
+                    <Grid.ContextFlyout>
+                        <MenuFlyout controls:NoteMenu.Stack="{x:Bind}">
+                            <MenuFlyoutItem
+                                Click="OnOpenTaggedStackClick"
+                                Tag="{x:Bind}"
+                                Text="Open in organizer">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon Glyph="&#xE8A9;" />
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem
+                                Click="OnOpenStackInTrayClick"
+                                Tag="{x:Bind}"
+                                Text="Pop out as tray">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon Glyph="&#xE8A7;" />
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem
+                                Click="OnRenameTaggedStackClick"
+                                Icon="Rename"
+                                KeyboardAcceleratorTextOverride="F2"
+                                Tag="{x:Bind}"
+                                Text="Rename" />
+                            <MenuFlyoutSeparator />
+                            <MenuFlyoutItem
+                                Click="OnDeleteTaggedStackClick"
+                                Icon="Delete"
+                                KeyboardAcceleratorTextOverride="Delete"
+                                Tag="{x:Bind}"
+                                Text="Delete stack" />
+                        </MenuFlyout>
+                    </Grid.ContextFlyout>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="44" />
+                        <ColumnDefinition Width="84" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Border
+                        x:Name="StackCardSurface"
+                        Grid.ColumnSpan="4"
+                        Margin="2"
+                        Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+                        CornerRadius="8"
+                        IsHitTestVisible="False"
+                        Opacity="0" />
+                    <ContentPresenter
+                        Grid.Column="1"
+                        Width="64"
+                        Height="64"
+                        Margin="10,8"
+                        Content="{x:Bind}"
+                        ContentTemplate="{StaticResource OrganizerStackPreviewTemplate}"
+                        IsHitTestVisible="False" />
+                    <StackPanel
+                        Grid.Column="2"
+                        VerticalAlignment="Center"
+                        Spacing="2">
+                        <TextBlock
+                            FontWeight="SemiBold"
+                            Text="{x:Bind Name, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis" />
+                        <TextBlock
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Text="{x:Bind ItemCountText, Mode=OneWay}" />
+                        <TextBlock
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Text="{x:Bind EdgePlacementText, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                    <controls:NoteIndicator
+                        Grid.Column="3"
+                        Margin="8"
+                        VerticalAlignment="Center"
+                        Stack="{x:Bind}" />
+                    <CheckBox
+                        x:Name="StackSelectionCheckBox"
+                        Grid.Column="0"
+                        Width="24"
+                        Height="24"
+                        MinWidth="0"
+                        MinHeight="0"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        AutomationProperties.HelpText="Select or clear this stack"
+                        AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"
+                        Click="OnStackSelectionCheckBoxClick"
+                        Loaded="OnStackSelectionCheckBoxLoaded"
+                        PointerPressed="OnStackSelectionCheckBoxPointerPressed"
+                        Tag="{x:Bind}"
+                        Visibility="Collapsed" />
+                    <Border
+                        x:Name="StackSelectionBorder"
+                        Grid.ColumnSpan="4"
+                        Margin="2"
+                        BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                        BorderThickness="2"
+                        CornerRadius="8"
+                        IsHitTestVisible="False"
+                        Visibility="Collapsed" />
+                    <Border
+                        x:Name="StackCombineBorder"
+                        Grid.ColumnSpan="4"
+                        Margin="2"
+                        BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                        BorderThickness="3"
+                        CornerRadius="8"
+                        IsHitTestVisible="False"
+                        Visibility="Collapsed" />
+                    <controls:InsertionAdorner
+                        x:Name="StackInsertionAdorner"
+                        Grid.ColumnSpan="4"
+                        Margin="2" />
+                </Grid>
+            </DataTemplate>
         </ResourceDictionary>
     </Page.Resources>
     <Grid x:Name="RootGrid">
@@ -44,7 +185,6 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <Grid Padding="28,20,20,10" ColumnSpacing="16">
@@ -74,15 +214,17 @@
                 TextChanged="OnStackFilterTextChanged" />
         </Grid>
 
-        <CommandBar
+        <controls:OrganizerToolbar
+            x:Name="CommandToolbar"
             Grid.Row="1"
             Margin="16,0,12,8"
-            AutomationProperties.Name="Stack overview commands"
-            Background="Transparent"
-            DefaultLabelPosition="Right"
-            IsDynamicOverflowEnabled="True">
-            <CommandBar.PrimaryCommands>
+            ClearSelectionRequested="OnClearOverviewSelectionClick"
+            CollectionViewModeChanged="OnCollectionViewModeChanged"
+            DetailsPaneToggleRequested="OnDetailsPaneToggleClick"
+            SelectionSummary="{x:Bind ViewModel.SelectionSummary, Mode=OneWay}">
+            <controls:OrganizerToolbar.PermanentCommands>
                 <AppBarButton
+                    AccessKey="N"
                     Click="OnNewNoteClick"
                     Label="New note"
                     ToolTipService.ToolTip="New note (Ctrl+N)">
@@ -90,36 +232,65 @@
                         <FontIcon Glyph="&#xE70B;" />
                     </AppBarButton.Icon>
                 </AppBarButton>
-                <AppBarButton Click="OnBrowseNotesClick" Label="Browse notes">
-                    <AppBarButton.Icon>
-                        <FontIcon Glyph="&#xE70B;" />
-                    </AppBarButton.Icon>
-                </AppBarButton>
                 <AppBarButton
+                    AccessKey="S"
                     AutomationProperties.Name="Create a new stack in this location"
                     Click="OnNewStackClick"
                     Icon="Add"
                     Label="New stack" />
                 <AppBarButton
+                    AccessKey="F"
                     AutomationProperties.Name="Create a new stack from clipboard in this location"
                     Click="OnNewStackFromClipboardClick"
                     Icon="Paste"
                     Label="From clipboard" />
                 <AppBarButton
+                    x:Name="OpenCurrentEdgeButton"
+                    AccessKey="E"
+                    AutomationProperties.Name="Open the selected edge shelf"
+                    Click="OnOpenCurrentEdgeShelfClick"
+                    IsEnabled="{x:Bind ViewModel.CanOpenScope, Mode=OneWay}"
+                    Label="Open edge"
+                    Visibility="{x:Bind ViewModel.HasScope, Mode=OneWay}">
+                    <AppBarButton.Icon>
+                        <FontIcon Glyph="&#xE8A7;" />
+                    </AppBarButton.Icon>
+                </AppBarButton>
+            </controls:OrganizerToolbar.PermanentCommands>
+            <controls:OrganizerToolbar.SelectionCommands>
+                <AppBarButton
                     x:Name="OpenSelectedStackButton"
+                    AccessKey="O"
                     AutomationProperties.Name="Open selected stack"
                     Click="OnOpenSelectedStackClick"
                     IsEnabled="{x:Bind ViewModel.CanOpenSelection, Mode=OneWay}"
-                    Label="Open">
+                    Label="Open"
+                    Visibility="Collapsed">
                     <AppBarButton.Icon>
-                        <FontIcon Glyph="&#xE8A9;" />
+                        <FontIcon Glyph="&#xE81E;" />
                     </AppBarButton.Icon>
                 </AppBarButton>
                 <AppBarButton
+                    x:Name="RenameSelectedStackButton"
+                    AccessKey="R"
+                    AutomationProperties.Name="Rename selected stack"
+                    Click="OnRenameSelectedStackClick"
+                    Icon="Rename"
+                    IsEnabled="{x:Bind ViewModel.CanOpenSelection, Mode=OneWay}"
+                    Label="Rename"
+                    ToolTipService.ToolTip="Rename (F2)"
+                    Visibility="Collapsed">
+                    <AppBarButton.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="F2" />
+                    </AppBarButton.KeyboardAccelerators>
+                </AppBarButton>
+                <AppBarButton
                     x:Name="MoveSelectedStacksButton"
+                    AccessKey="M"
                     AutomationProperties.Name="Move selected stacks to an edge window"
                     IsEnabled="{x:Bind ViewModel.HasSelection, Mode=OneWay}"
-                    Label="Move to edge">
+                    Label="Move to edge"
+                    Visibility="Collapsed">
                     <AppBarButton.Icon>
                         <FontIcon Glyph="&#xE90C;" />
                     </AppBarButton.Icon>
@@ -134,20 +305,27 @@
                         </MenuFlyout>
                     </AppBarButton.Flyout>
                 </AppBarButton>
+            </controls:OrganizerToolbar.SelectionCommands>
+            <controls:OrganizerToolbar.SelectionSecondaryCommands>
                 <AppBarButton
-                    x:Name="OpenCurrentEdgeButton"
-                    AutomationProperties.Name="Open the selected edge shelf"
-                    Click="OnOpenCurrentEdgeShelfClick"
-                    IsEnabled="{x:Bind ViewModel.CanOpenScope, Mode=OneWay}"
-                    Label="Open edge"
-                    Visibility="{x:Bind ViewModel.HasScope, Mode=OneWay}">
-                    <AppBarButton.Icon>
-                        <FontIcon Glyph="&#xE8A7;" />
-                    </AppBarButton.Icon>
+                    x:Name="DeleteSelectedStacksButton"
+                    AccessKey="D"
+                    AutomationProperties.Name="Delete selected stacks"
+                    Click="OnDeleteSelectedStacksClick"
+                    Icon="Delete"
+                    IsEnabled="{x:Bind ViewModel.HasSelection, Mode=OneWay}"
+                    Label="Delete"
+                    ToolTipService.ToolTip="Delete (Delete)"
+                    Visibility="Collapsed">
+                    <AppBarButton.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="Delete" />
+                    </AppBarButton.KeyboardAccelerators>
                 </AppBarButton>
-                <AppBarSeparator />
+            </controls:OrganizerToolbar.SelectionSecondaryCommands>
+            <controls:OrganizerToolbar.ViewCommands>
                 <AppBarButton
                     x:Name="SortButton"
+                    AccessKey="T"
                     AutomationProperties.Name="Sort stacks"
                     ToolTipService.ToolTip="Sort stacks">
                     <AppBarButton.Icon>
@@ -174,43 +352,15 @@
                         </MenuFlyout>
                     </AppBarButton.Flyout>
                 </AppBarButton>
-                <AppBarButton
-                    x:Name="LayoutButton"
-                    AutomationProperties.Name="Choose stack thumbnail size"
-                    ToolTipService.ToolTip="Stack layout">
-                    <AppBarButton.Icon>
-                        <FontIcon Glyph="&#xE8A9;" />
-                    </AppBarButton.Icon>
-                    <AppBarButton.Flyout>
-                        <MenuFlyout>
-                            <RadioMenuFlyoutItem
-                                x:Name="CompactLayoutItem"
-                                Click="OnCompactLayoutClick"
-                                GroupName="OrganizerLayout"
-                                Text="Compact cards" />
-                            <RadioMenuFlyoutItem
-                                x:Name="MediumLayoutItem"
-                                Click="OnMediumLayoutClick"
-                                GroupName="OrganizerLayout"
-                                IsChecked="True"
-                                Text="Medium thumbnails" />
-                            <RadioMenuFlyoutItem
-                                x:Name="LargeLayoutItem"
-                                Click="OnLargeLayoutClick"
-                                GroupName="OrganizerLayout"
-                                Text="Large thumbnails" />
-                        </MenuFlyout>
-                    </AppBarButton.Flyout>
-                </AppBarButton>
-            </CommandBar.PrimaryCommands>
-        </CommandBar>
+            </controls:OrganizerToolbar.ViewCommands>
+        </controls:OrganizerToolbar>
 
         <GridView
             x:Name="StackGrid"
             Grid.Row="2"
             Padding="20,0,16,12"
             AllowDrop="True"
-            AutomationProperties.HelpText="Select one or more stacks. Drag a stack to reorder it or move it out of OmniTray. Double-click a stack to edit its items."
+            AutomationProperties.HelpText="Hover with a mouse to show selection checkboxes. Press Space to toggle selection, F2 to rename, or Delete to delete. Drag a stack to reorder it or move it out of OmniTray. Double-click a stack to edit its items."
             AutomationProperties.Name="Stacks in the selected location"
             Background="Transparent"
             DoubleTapped="OnStackGridDoubleTapped"
@@ -218,10 +368,24 @@
             DragOver="OnStackGridDragOver"
             Drop="OnStackGridDrop"
             IsItemClickEnabled="False"
+            IsMultiSelectCheckBoxEnabled="False"
             ItemContainerStyle="{StaticResource OrganizerMediumStackItemStyle}"
             ItemsSource="{x:Bind ViewModel.VisibleStacks}"
+            KeyDown="OnStackGridKeyDown"
             SelectionChanged="OnStackGridSelectionChanged"
             SelectionMode="Extended">
+            <GridView.Resources>
+                <StaticResource x:Key="GridViewItemBackgroundPointerOver" ResourceKey="SystemControlTransparentBrush" />
+                <StaticResource x:Key="GridViewItemBackgroundPressed" ResourceKey="SystemControlTransparentBrush" />
+                <StaticResource x:Key="GridViewItemBackgroundSelected" ResourceKey="SystemControlTransparentBrush" />
+                <StaticResource x:Key="GridViewItemBackgroundSelectedPointerOver" ResourceKey="SystemControlTransparentBrush" />
+                <StaticResource x:Key="GridViewItemBackgroundSelectedPressed" ResourceKey="SystemControlTransparentBrush" />
+                <StaticResource x:Key="GridViewItemPointerOverBorderBrush" ResourceKey="SystemControlTransparentBrush" />
+                <StaticResource x:Key="GridViewItemSelectedBorderBrush" ResourceKey="SystemControlTransparentBrush" />
+                <StaticResource x:Key="GridViewItemSelectedPointerOverBorderBrush" ResourceKey="SystemControlTransparentBrush" />
+                <StaticResource x:Key="GridViewItemSelectedPressedBorderBrush" ResourceKey="SystemControlTransparentBrush" />
+                <StaticResource x:Key="GridViewItemSelectedInnerBorderBrush" ResourceKey="SystemControlTransparentBrush" />
+            </GridView.Resources>
             <GridView.ItemsPanel>
                 <ItemsPanelTemplate>
                     <ItemsWrapGrid Orientation="Horizontal" />
@@ -231,10 +395,15 @@
                 <DataTemplate x:DataType="viewModels:DropStackViewModel">
                     <Grid
                         x:Name="StackRoot"
-                        Padding="12,10"
+                        AllowDrop="True"
                         Background="Transparent"
+                        DragLeave="OnStackCombineDragLeave"
+                        DragOver="OnStackCombineDragOver"
                         DragStarting="OnStackDragStarting"
+                        Drop="OnStackCombineDrop"
                         Loaded="OnStackDragSurfaceLoaded"
+                        PointerEntered="OnStackRowPointerEntered"
+                        PointerExited="OnStackRowPointerExited"
                         Tag="{x:Bind}"
                         Unloaded="OnStackDragSurfaceUnloaded">
                         <Grid.ContextFlyout>
@@ -258,12 +427,14 @@
                                 <MenuFlyoutItem
                                     Click="OnRenameTaggedStackClick"
                                     Icon="Rename"
+                                    KeyboardAcceleratorTextOverride="F2"
                                     Tag="{x:Bind}"
                                     Text="Rename" />
                                 <MenuFlyoutSeparator />
                                 <MenuFlyoutItem
                                     Click="OnDeleteTaggedStackClick"
                                     Icon="Delete"
+                                    KeyboardAcceleratorTextOverride="Delete"
                                     Tag="{x:Bind}"
                                     Text="Delete stack" />
                             </MenuFlyout>
@@ -272,16 +443,44 @@
                             <RowDefinition Height="*" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
+                        <Border
+                            x:Name="StackCardSurface"
+                            Grid.RowSpan="2"
+                            Margin="2"
+                            Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+                            CornerRadius="8"
+                            IsHitTestVisible="False"
+                            Opacity="0" />
                         <ContentPresenter
-                            Margin="8,2,8,8"
+                            Margin="20,12,20,18"
                             Content="{x:Bind}"
                             ContentTemplate="{StaticResource OrganizerStackPreviewTemplate}"
                             IsHitTestVisible="False" />
-                        <controls:NoteIndicator
+                        <StackPanel
+                            Margin="16,14"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Top"
-                            Stack="{x:Bind}" />
-                        <StackPanel Grid.Row="1" Spacing="1">
+                            Spacing="2">
+                            <CheckBox
+                                x:Name="StackSelectionCheckBox"
+                                Width="24"
+                                Height="24"
+                                MinWidth="0"
+                                MinHeight="0"
+                                HorizontalAlignment="Right"
+                                AutomationProperties.HelpText="Select or clear this stack"
+                                AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"
+                                Click="OnStackSelectionCheckBoxClick"
+                                Loaded="OnStackSelectionCheckBoxLoaded"
+                                PointerPressed="OnStackSelectionCheckBoxPointerPressed"
+                                Tag="{x:Bind}"
+                                Visibility="Collapsed" />
+                            <controls:NoteIndicator HorizontalAlignment="Right" Stack="{x:Bind}" />
+                        </StackPanel>
+                        <StackPanel
+                            Grid.Row="1"
+                            Margin="12,0,12,10"
+                            Spacing="1">
                             <TextBlock
                                 FontWeight="SemiBold"
                                 Text="{x:Bind Name, Mode=OneWay}"
@@ -296,7 +495,28 @@
                                 Text="{x:Bind EdgePlacementText, Mode=OneWay}"
                                 TextTrimming="CharacterEllipsis" />
                         </StackPanel>
-                        <controls:InsertionAdorner x:Name="StackInsertionAdorner" Grid.RowSpan="2" />
+                        <Border
+                            x:Name="StackSelectionBorder"
+                            Grid.RowSpan="2"
+                            Margin="2"
+                            BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                            BorderThickness="2"
+                            CornerRadius="8"
+                            IsHitTestVisible="False"
+                            Visibility="Collapsed" />
+                        <Border
+                            x:Name="StackCombineBorder"
+                            Grid.RowSpan="2"
+                            Margin="2"
+                            BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                            BorderThickness="3"
+                            CornerRadius="8"
+                            IsHitTestVisible="False"
+                            Visibility="Collapsed" />
+                        <controls:InsertionAdorner
+                            x:Name="StackInsertionAdorner"
+                            Grid.RowSpan="2"
+                            Margin="2" />
                     </Grid>
                 </DataTemplate>
             </GridView.ItemTemplate>
@@ -317,7 +537,7 @@
             <FontIcon
                 FontSize="44"
                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                Glyph="&#xE7B8;" />
+                Glyph="&#xE81E;" />
             <TextBlock
                 HorizontalAlignment="Center"
                 Style="{ThemeResource SubtitleTextBlockStyle}"
@@ -337,12 +557,5 @@
                 Style="{StaticResource AccentButtonStyle}" />
         </StackPanel>
 
-        <TextBlock
-            x:Name="OverviewSelectionText"
-            Grid.Row="3"
-            Margin="24,0,20,14"
-            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-            Style="{ThemeResource CaptionTextBlockStyle}"
-            Text="{x:Bind ViewModel.SelectionSummary, Mode=OneWay}" />
     </Grid>
 </Page>

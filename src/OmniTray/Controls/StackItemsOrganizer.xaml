@@ -15,6 +15,13 @@
                 ItemWidth="108"
                 Orientation="Horizontal" />
         </ItemsPanelTemplate>
+        <ItemsPanelTemplate x:Key="OrganizerThumbnailItemsPanel">
+            <ItemsWrapGrid
+                HorizontalAlignment="Stretch"
+                ItemHeight="230"
+                ItemWidth="220"
+                Orientation="Horizontal" />
+        </ItemsPanelTemplate>
 
         <Style x:Key="ListItemContainerStyle" TargetType="ListViewItem">
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -27,11 +34,22 @@
             <Setter Property="Margin" Value="2" />
             <Setter Property="Padding" Value="0" />
         </Style>
+        <Style x:Key="OrganizerThumbnailItemContainerStyle" TargetType="ListViewItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Margin" Value="0,0,10,10" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+        <Style x:Key="OrganizerListItemContainerStyle" TargetType="ListViewItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Margin" Value="0,0,0,2" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
 
         <DataTemplate x:Key="SmallListItemTemplate" x:DataType="viewModels:DropItemViewModel">
             <Grid
                 MinHeight="48"
-                Padding="32,8,8,8"
+                Padding="4,8,8,8"
                 AllowDrop="True"
                 AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"
                 Background="{ThemeResource SubtleFillColorTransparentBrush}"
@@ -41,11 +59,27 @@
                 PointerExited="OnItemRowPointerExited"
                 Tag="{x:Bind}">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="28" />
                     <ColumnDefinition Width="40" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <Grid Width="38" Height="38">
+                <CheckBox
+                    x:Name="ItemSelectionCheckBox"
+                    Grid.Column="0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    AutomationProperties.HelpText="Select or clear this item"
+                    AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"
+                    Click="OnSelectionCheckBoxClick"
+                    Loaded="OnSelectionCheckBoxLoaded"
+                    PointerPressed="OnSelectionCheckBoxPointerPressed"
+                    Tag="{x:Bind}"
+                    Visibility="Collapsed" />
+                <Grid
+                    Grid.Column="1"
+                    Width="38"
+                    Height="38">
                     <Border
                         Background="{ThemeResource LayerFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -70,7 +104,7 @@
                     <controls:NotePreview Compact="True" Note="{x:Bind Model.Note, Mode=OneWay}" />
                 </Grid>
                 <StackPanel
-                    Grid.Column="1"
+                    Grid.Column="2"
                     VerticalAlignment="Center"
                     Spacing="1">
                     <TextBlock
@@ -89,17 +123,25 @@
                         Visibility="{x:Bind NoteVisibility}" />
                 </StackPanel>
                 <controls:NoteIndicator
-                    Grid.Column="2"
+                    Grid.Column="3"
                     VerticalAlignment="Center"
                     Item="{x:Bind}" />
-                <controls:InsertionAdorner x:Name="ItemInsertionAdorner" Grid.ColumnSpan="3" />
+                <Border
+                    x:Name="ItemSelectionBorder"
+                    Grid.ColumnSpan="4"
+                    BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                    BorderThickness="2"
+                    CornerRadius="6"
+                    IsHitTestVisible="False"
+                    Visibility="Collapsed" />
+                <controls:InsertionAdorner x:Name="ItemInsertionAdorner" Grid.ColumnSpan="4" />
             </Grid>
         </DataTemplate>
 
         <DataTemplate x:Key="LargeListItemTemplate" x:DataType="viewModels:DropItemViewModel">
             <Grid
                 MinHeight="80"
-                Padding="32,8,8,8"
+                Padding="4,8,8,8"
                 AllowDrop="True"
                 AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"
                 Background="{ThemeResource SubtleFillColorTransparentBrush}"
@@ -109,11 +151,27 @@
                 PointerExited="OnItemRowPointerExited"
                 Tag="{x:Bind}">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="28" />
                     <ColumnDefinition Width="68" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <Grid Width="64" Height="64">
+                <CheckBox
+                    x:Name="ItemSelectionCheckBox"
+                    Grid.Column="0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    AutomationProperties.HelpText="Select or clear this item"
+                    AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"
+                    Click="OnSelectionCheckBoxClick"
+                    Loaded="OnSelectionCheckBoxLoaded"
+                    PointerPressed="OnSelectionCheckBoxPointerPressed"
+                    Tag="{x:Bind}"
+                    Visibility="Collapsed" />
+                <Grid
+                    Grid.Column="1"
+                    Width="64"
+                    Height="64">
                     <Border
                         Background="{ThemeResource LayerFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -138,7 +196,7 @@
                     <controls:NotePreview Note="{x:Bind Model.Note, Mode=OneWay}" />
                 </Grid>
                 <StackPanel
-                    Grid.Column="1"
+                    Grid.Column="2"
                     VerticalAlignment="Center"
                     Spacing="1">
                     <TextBlock
@@ -157,10 +215,18 @@
                         Visibility="{x:Bind NoteVisibility}" />
                 </StackPanel>
                 <controls:NoteIndicator
-                    Grid.Column="2"
+                    Grid.Column="3"
                     VerticalAlignment="Center"
                     Item="{x:Bind}" />
-                <controls:InsertionAdorner x:Name="ItemInsertionAdorner" Grid.ColumnSpan="3" />
+                <Border
+                    x:Name="ItemSelectionBorder"
+                    Grid.ColumnSpan="4"
+                    BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                    BorderThickness="2"
+                    CornerRadius="8"
+                    IsHitTestVisible="False"
+                    Visibility="Collapsed" />
+                <controls:InsertionAdorner x:Name="ItemInsertionAdorner" Grid.ColumnSpan="4" />
             </Grid>
         </DataTemplate>
 
@@ -205,6 +271,18 @@
                         HorizontalAlignment="Right"
                         VerticalAlignment="Top"
                         Item="{x:Bind}" />
+                    <CheckBox
+                        x:Name="ItemSelectionCheckBox"
+                        Margin="4"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        AutomationProperties.HelpText="Select or clear this item"
+                        AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"
+                        Click="OnSelectionCheckBoxClick"
+                        Loaded="OnSelectionCheckBoxLoaded"
+                        PointerPressed="OnSelectionCheckBoxPointerPressed"
+                        Tag="{x:Bind}"
+                        Visibility="Collapsed" />
                 </Grid>
                 <TextBlock
                     Grid.Row="1"
@@ -215,7 +293,223 @@
                     Text="{x:Bind DisplayName, Mode=OneWay}"
                     TextAlignment="Center"
                     TextTrimming="CharacterEllipsis" />
+                <Border
+                    x:Name="ItemSelectionBorder"
+                    Grid.RowSpan="2"
+                    BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                    BorderThickness="2"
+                    CornerRadius="8"
+                    IsHitTestVisible="False"
+                    Visibility="Collapsed" />
                 <controls:InsertionAdorner x:Name="ItemInsertionAdorner" Grid.RowSpan="2" />
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="OrganizerListItemTemplate" x:DataType="viewModels:DropItemViewModel">
+            <Grid
+                MinHeight="82"
+                AllowDrop="True"
+                AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"
+                Background="Transparent"
+                ColumnSpacing="12"
+                ContextRequested="OnItemRowContextRequested"
+                PointerEntered="OnItemRowPointerEntered"
+                PointerExited="OnItemRowPointerExited"
+                Tag="{x:Bind}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="44" />
+                    <ColumnDefinition Width="84" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border
+                    x:Name="ItemCardSurface"
+                    Grid.ColumnSpan="4"
+                    Margin="2"
+                    Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+                    CornerRadius="8"
+                    IsHitTestVisible="False"
+                    Opacity="0" />
+                <Grid
+                    Grid.Column="1"
+                    Width="64"
+                    Height="64"
+                    Margin="10,8">
+                    <Border
+                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="{x:Bind ThumbnailBorderThickness, Mode=OneWay}"
+                        CornerRadius="8"
+                        Visibility="{x:Bind NonNoteVisibility}">
+                        <controls:ThumbnailImagePresenter
+                            HasVideoFilmstrip="{x:Bind ThumbnailHasVideoFilmstrip, Mode=OneWay}"
+                            IsShellIcon="{x:Bind ThumbnailIsShellIcon, Mode=OneWay}"
+                            ShellIconSize="64"
+                            Source="{x:Bind ThumbnailSource, Mode=OneWay}"
+                            Stretch="UniformToFill"
+                            Visibility="{x:Bind ThumbnailVisibility, Mode=OneWay}" />
+                    </Border>
+                    <FontIcon
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="28"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Glyph="{x:Bind LeadingGlyph, Mode=OneWay}"
+                        Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}" />
+                    <controls:NotePreview Note="{x:Bind Model.Note, Mode=OneWay}" />
+                </Grid>
+                <StackPanel
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Spacing="2">
+                    <TextBlock
+                        FontWeight="SemiBold"
+                        MaxLines="1"
+                        Text="{x:Bind DisplayName, Mode=OneWay}"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{ThemeResource CaptionTextBlockStyle}"
+                        Text="{x:Bind KindLabel, Mode=OneWay}" />
+                    <TextBlock
+                        MaxLines="1"
+                        Style="{ThemeResource CaptionTextBlockStyle}"
+                        Text="{x:Bind Model.Note.Text, Mode=OneWay}"
+                        TextTrimming="CharacterEllipsis"
+                        Visibility="{x:Bind NoteVisibility}" />
+                </StackPanel>
+                <controls:NoteIndicator
+                    Grid.Column="3"
+                    Margin="8"
+                    VerticalAlignment="Center"
+                    Item="{x:Bind}" />
+                <CheckBox
+                    x:Name="ItemSelectionCheckBox"
+                    Grid.Column="0"
+                    Width="24"
+                    Height="24"
+                    MinWidth="0"
+                    MinHeight="0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    AutomationProperties.HelpText="Select or clear this item"
+                    AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"
+                    Click="OnSelectionCheckBoxClick"
+                    Loaded="OnSelectionCheckBoxLoaded"
+                    PointerPressed="OnSelectionCheckBoxPointerPressed"
+                    Tag="{x:Bind}"
+                    Visibility="Collapsed" />
+                <Border
+                    x:Name="ItemSelectionBorder"
+                    Grid.ColumnSpan="4"
+                    Margin="2"
+                    BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                    BorderThickness="2"
+                    CornerRadius="8"
+                    IsHitTestVisible="False"
+                    Visibility="Collapsed" />
+                <controls:InsertionAdorner
+                    x:Name="ItemInsertionAdorner"
+                    Grid.ColumnSpan="4"
+                    Margin="2" />
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="OrganizerThumbnailItemTemplate" x:DataType="viewModels:DropItemViewModel">
+            <Grid
+                AllowDrop="True"
+                AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"
+                Background="Transparent"
+                ContextRequested="OnItemRowContextRequested"
+                PointerEntered="OnItemRowPointerEntered"
+                PointerExited="OnItemRowPointerExited"
+                Tag="{x:Bind}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Border
+                    x:Name="ItemCardSurface"
+                    Grid.RowSpan="2"
+                    Margin="2"
+                    Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+                    CornerRadius="8"
+                    IsHitTestVisible="False"
+                    Opacity="0" />
+                <Grid Margin="16,12,16,8">
+                    <Border
+                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="{x:Bind ThumbnailBorderThickness, Mode=OneWay}"
+                        CornerRadius="7"
+                        Visibility="{x:Bind NonNoteVisibility}">
+                        <controls:ThumbnailImagePresenter
+                            HasVideoFilmstrip="{x:Bind ThumbnailHasVideoFilmstrip, Mode=OneWay}"
+                            IsShellIcon="{x:Bind ThumbnailIsShellIcon, Mode=OneWay}"
+                            ShellIconSize="72"
+                            Source="{x:Bind ThumbnailSource, Mode=OneWay}"
+                            Stretch="UniformToFill"
+                            Visibility="{x:Bind ThumbnailVisibility, Mode=OneWay}" />
+                    </Border>
+                    <FontIcon
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="32"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Glyph="{x:Bind LeadingGlyph, Mode=OneWay}"
+                        Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}" />
+                    <controls:NotePreview Note="{x:Bind Model.Note, Mode=OneWay}" />
+                </Grid>
+                <StackPanel
+                    Margin="12,10"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Spacing="2">
+                    <CheckBox
+                        x:Name="ItemSelectionCheckBox"
+                        Width="24"
+                        Height="24"
+                        MinWidth="0"
+                        MinHeight="0"
+                        HorizontalAlignment="Right"
+                        AutomationProperties.HelpText="Select or clear this item"
+                        AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"
+                        Click="OnSelectionCheckBoxClick"
+                        Loaded="OnSelectionCheckBoxLoaded"
+                        PointerPressed="OnSelectionCheckBoxPointerPressed"
+                        Tag="{x:Bind}"
+                        Visibility="Collapsed" />
+                    <controls:NoteIndicator HorizontalAlignment="Right" Item="{x:Bind}" />
+                </StackPanel>
+                <StackPanel
+                    Grid.Row="1"
+                    Margin="12,0,12,10"
+                    Spacing="1">
+                    <TextBlock
+                        FontWeight="SemiBold"
+                        MaxLines="1"
+                        Text="{x:Bind DisplayName, Mode=OneWay}"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        MaxLines="1"
+                        Style="{ThemeResource CaptionTextBlockStyle}"
+                        Text="{x:Bind KindLabel, Mode=OneWay}"
+                        TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <Border
+                    x:Name="ItemSelectionBorder"
+                    Grid.RowSpan="2"
+                    Margin="2"
+                    BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                    BorderThickness="2"
+                    CornerRadius="8"
+                    IsHitTestVisible="False"
+                    Visibility="Collapsed" />
+                <controls:InsertionAdorner
+                    x:Name="ItemInsertionAdorner"
+                    Grid.RowSpan="2"
+                    Margin="2" />
             </Grid>
         </DataTemplate>
     </UserControl.Resources>
@@ -237,6 +531,7 @@
             DragLeave="OnItemListDragLeave"
             DragOver="OnItemListDragOver"
             Drop="OnItemListDrop"
+            IsMultiSelectCheckBoxEnabled="False"
             ItemContainerStyle="{StaticResource ListItemContainerStyle}"
             ItemTemplate="{StaticResource SmallListItemTemplate}"
             ItemsPanel="{StaticResource ListItemsPanel}"
@@ -301,8 +596,9 @@
                             AutomationProperties.Name="Remove selected items"
                             Click="OnRemoveSelectionClick"
                             Icon="Remove"
+                            KeyboardAcceleratorTextOverride="Delete"
                             Label="Remove"
-                            ToolTipService.ToolTip="Remove from stack" />
+                            ToolTipService.ToolTip="Remove from stack (Delete)" />
                     </CommandBarFlyout.PrimaryCommands>
                     <CommandBarFlyout.SecondaryCommands>
                         <AppBarButton

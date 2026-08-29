@@ -13,28 +13,36 @@ namespace OmniTray.Views.Organizer;
 public sealed partial class StackContentsPage : Page, IDisposable
 {
     internal event EventHandler? BackRequested;
+    internal event EventHandler? DetailsPaneToggleRequested;
     internal event EventHandler? SelectedItemsChanged;
-    private bool _isSynchronizingViewButtons;
-
     public StackContentsViewModel ViewModel { get; }
 
-    internal StackContentsPage(StackContentsViewModel viewModel, Window owner)
+    internal StackContentsPage(StackContentsViewModel viewModel)
     {
         this.ViewModel = viewModel;
         this.InitializeComponent();
-        this.ItemsOrganizer.DialogOwner = owner;
+        OrganizerKeyboardAccelerators.ScopeTo(
+            this.ItemsOrganizer,
+            this.RenameTitleButton,
+            this.CopySelectedItemsButton,
+            this.OpenSelectedItemContainerButton,
+            this.RemoveSelectedItemsButton);
         this.ItemsOrganizer.SelectedItemsChanged += this.OnSelectedItemsChanged;
+        this.ItemsOrganizer.SelectionCommandsChanged += this.OnSelectionCommandsChanged;
     }
 
     internal void RevealItem(Guid id) => this.ItemsOrganizer.SelectItem(id);
     internal void FocusList() => this.ItemsOrganizer.FocusItemList();
+
+    internal void SetDetailsPaneState(bool isVisible, bool isAvailable)
+        => this.CommandToolbar.SetDetailsPaneState(isVisible, isAvailable);
 
     internal void SetStack(DropStackViewModel? stack, bool fromSearch = false)
     {
         this.ViewModel.SetStack(stack, fromSearch);
         this.ItemsOrganizer.Stack = stack;
         NoteMenu.SetStack(this.EditorNotesMenu, stack);
-        if (stack is not null) { this.ApplyStackViewMode(stack.InspectorViewMode); }
+        this.ApplyCollectionViewMode(this.ViewModel.LayoutMode);
 
         this.OnSelectedItemsChanged(this, EventArgs.Empty);
     }
@@ -42,44 +50,97 @@ public sealed partial class StackContentsPage : Page, IDisposable
     private void OnBackToOverviewClick(object sender, RoutedEventArgs args) =>
         this.BackRequested?.Invoke(this, EventArgs.Empty);
 
+    private void OnDetailsPaneToggleClick(object? sender, EventArgs args) =>
+        this.DetailsPaneToggleRequested?.Invoke(this, EventArgs.Empty);
+
     private void OnSelectedItemsChanged(object? sender, EventArgs args)
     {
         this.ViewModel.SetSelection(this.ItemsOrganizer.PrimarySelectedItem, this.ItemsOrganizer.SelectedItemCount);
+        this.UpdateSelectionCommandSurface();
         this.SelectedItemsChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private void ChangeStackViewMode(StackInspectorViewMode viewMode)
-    {
-        if (this._isSynchronizingViewButtons || this.ViewModel.Stack is null) { return; }
+    private void OnSelectionCommandsChanged(object? sender, EventArgs args) =>
+        this.UpdateSelectionCommandSurface();
 
-        this.ViewModel.ChangeViewMode(viewMode);
-        this.ApplyStackViewMode(viewMode);
+    private void UpdateSelectionCommandSurface()
+    {
+        var hasSelection = this.ItemsOrganizer.SelectedItemCount > 0;
+        this.CommandToolbar.IsSelectionActive = hasSelection;
+        this.SelectionSummaryText.Visibility = hasSelection ? Visibility.Collapsed : Visibility.Visible;
+        if (hasSelection)
+        {
+            this.OpenSelectedItemsButton.Visibility = this.ItemsOrganizer.CanOpenSelectedItem
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            var canCopy = this.ItemsOrganizer.CanCopySelectedItems;
+            this.CopySelectedItemsButton.IsEnabled = canCopy;
+            this.CopySelectedItemsButton.Visibility = canCopy
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            var canOpenContainer = this.ItemsOrganizer.CanOpenSelectedItemContainer;
+            this.OpenSelectedItemContainerButton.IsEnabled = canOpenContainer;
+            this.OpenSelectedItemContainerButton.Visibility = canOpenContainer
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            this.MoveSelectedItemsUpButton.IsEnabled = this.ItemsOrganizer.CanMoveSelectedItemsUp;
+            this.MoveSelectedItemsDownButton.IsEnabled = this.ItemsOrganizer.CanMoveSelectedItemsDown;
+            this.SplitSelectedItemsButton.IsEnabled = this.ItemsOrganizer.CanSplitSelectedItems;
+            this.RemoveSelectedItemsButton.IsEnabled = this.ItemsOrganizer.CanChangeSelectedItems;
+            this.DuplicateSelectedItemsButton.IsEnabled = this.ItemsOrganizer.CanChangeSelectedItems;
+            this.CutSelectedItemsButton.Visibility = this.ItemsOrganizer.CanCutSelectedItems
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            this.DeleteSelectedItemsFromDiskButton.Visibility = this.ItemsOrganizer.CanDeleteSelectedItemsFromDisk
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            this.DeleteSelectedItemsFromDiskButton.IsEnabled = this.ItemsOrganizer.CanChangeSelectedItems;
+        }
+
     }
 
-    private void ApplyStackViewMode(StackInspectorViewMode viewMode)
+    private void OnClearSelectionClick(object? sender, EventArgs args) =>
+        this.ItemsOrganizer.ClearSelection();
+
+    private async void OnOpenSelectedItemsClick(object sender, RoutedEventArgs args) =>
+        await this.ItemsOrganizer.OpenSelectedItemAsync();
+
+    private void OnCopySelectedItemsClick(object sender, RoutedEventArgs args) =>
+        this.ItemsOrganizer.CopySelectedItems();
+
+    private async void OnOpenSelectedItemContainerClick(object sender, RoutedEventArgs args) =>
+        await this.ItemsOrganizer.OpenSelectedItemContainerAsync();
+
+    private void OnMoveSelectedItemsUpClick(object sender, RoutedEventArgs args) =>
+        this.ItemsOrganizer.MoveSelectedItems(-1);
+
+    private void OnMoveSelectedItemsDownClick(object sender, RoutedEventArgs args) =>
+        this.ItemsOrganizer.MoveSelectedItems(1);
+
+    private void OnSplitSelectedItemsClick(object sender, RoutedEventArgs args) =>
+        this.ItemsOrganizer.SplitSelectedItems();
+
+    private async void OnRemoveSelectedItemsClick(object sender, RoutedEventArgs args) =>
+        await this.ItemsOrganizer.RemoveSelectedItemsAsync();
+
+    private async void OnDuplicateSelectedItemsClick(object sender, RoutedEventArgs args) =>
+        await this.ItemsOrganizer.DuplicateSelectedItemsAsync();
+
+    private void OnCutSelectedItemsClick(object sender, RoutedEventArgs args) =>
+        this.ItemsOrganizer.CutSelectedItems();
+
+    private async void OnDeleteSelectedItemsFromDiskClick(object sender, RoutedEventArgs args) =>
+        await this.ItemsOrganizer.DeleteSelectedItemsFromDiskAsync();
+
+    private void OnCollectionViewModeChanged(object? sender, EventArgs args) =>
+        this.ApplyCollectionViewMode(this.CommandToolbar.CollectionViewMode);
+
+    private void ApplyCollectionViewMode(OrganizerCollectionViewMode viewMode)
     {
-        this._isSynchronizingViewButtons = true;
-        try
-        {
-            this.StackListViewItem.IsChecked = viewMode == StackInspectorViewMode.List;
-            this.StackGridViewItem.IsChecked = viewMode == StackInspectorViewMode.Grid;
-            this.StackViewIcon.Glyph = viewMode == StackInspectorViewMode.Grid ? "\uE8A9" : "\uEA37";
-            ToolTipService.SetToolTip(
-                this.StackViewButton,
-                viewMode == StackInspectorViewMode.Grid ? "Item layout: Grid" : "Item layout: List");
-            this.ItemsOrganizer.SetThumbnailView(viewMode == StackInspectorViewMode.Grid);
-        }
-        finally
-        {
-            this._isSynchronizingViewButtons = false;
-        }
+        this.ViewModel.LayoutMode = viewMode;
+        this.CommandToolbar.CollectionViewMode = viewMode;
+        this.ItemsOrganizer.SetOrganizerViewMode(viewMode);
     }
-
-    private void OnListViewClick(object sender, RoutedEventArgs args) =>
-        this.ChangeStackViewMode(StackInspectorViewMode.List);
-
-    private void OnThumbnailViewClick(object sender, RoutedEventArgs args) =>
-        this.ChangeStackViewMode(StackInspectorViewMode.Grid);
 
     private async void OnPasteIntoStackClick(object sender, RoutedEventArgs args)
     {
@@ -178,7 +239,7 @@ public sealed partial class StackContentsPage : Page, IDisposable
     public void Dispose()
     {
         this.ItemsOrganizer.SelectedItemsChanged -= this.OnSelectedItemsChanged;
+        this.ItemsOrganizer.SelectionCommandsChanged -= this.OnSelectionCommandsChanged;
         this.SetStack(null);
-        this.ItemsOrganizer.DialogOwner = null;
     }
 }

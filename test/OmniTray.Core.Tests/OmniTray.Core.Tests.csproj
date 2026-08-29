@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+    <Using Include="OmniTray.Core" />
   </ItemGroup>
 
 </Project>

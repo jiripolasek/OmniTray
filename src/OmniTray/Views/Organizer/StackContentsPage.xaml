@@ -18,6 +18,7 @@
             </Grid.ColumnDefinitions>
             <Button
                 x:Name="StackBackButton"
+                AccessKey="B"
                 Width="36"
                 Height="36"
                 Padding="0"
@@ -34,6 +35,7 @@
                 Spacing="2">
                 <Button
                     x:Name="RenameTitleButton"
+                    AccessKey="RN"
                     MinHeight="0"
                     Padding="4,2"
                     HorizontalAlignment="Left"
@@ -45,7 +47,10 @@
                     LostFocus="OnRenameTitleFocusChanged"
                     PointerEntered="OnRenameTitlePointerChanged"
                     PointerExited="OnRenameTitlePointerChanged"
-                    ToolTipService.ToolTip="Rename stack">
+                    ToolTipService.ToolTip="Rename stack (F2)">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="F2" />
+                    </Button.KeyboardAccelerators>
                     <Grid ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
@@ -77,20 +82,25 @@
             </StackPanel>
         </Grid>
 
-        <CommandBar
+        <controls:OrganizerToolbar
+            x:Name="CommandToolbar"
             Grid.Row="1"
             Margin="16,0,12,8"
-            AutomationProperties.Name="Selected stack commands"
-            Background="Transparent"
-            DefaultLabelPosition="Right"
-            IsDynamicOverflowEnabled="True">
-            <CommandBar.PrimaryCommands>
+            ClearSelectionRequested="OnClearSelectionClick"
+            CollectionViewModeChanged="OnCollectionViewModeChanged"
+            DetailsPaneToggleRequested="OnDetailsPaneToggleClick"
+            SelectionSummary="{x:Bind ViewModel.SelectionSummary, Mode=OneWay}">
+            <controls:OrganizerToolbar.PermanentCommands>
                 <AppBarButton
+                    AccessKey="A"
                     AutomationProperties.Name="Paste clipboard content into selected stack"
                     Click="OnPasteIntoStackClick"
                     Icon="Paste"
                     Label="Paste" />
-                <AppBarButton AutomationProperties.Name="Stack notes" Label="Notes">
+                <AppBarButton
+                    AccessKey="N"
+                    AutomationProperties.Name="Stack notes"
+                    Label="Notes">
                     <AppBarButton.Icon>
                         <FontIcon Glyph="&#xE70B;" />
                     </AppBarButton.Icon>
@@ -99,6 +109,7 @@
                     </AppBarButton.Flyout>
                 </AppBarButton>
                 <AppBarButton
+                    AccessKey="T"
                     AutomationProperties.Name="Pop out selected stack as a tray"
                     Click="OnPopOutSelectedStackClick"
                     Label="Pop out">
@@ -108,6 +119,7 @@
                 </AppBarButton>
                 <AppBarButton
                     x:Name="EdgeAssignmentButton"
+                    AccessKey="M"
                     AutomationProperties.Name="Choose an edge window for the selected stack"
                     Label="Move to edge">
                     <AppBarButton.Icon>
@@ -144,46 +156,132 @@
                         </MenuFlyout>
                     </AppBarButton.Flyout>
                 </AppBarButton>
-                <AppBarSeparator />
+            </controls:OrganizerToolbar.PermanentCommands>
+            <controls:OrganizerToolbar.PermanentSecondaryCommands>
                 <AppBarButton
-                    x:Name="StackViewButton"
-                    AutomationProperties.Name="Choose stack item layout"
-                    ToolTipService.ToolTip="Item layout">
-                    <AppBarButton.Icon>
-                        <FontIcon x:Name="StackViewIcon" Glyph="&#xEA37;" />
-                    </AppBarButton.Icon>
-                    <AppBarButton.Flyout>
-                        <MenuFlyout>
-                            <RadioMenuFlyoutItem
-                                x:Name="StackListViewItem"
-                                Click="OnListViewClick"
-                                GroupName="OrganizerItemLayout"
-                                Text="List" />
-                            <RadioMenuFlyoutItem
-                                x:Name="StackGridViewItem"
-                                Click="OnThumbnailViewClick"
-                                GroupName="OrganizerItemLayout"
-                                Text="Grid" />
-                        </MenuFlyout>
-                    </AppBarButton.Flyout>
-                </AppBarButton>
-            </CommandBar.PrimaryCommands>
-            <CommandBar.SecondaryCommands>
-                <AppBarButton
+                    AccessKey="DS"
                     AutomationProperties.Name="Delete selected stack"
                     Click="OnDeleteSelectedStackClick"
                     Icon="Delete"
                     Label="Delete stack" />
-            </CommandBar.SecondaryCommands>
-        </CommandBar>
+            </controls:OrganizerToolbar.PermanentSecondaryCommands>
+            <controls:OrganizerToolbar.SelectionCommands>
+                <AppBarButton
+                    x:Name="OpenSelectedItemsButton"
+                    AccessKey="O"
+                    AutomationProperties.Name="Open selected item"
+                    Click="OnOpenSelectedItemsClick"
+                    Label="Open"
+                    Visibility="Collapsed">
+                    <AppBarButton.Icon>
+                        <FontIcon Glyph="&#xE8E5;" />
+                    </AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarButton
+                    x:Name="CopySelectedItemsButton"
+                    AccessKey="C"
+                    AutomationProperties.Name="Copy selected items"
+                    Click="OnCopySelectedItemsClick"
+                    Icon="Copy"
+                    Label="Copy"
+                    ToolTipService.ToolTip="Copy (Ctrl+C)">
+                    <AppBarButton.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="C" Modifiers="Control" />
+                    </AppBarButton.KeyboardAccelerators>
+                </AppBarButton>
+                <AppBarButton
+                    x:Name="OpenSelectedItemContainerButton"
+                    AccessKey="E"
+                    AutomationProperties.Name="Open the selected item's containing folder"
+                    Click="OnOpenSelectedItemContainerClick"
+                    Label="Open container"
+                    ToolTipService.ToolTip="Open container (Ctrl+E)"
+                    Visibility="Collapsed">
+                    <AppBarButton.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="E" Modifiers="Control" />
+                    </AppBarButton.KeyboardAccelerators>
+                    <AppBarButton.Icon>
+                        <FontIcon Glyph="&#xE838;" />
+                    </AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarButton
+                    x:Name="MoveSelectedItemsUpButton"
+                    AccessKey="U"
+                    AutomationProperties.Name="Move selected items up"
+                    Click="OnMoveSelectedItemsUpClick"
+                    Label="Move up">
+                    <AppBarButton.Icon>
+                        <FontIcon Glyph="&#xE70E;" />
+                    </AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarButton
+                    x:Name="MoveSelectedItemsDownButton"
+                    AccessKey="W"
+                    AutomationProperties.Name="Move selected items down"
+                    Click="OnMoveSelectedItemsDownClick"
+                    Label="Move down">
+                    <AppBarButton.Icon>
+                        <FontIcon Glyph="&#xE70D;" />
+                    </AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarButton
+                    x:Name="SplitSelectedItemsButton"
+                    AccessKey="S"
+                    AutomationProperties.Name="Split selected items into a new stack"
+                    Click="OnSplitSelectedItemsClick"
+                    Label="Split">
+                    <AppBarButton.Icon>
+                        <FontIcon Glyph="&#xE8C6;" />
+                    </AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarButton
+                    x:Name="RemoveSelectedItemsButton"
+                    AccessKey="RM"
+                    AutomationProperties.Name="Remove selected items from this stack"
+                    Click="OnRemoveSelectedItemsClick"
+                    Icon="Remove"
+                    Label="Remove"
+                    ToolTipService.ToolTip="Remove (Delete)">
+                    <AppBarButton.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="Delete" />
+                    </AppBarButton.KeyboardAccelerators>
+                </AppBarButton>
+            </controls:OrganizerToolbar.SelectionCommands>
+            <controls:OrganizerToolbar.SelectionSecondaryCommands>
+                <AppBarButton
+                    x:Name="DuplicateSelectedItemsButton"
+                    AccessKey="DU"
+                    AutomationProperties.Name="Duplicate selected items"
+                    Click="OnDuplicateSelectedItemsClick"
+                    Icon="Copy"
+                    Label="Duplicate" />
+                <AppBarButton
+                    x:Name="CutSelectedItemsButton"
+                    AutomationProperties.Name="Cut selected filesystem items"
+                    Click="OnCutSelectedItemsClick"
+                    Icon="Cut"
+                    Label="Cut"
+                    Visibility="Collapsed" />
+                <AppBarButton
+                    x:Name="DeleteSelectedItemsFromDiskButton"
+                    AccessKey="DD"
+                    AutomationProperties.Name="Delete selected filesystem items from disk"
+                    Click="OnDeleteSelectedItemsFromDiskClick"
+                    Icon="Delete"
+                    Label="Delete from disk"
+                    Visibility="Collapsed" />
+            </controls:OrganizerToolbar.SelectionSecondaryCommands>
+        </controls:OrganizerToolbar>
 
         <controls:StackItemsOrganizer
             x:Name="ItemsOrganizer"
             Grid.Row="2"
             Margin="20,0,16,8"
+            AutomationProperties.HelpText="Press Space to toggle selection, F2 to rename the stack, Ctrl+C to copy, Ctrl+E to open the containing folder, or Delete to remove selected items."
             MaximumListHeight="10000"
             OwnsScrolling="True"
-            ThumbnailItemWidth="160" />
+            ShowCommandFlyoutOnHover="False"
+            UseOrganizerCardPresentation="True" />
 
         <TextBlock
             x:Name="SelectionSummaryText"

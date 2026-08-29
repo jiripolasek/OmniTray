@@ -15,9 +15,8 @@ public sealed partial class NoteLibraryViewModel(MainViewModel catalog) : Observ
     private bool _isRefreshing;
 
     public ObservableCollection<NoteLibraryEntry> Entries { get; } = [];
-
-    [ObservableProperty]
-    public partial NoteLibraryEntry? SelectedEntry { get; private set; }
+    public IReadOnlyList<NoteLibraryEntry> SelectedEntries { get; private set; } = [];
+    public OrganizerCollectionViewMode LayoutMode { get; internal set; } = OrganizerCollectionViewMode.List;
 
     [ObservableProperty]
     public partial string Summary { get; private set; } = string.Empty;
@@ -35,16 +34,27 @@ public sealed partial class NoteLibraryViewModel(MainViewModel catalog) : Observ
     public partial bool CanOpenSelection { get; private set; }
 
     [ObservableProperty]
+    public partial bool CanGoToSelection { get; private set; }
+
+    [ObservableProperty]
+    public partial bool HasSelection { get; private set; }
+
+    [ObservableProperty]
+    public partial string SelectionSummary { get; private set; } = string.Empty;
+
+    [ObservableProperty]
     public partial string OpenLabel { get; private set; } = "Open";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DeleteLabel))]
     public partial bool ShowDeleted { get; set; }
 
     [ObservableProperty]
     public partial string FilterText { get; set; } = string.Empty;
 
     public bool CanUseCommands => !this.IsBusy;
-    internal Guid? SelectedNoteId => this.SelectedEntry is { IsDeleted: false } entry ? entry.Note.Id : null;
+    public string DeleteLabel => this.ShowDeleted ? "Delete permanently" : "Delete";
+    internal Guid? SelectedNoteId => this.SelectedEntries is [{ IsDeleted: false } entry] ? entry.Note.Id : null;
 
     partial void OnShowDeletedChanged(bool value) => this.Refresh();
     partial void OnFilterTextChanged(string value) => this.Refresh();
@@ -62,17 +72,30 @@ public sealed partial class NoteLibraryViewModel(MainViewModel catalog) : Observ
         else { catalog.CatalogChanged -= this.OnCatalogChanged; }
     }
 
-    internal void SetSelection(NoteLibraryEntry? entry)
+    internal void SetSelection(IReadOnlyList<NoteLibraryEntry> entries)
     {
         if (!this._active || this._isRefreshing) { return; }
 
-        this.SelectedEntry = entry;
-        this.NotifySelectionChanged();
+        this.ApplySelection(entries);
     }
 
-    private void NotifySelectionChanged()
+    private void ApplySelection(IEnumerable<NoteLibraryEntry> entries)
     {
-        this.CanOpenSelection = this.SelectedEntry is not null;
+        this.SelectedEntries = entries
+            .Where(this.Entries.Contains)
+            .DistinctBy(static entry => entry.Note.Id)
+            .ToArray();
+        this.HasSelection = this.SelectedEntries.Count > 0;
+        this.CanOpenSelection = this.ShowDeleted
+            ? this.HasSelection
+            : this.SelectedEntries.Count == 1;
+        this.CanGoToSelection = this.SelectedEntries is [{ CanGoToStack: true }];
+        this.SelectionSummary = this.SelectedEntries.Count switch
+        {
+            0 => string.Empty,
+            1 => "1 note selected",
+            _ => $"{this.SelectedEntries.Count} notes selected"
+        };
         this.SelectedNoteChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -82,10 +105,12 @@ public sealed partial class NoteLibraryViewModel(MainViewModel catalog) : Observ
     {
         if (!this._active) { return; }
 
-        var selectedId = this.SelectedEntry?.Note.Id;
+        var selectedIds = keepSelected
+            ? this.SelectedEntries.Select(static entry => entry.Note.Id).ToHashSet()
+            : [];
         var stacks = catalog.Stacks.Select(stack => stack.Model).ToArray();
         var entries = this.ShowDeleted
-            ? catalog.DeletedNotes.Select(entry => new NoteLibraryEntry(entry.Note,
+            ? catalog.DeletedNotes.Select(entry => new NoteLibraryEntry(entry.Note, entry.Target,
                 entry.ItemName is null ? entry.StackName : $"{entry.StackName} · {entry.ItemName}", entry.DeletedAt,
                 true))
             : NoteOperations.Enumerate(stacks).Select(location =>
@@ -93,10 +118,15 @@ public sealed partial class NoteLibraryViewModel(MainViewModel catalog) : Observ
                 var stack = stacks.Single(stack => stack.Id == location.Target.StackId);
                 var parent = stack.Items.FirstOrDefault(item => item.Id == location.Target.ItemId);
                 var label = parent is null ? "Note in stack" : $"Attached to {parent.DisplayName}";
-                return new NoteLibraryEntry(location.Note, $"{stack.Name} · {label}", location.Note.UpdatedAt, false);
+                return new NoteLibraryEntry(
+                    location.Note,
+                    location.Target,
+                    $"{stack.Name} · {label}",
+                    location.Note.UpdatedAt,
+                    false);
             });
         var terms = this.FilterText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-        var results = entries.Where(entry => (keepSelected && entry.Note.Id == selectedId) || terms.All(term =>
+        var results = entries.Where(entry => selectedIds.Contains(entry.Note.Id) || terms.All(term =>
                 entry.Note.Text.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                 entry.Note.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                 entry.Location.Contains(term, StringComparison.OrdinalIgnoreCase)))
@@ -110,12 +140,11 @@ public sealed partial class NoteLibraryViewModel(MainViewModel catalog) : Observ
             this.Entries.Clear();
             foreach (var entry in results) { this.Entries.Add(entry); }
 
-            this.SelectedEntry = this.Entries.FirstOrDefault(entry => entry.Note.Id == selectedId);
         }
         finally { this._isRefreshing = false; }
 
-        this.NotifySelectionChanged();
         this.OpenLabel = this.ShowDeleted ? "Restore" : "Open";
+        this.ApplySelection(this.Entries.Where(entry => selectedIds.Contains(entry.Note.Id)));
         this.Summary = $"{results.Length} notes. " + (this.ShowDeleted
             ? "Kept until permanently deleted. Restore returns a note to its owner when available, or to a stack item."
             : "All placements, most recently edited first.");
@@ -128,9 +157,72 @@ public sealed partial class NoteLibraryViewModel(MainViewModel catalog) : Observ
         if (entry.IsDeleted) { await App.Current.SaveNotesAsync(); }
     });
 
-    internal Task PurgeAsync(NoteLibraryEntry entry, Func<Task<bool>> confirm) => this.RunAsync(async () =>
+    internal Task OpenSelectionAsync(IReadOnlyList<NoteLibraryEntry> entries)
     {
-        if (entry.IsDeleted && await confirm()) { await App.Current.PurgeDeletedNoteAsync(entry.Note.Id); }
+        var selected = entries
+            .DistinctBy(static entry => entry.Note.Id)
+            .ToArray();
+        if (selected is [var entry] && !entry.IsDeleted)
+        {
+            return this.OpenAsync(entry);
+        }
+
+        if (selected.Length == 0 || selected.Any(static entry => !entry.IsDeleted))
+        {
+            return Task.CompletedTask;
+        }
+
+        return this.RunAsync(async () =>
+        {
+            var restored = selected.Select(entry => catalog.RestoreDeletedNote(entry.Note.Id)).ToArray();
+            await App.Current.SaveNotesAsync();
+            if (restored is [var note])
+            {
+                App.Current.ShowNote(note.Id);
+            }
+        });
+    }
+
+    internal Task ChangeColorAsync(NoteLibraryEntry entry, NoteColor color) => this.RunAsync(async () =>
+    {
+        if (entry.IsDeleted || !this.Entries.Contains(entry) || entry.Note.Color == color)
+        {
+            return;
+        }
+
+        catalog.UpdateNote(entry.Note.Id, entry.Note.Text, entry.Note.Rtf, color);
+        await App.Current.SaveNotesAsync();
+    });
+
+    internal Task DeleteAsync(IReadOnlyList<NoteLibraryEntry> entries, Func<Task<bool>> confirm) => this.RunAsync(async () =>
+    {
+        var selected = entries
+            .DistinctBy(static entry => entry.Note.Id)
+            .ToArray();
+        if (selected.Length == 0)
+        {
+            return;
+        }
+
+        if (!await confirm())
+        {
+            return;
+        }
+
+        foreach (var entry in selected.Where(static entry => !entry.IsDeleted))
+        {
+            catalog.DeleteNote(entry.Note.Id);
+        }
+
+        if (selected.Any(static entry => !entry.IsDeleted))
+        {
+            await App.Current.SaveNotesAsync();
+        }
+
+        foreach (var entry in selected.Where(static entry => entry.IsDeleted))
+        {
+            await App.Current.PurgeDeletedNoteAsync(entry.Note.Id);
+        }
     });
 
     private async Task RunAsync(Func<Task> operation)
@@ -151,7 +243,7 @@ public sealed partial class NoteLibraryViewModel(MainViewModel catalog) : Observ
     public void Dispose()
     {
         this.SetActive(false);
-        this.SelectedEntry = null;
+        this.SelectedEntries = [];
         this.Entries.Clear();
     }
 }

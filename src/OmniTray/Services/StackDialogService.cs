@@ -88,6 +88,38 @@ internal static class StackDialogService
         return await dialog.ShowAsync() == ContentDialogResult.Primary;
     }
 
+    public static async Task<bool> ConfirmDeleteAsync(
+        XamlRoot xamlRoot,
+        IReadOnlyList<DropStackViewModel> stacks)
+    {
+        ArgumentNullException.ThrowIfNull(xamlRoot);
+        ArgumentNullException.ThrowIfNull(stacks);
+
+        var selected = stacks.Distinct().ToArray();
+        ArgumentOutOfRangeException.ThrowIfZero(selected.Length);
+        if (selected is [var stack])
+        {
+            return await ConfirmDeleteAsync(xamlRoot, stack);
+        }
+
+        var itemCount = selected.Sum(static stack => stack.Model.Items.Count);
+        var noteCount = NoteOperations.Enumerate(selected.Select(static stack => stack.Model)).Count();
+        var notes = noteCount == 0
+            ? string.Empty
+            : $" Their {noteCount} notes are kept in Recently deleted, including attachments.";
+        var dialog = new ContentDialog
+        {
+            XamlRoot = xamlRoot,
+            Title = $"Delete {selected.Length} stacks?",
+            Content = $"This removes the stacks and their {itemCount} {(itemCount == 1 ? "item" : "items")}.{notes} Original files and folders are never deleted.",
+            PrimaryButtonText = "Delete",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close
+        };
+
+        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+    }
+
     public static Task<bool> ConfirmDeleteAsync(Window owner, DropStackViewModel stack)
     {
         ArgumentNullException.ThrowIfNull(owner);

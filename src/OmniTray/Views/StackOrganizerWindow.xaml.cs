@@ -16,9 +16,16 @@ namespace OmniTray.Views;
 
 public sealed partial class StackOrganizerWindow : Window
 {
+    private const double DetailsPaneAvailableWidth = 1080;
+    private const double DetailsPaneDefaultWidth = 288;
+    private const double DetailsPaneMinimumWidth = 240;
+    private const double MainContentMinimumWidth = 360;
+
     private readonly StackOverviewPage _overviewPage;
     private readonly StackSearchPage _searchPage;
     private readonly StackContentsPage _stackPage;
+    private double _detailsPanePreferredWidth = DetailsPaneDefaultWidth;
+    private bool _detailsPaneRequestedVisible = true;
 
     public StackOrganizerViewModel ViewModel { get; }
     private StackOrganizerNavigationState Navigation => this.ViewModel.Navigation;
@@ -31,7 +38,7 @@ public sealed partial class StackOrganizerWindow : Window
     {
         this.ViewModel = new StackOrganizerViewModel(App.Current.StackCatalogViewModel);
         this._overviewPage = new StackOverviewPage(this.ViewModel.Catalog, this.ViewModel.Overview);
-        this._stackPage = new StackContentsPage(this.ViewModel.Stack, this);
+        this._stackPage = new StackContentsPage(this.ViewModel.Stack);
         this._searchPage = new StackSearchPage(this.ViewModel.Search);
         this.InitializeComponent();
         this._searchPopupFooter
@@ -58,7 +65,9 @@ public sealed partial class StackOrganizerWindow : Window
         this._overviewPage.StackOpened += this.OnStackOpened;
         this._overviewPage.NewStackRequested += this.OnNewStackRequested;
         this._overviewPage.ClipboardStackRequested += this.OnClipboardStackRequested;
+        this._overviewPage.DetailsPaneToggleRequested += this.OnDetailsPaneToggleRequested;
         this._stackPage.BackRequested += this.OnStackBackRequested;
+        this._stackPage.DetailsPaneToggleRequested += this.OnDetailsPaneToggleRequested;
         this._stackPage.SelectedItemsChanged += this.OnSelectedItemsChanged;
         this._searchPage.BackRequested += this.OnSearchBackRequested;
         this._searchPage.ResultOpened += this.OnSearchResultOpened;
@@ -88,8 +97,49 @@ public sealed partial class StackOrganizerWindow : Window
     private void OnBrowserContentSizeChanged(object sender, SizeChangedEventArgs args)
     {
         // Clamp layout, not the preferred Width, so widening the window restores the
-        // user's last split. The narrow visual states temporarily hide the whole pane.
-        this.DetailsColumn.MaxWidth = Math.Max(240, args.NewSize.Width - 360 - this.DetailsSplitter.Width);
+        // user's last split. Narrow layouts temporarily hide the whole pane.
+        this.DetailsColumn.MaxWidth = Math.Max(
+            DetailsPaneMinimumWidth,
+            args.NewSize.Width - MainContentMinimumWidth - this.DetailsSplitter.Width);
+        this.UpdateDetailsPaneLayout(args.NewSize.Width);
+    }
+
+    private void OnDetailsPaneToggleRequested(object? sender, EventArgs args)
+    {
+        this._detailsPaneRequestedVisible = !this._detailsPaneRequestedVisible;
+        this.UpdateDetailsPaneLayout(this.BrowserContent.ActualWidth);
+    }
+
+    private void UpdateDetailsPaneLayout(double availableWidth)
+    {
+        var isAvailable = availableWidth >= DetailsPaneAvailableWidth;
+        var isCurrentlyVisible = this.DetailsPane.Visibility == Visibility.Visible &&
+                                 this.DetailsColumn.ActualWidth >= DetailsPaneMinimumWidth;
+        if (isCurrentlyVisible && this.DetailsColumn.Width.IsAbsolute &&
+            this.DetailsColumn.Width.Value >= DetailsPaneMinimumWidth)
+        {
+            this._detailsPanePreferredWidth = this.DetailsColumn.Width.Value;
+        }
+
+        var isVisible = isAvailable && this._detailsPaneRequestedVisible;
+        if (isVisible)
+        {
+            this.DetailsColumn.MinWidth = DetailsPaneMinimumWidth;
+            this.DetailsColumn.Width = new GridLength(this._detailsPanePreferredWidth);
+            this.DetailsSplitter.Visibility = Visibility.Visible;
+            this.DetailsPane.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            this.DetailsPane.Visibility = Visibility.Collapsed;
+            this.DetailsSplitter.Visibility = Visibility.Collapsed;
+            this.DetailsColumn.MinWidth = 0;
+            this.DetailsColumn.Width = new GridLength(0);
+        }
+
+        this._overviewPage.SetDetailsPaneState(isVisible, isAvailable);
+        this._stackPage.SetDetailsPaneState(isVisible, isAvailable);
+        this._notesPage?.SetDetailsPaneState(isVisible, isAvailable);
     }
 
     private void OnNewNoteAcceleratorInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
@@ -293,14 +343,17 @@ public sealed partial class StackOrganizerWindow : Window
         this._overviewPage.StackOpened -= this.OnStackOpened;
         this._overviewPage.NewStackRequested -= this.OnNewStackRequested;
         this._overviewPage.ClipboardStackRequested -= this.OnClipboardStackRequested;
+        this._overviewPage.DetailsPaneToggleRequested -= this.OnDetailsPaneToggleRequested;
         this._overviewPage.ClearInsertionAdorner();
         this._stackPage.BackRequested -= this.OnStackBackRequested;
+        this._stackPage.DetailsPaneToggleRequested -= this.OnDetailsPaneToggleRequested;
         this._stackPage.SelectedItemsChanged -= this.OnSelectedItemsChanged;
         this._searchPage.BackRequested -= this.OnSearchBackRequested;
         this._searchPage.ResultOpened -= this.OnSearchResultOpened;
         if (this._notesPage is not null)
         {
             this._notesPage.SelectedNoteChanged -= this.OnLibraryNoteSelected;
+            this._notesPage.DetailsPaneToggleRequested -= this.OnDetailsPaneToggleRequested;
             this._notesPage.Dispose();
         }
 

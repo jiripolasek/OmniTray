@@ -52,7 +52,7 @@
                 </NavigationViewItem>
                 <NavigationViewItem Content="Stacks &amp; trays" Tag="trays">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE7B8;" />
+                        <FontIcon Glyph="&#xE81E;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem Content="Commands" Tag="commands">

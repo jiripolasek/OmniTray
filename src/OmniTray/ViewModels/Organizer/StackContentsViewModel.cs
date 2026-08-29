@@ -25,6 +25,7 @@ public sealed partial class StackContentsViewModel(MainViewModel catalog) : Obse
 
     public DropItemViewModel? SelectedItem { get; private set; }
     public int SelectedItemCount { get; private set; }
+    public OrganizerCollectionViewMode LayoutMode { get; internal set; } = OrganizerCollectionViewMode.Medium;
 
     internal void SetStack(DropStackViewModel? stack, bool fromSearch = false)
     {
@@ -54,8 +55,4 @@ public sealed partial class StackContentsViewModel(MainViewModel catalog) : Obse
                                                            ? catalog.AssignStackToEdge(stack, edge)
                                                            : catalog.RemoveStackFromEdge(stack));
 
-    internal void ChangeViewMode(StackInspectorViewMode viewMode)
-    {
-        if (this.Stack is { } stack && stack.InspectorViewMode != viewMode) { stack.ChangeInspectorViewMode(viewMode); }
-    }
 }
