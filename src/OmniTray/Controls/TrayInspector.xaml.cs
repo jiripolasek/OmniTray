@@ -6,7 +6,10 @@
 
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Numerics;
 using Windows.System;
+using Windows.UI;
+using Microsoft.UI;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 
@@ -14,6 +17,12 @@ namespace OmniTray.Controls;
 
 public sealed partial class TrayInspector : UserControl
 {
+    internal const int WindowPresentationWidthInDips = 400;
+    internal const int WindowPresentationHeightInDips = 520;
+    private const int WindowPresentationListHeightInDips = 444;
+
+    internal event EventHandler? CollapseRequested;
+
     internal event EventHandler? DeleteRequested;
     private string? _customizeOriginalTint;
     private bool _isDisposed;
@@ -21,22 +30,6 @@ public sealed partial class TrayInspector : UserControl
     private TrayInspectorMode _mode;
 
     public DropStackViewModel ViewModel { get; }
-
-    internal Brush SurfaceBackground
-    {
-        set => this.InspectorSurface.Background = value;
-    }
-
-    internal SystemBackdrop? SurfaceBackdrop
-    {
-        get => this.InspectorBackdrop.SystemBackdrop;
-        set => this.InspectorBackdrop.SystemBackdrop = value;
-    }
-
-    internal Brush SurfaceTint
-    {
-        set => this.InspectorTintOverlay.Background = value;
-    }
 
     public TrayInspector(DropStackViewModel viewModel, Window dialogOwner)
     {
@@ -48,6 +41,49 @@ public sealed partial class TrayInspector : UserControl
         this.InspectorViewSelector.SelectionChanged += this.OnViewSelectionChanged;
         this.InspectorOrganizer.DialogOwner = dialogOwner;
         App.Current.StackCatalogViewModel.Stacks.CollectionChanged += this.OnCatalogStacksChanged;
+        this.ActualThemeChanged += this.OnActualThemeChanged;
+        this.ApplyBackdrop();
+    }
+
+    internal FrameworkElement WindowDragRegion => this.WindowDragHandle;
+
+    internal FrameworkElement WindowDragVisual => this.WindowDragGlyph;
+
+    internal void UseWindowPresentation()
+    {
+        this.InspectorSurface.Width = WindowPresentationWidthInDips;
+        this.InspectorSurface.Height = WindowPresentationHeightInDips;
+        this.InspectorOrganizer.MaximumListHeight = WindowPresentationListHeightInDips;
+        this.CollapseButton.Visibility = Visibility.Visible;
+        this.WindowDragHandle.IsHitTestVisible = true;
+        this.WindowDragGlyph.Visibility = Visibility.Visible;
+        this.InspectorSurface.Shadow = new ThemeShadow();
+        this.InspectorSurface.Translation = new Vector3(0, 0, 32);
+    }
+
+    internal void FocusForWindowPresentation()
+    {
+        if (this._mode == TrayInspectorMode.Browse)
+        {
+            this.InspectorOrganizer.Focus(FocusState.Programmatic);
+        }
+    }
+
+    internal bool TryHandleEscape()
+    {
+        if (this._mode != TrayInspectorMode.Browse)
+        {
+            this.CancelInlineAction();
+            return true;
+        }
+
+        if (this.CollapseButton.Visibility == Visibility.Visible)
+        {
+            this.CollapseRequested?.Invoke(this, EventArgs.Empty);
+            return true;
+        }
+
+        return false;
     }
 
     internal void Open(TrayInspectorMode mode)
@@ -75,10 +111,12 @@ public sealed partial class TrayInspector : UserControl
             return;
         }
 
+        this.RevertPendingCustomization();
         this._isDisposed = true;
         this.InspectorViewSelector.SelectionChanged -= this.OnViewSelectionChanged;
         this.ViewModel.PropertyChanged -= this.OnViewModelPropertyChanged;
         App.Current.StackCatalogViewModel.Stacks.CollectionChanged -= this.OnCatalogStacksChanged;
+        this.ActualThemeChanged -= this.OnActualThemeChanged;
     }
 
     private void ApplyMode()
@@ -136,6 +174,9 @@ public sealed partial class TrayInspector : UserControl
     private void OnDeleteClick(object sender, RoutedEventArgs args) =>
         this.DeleteRequested?.Invoke(this, EventArgs.Empty);
 
+    private void OnCollapseClick(object sender, RoutedEventArgs args) =>
+        this.CollapseRequested?.Invoke(this, EventArgs.Empty);
+
     private void OnCombineStacksClick(object sender, RoutedEventArgs args) =>
         this.Open(TrayInspectorMode.Combine);
 
@@ -155,10 +196,97 @@ public sealed partial class TrayInspector : UserControl
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (args.PropertyName == nameof(DropStackViewModel.InspectorViewMode))
+        if (string.IsNullOrEmpty(args.PropertyName) ||
+            args.PropertyName == nameof(DropStackViewModel.InspectorViewMode))
         {
             this.RestoreViewSelection();
         }
+
+        if (string.IsNullOrEmpty(args.PropertyName) ||
+            args.PropertyName == nameof(DropStackViewModel.Tint))
+        {
+            this.ApplyBackdrop();
+        }
+        else if (args.PropertyName == nameof(DropStackViewModel.TintColor))
+        {
+            if (TintedAcrylicBackdrop.IsSupported)
+            {
+                this.ApplyTintOverlay();
+            }
+            else
+            {
+                this.ApplyFallbackBackground();
+            }
+        }
+    }
+
+    private void OnActualThemeChanged(FrameworkElement sender, object args)
+    {
+        if (!TintedAcrylicBackdrop.IsSupported)
+        {
+            this.ApplyFallbackBackground();
+        }
+    }
+
+    private void ApplyBackdrop()
+    {
+        if (!TintedAcrylicBackdrop.IsSupported)
+        {
+            this.InspectorBackdrop.SystemBackdrop = null;
+            this.InspectorTintOverlay.Background = new SolidColorBrush(Colors.Transparent);
+            this.ApplyFallbackBackground();
+            return;
+        }
+
+        this.InspectorSurface.Background = new SolidColorBrush(Colors.Transparent);
+        // SystemBackdropElement uses a ContentExternalBackdropLink. Passing that
+        // target through a managed custom SystemBackdrop leaves an apartment-bound
+        // WinRT wrapper to the CLR finalizer when a windowed popup is dismissed.
+        // Keep the element on WinUI's native backdrop path and tint it in-tree.
+        if (this.InspectorBackdrop.SystemBackdrop is not DesktopAcrylicBackdrop)
+        {
+            this.InspectorBackdrop.SystemBackdrop = new DesktopAcrylicBackdrop();
+        }
+
+        this.ApplyTintOverlay();
+    }
+
+    private void ApplyTintOverlay()
+    {
+        var usesUntintedBackdrop = StackTintPalette.IsNeutral(this.ViewModel.Tint) &&
+                                   !StackTintPalette.UseSystemAccentForNeutral;
+        this.InspectorTintOverlay.Background = usesUntintedBackdrop
+            ? new SolidColorBrush(Colors.Transparent)
+            : new SolidColorBrush(this.ViewModel.TintColor) { Opacity = 0.24 };
+    }
+
+    private void ApplyFallbackBackground() =>
+        this.InspectorSurface.Background = this.CreateFallbackBackground();
+
+    private SolidColorBrush CreateFallbackBackground()
+    {
+        if (!StackTintPalette.IsNeutral(this.ViewModel.Tint) ||
+            StackTintPalette.UseSystemAccentForNeutral)
+        {
+            return new SolidColorBrush(
+                TintedAcrylicBackdrop.CreateFallbackColor(
+                    this.ViewModel.TintColor,
+                    this.ActualTheme));
+        }
+
+        if (Application.Current.Resources.TryGetValue("SolidBackgroundFillColorBaseBrush", out var resource) &&
+            resource is SolidColorBrush brush)
+        {
+            return new SolidColorBrush(brush.Color);
+        }
+
+        var isDark = this.ActualTheme == ElementTheme.Dark ||
+                     (this.ActualTheme == ElementTheme.Default &&
+                      Application.Current.RequestedTheme == ApplicationTheme.Dark);
+        return new SolidColorBrush(
+            isDark
+                ? Color.FromArgb(byte.MaxValue, 0x20, 0x20, 0x20)
+                : Color.FromArgb(byte.MaxValue, 0xF3, 0xF3, 0xF3));
     }
 
     private void RestoreViewSelection()

@@ -4,12 +4,8 @@
 // 
 // ------------------------------------------------------------
 
-using System.ComponentModel;
-using Windows.UI;
-using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Media;
 using OmniTray.Controls;
 
 namespace OmniTray.Views;
@@ -54,9 +50,6 @@ internal sealed class TrayInspectorPopup : IDisposable
         this._popup.Opened += this.OnPopupOpened;
         this._popup.Closed += this.OnPopupClosed;
         this._content.DeleteRequested += this.OnDeleteRequested;
-        this._content.ActualThemeChanged += this.OnActualThemeChanged;
-        this._viewModel.PropertyChanged += this.OnViewModelPropertyChanged;
-        this.ApplyBackdrop();
     }
 
     public void Show(TrayInspectorMode mode)
@@ -138,8 +131,6 @@ internal sealed class TrayInspectorPopup : IDisposable
         this._popup.Opened -= this.OnPopupOpened;
         this._popup.Closed -= this.OnPopupClosed;
         this._content.DeleteRequested -= this.OnDeleteRequested;
-        this._content.ActualThemeChanged -= this.OnActualThemeChanged;
-        this._viewModel.PropertyChanged -= this.OnViewModelPropertyChanged;
         if (ReferenceEquals(this._popup.Child, this._content))
         {
             this._popup.Child = null;
@@ -248,91 +239,4 @@ internal sealed class TrayInspectorPopup : IDisposable
         }
     }
 
-    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs args)
-    {
-        if (args.PropertyName == nameof(DropStackViewModel.Tint))
-        {
-            this.ApplyBackdrop();
-        }
-        else if (args.PropertyName == nameof(DropStackViewModel.TintColor))
-        {
-            if (TintedAcrylicBackdrop.IsSupported)
-            {
-                this.ApplyTintOverlay();
-            }
-            else
-            {
-                this.ApplyFallbackBackground();
-            }
-        }
-    }
-
-    private void OnActualThemeChanged(FrameworkElement sender, object args)
-    {
-        if (!TintedAcrylicBackdrop.IsSupported)
-        {
-            this.ApplyFallbackBackground();
-        }
-    }
-
-    private void ApplyBackdrop()
-    {
-        if (!TintedAcrylicBackdrop.IsSupported)
-        {
-            this._content.SurfaceBackdrop = null;
-            this._content.SurfaceTint = new SolidColorBrush(Colors.Transparent);
-            this.ApplyFallbackBackground();
-            return;
-        }
-
-        this._content.SurfaceBackground = new SolidColorBrush(Colors.Transparent);
-        // SystemBackdropElement uses a ContentExternalBackdropLink. Passing that
-        // target through a managed custom SystemBackdrop leaves an apartment-bound
-        // WinRT wrapper to the CLR finalizer when a windowed popup is dismissed.
-        // Keep the element on WinUI's native backdrop path and tint it in-tree.
-        if (this._content.SurfaceBackdrop is not DesktopAcrylicBackdrop)
-        {
-            this._content.SurfaceBackdrop = new DesktopAcrylicBackdrop();
-        }
-
-        this.ApplyTintOverlay();
-    }
-
-    private void ApplyTintOverlay()
-    {
-        var usesUntintedBackdrop = StackTintPalette.IsNeutral(this._viewModel.Tint) &&
-                                   !StackTintPalette.UseSystemAccentForNeutral;
-        this._content.SurfaceTint = usesUntintedBackdrop
-            ? new SolidColorBrush(Colors.Transparent)
-            : new SolidColorBrush(this._viewModel.TintColor) { Opacity = 0.24 };
-    }
-
-    private void ApplyFallbackBackground() =>
-        this._content.SurfaceBackground = this.CreateFallbackBackground();
-
-    private SolidColorBrush CreateFallbackBackground()
-    {
-        if (!StackTintPalette.IsNeutral(this._viewModel.Tint) ||
-            StackTintPalette.UseSystemAccentForNeutral)
-        {
-            return new SolidColorBrush(
-                TintedAcrylicBackdrop.CreateFallbackColor(
-                    this._viewModel.TintColor,
-                    this._content.ActualTheme));
-        }
-
-        if (Application.Current.Resources.TryGetValue("SolidBackgroundFillColorBaseBrush", out var resource) &&
-            resource is SolidColorBrush brush)
-        {
-            return new SolidColorBrush(brush.Color);
-        }
-
-        var isDark = this._content.ActualTheme == ElementTheme.Dark ||
-                     (this._content.ActualTheme == ElementTheme.Default &&
-                      Application.Current.RequestedTheme == ApplicationTheme.Dark);
-        return new SolidColorBrush(
-            isDark
-                ? Color.FromArgb(byte.MaxValue, 0x20, 0x20, 0x20)
-                : Color.FromArgb(byte.MaxValue, 0xF3, 0xF3, 0xF3));
-    }
 }

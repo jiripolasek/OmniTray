@@ -230,7 +230,7 @@ public sealed partial class StackItemsOrganizer : UserControl
             useThumbnails);
         if (useThumbnails)
         {
-            _ = this.DispatcherQueue.TryEnqueue(this.UpdateThumbnailItemWidth);
+            this.QueueThumbnailLayoutRefresh();
         }
     }
 
@@ -434,8 +434,13 @@ public sealed partial class StackItemsOrganizer : UserControl
         }
     }
 
-    private void OnItemListSizeChanged(object sender, SizeChangedEventArgs args) =>
-        this.UpdateThumbnailItemWidth();
+    private void OnItemListSizeChanged(object sender, SizeChangedEventArgs args)
+    {
+        if (this._isThumbnailView)
+        {
+            this.QueueThumbnailLayoutRefresh();
+        }
+    }
 
     private void QueueThumbnailLayoutRefresh()
     {

@@ -14,6 +14,8 @@ namespace OmniTray.Services;
 internal sealed class TrayWindowAppearanceController : IDisposable
 {
     private readonly Panel _root;
+    private readonly SystemBackdropElement? _surfaceBackdrop;
+    private readonly Border? _surfaceTint;
     private readonly TrayContentViewModel _viewModel;
     private readonly Window _window;
     private bool _isDisposed;
@@ -21,11 +23,15 @@ internal sealed class TrayWindowAppearanceController : IDisposable
     public TrayWindowAppearanceController(
         Window window,
         Panel root,
-        TrayContentViewModel viewModel)
+        TrayContentViewModel viewModel,
+        SystemBackdropElement? surfaceBackdrop = null,
+        Border? surfaceTint = null)
     {
         this._window = window ?? throw new ArgumentNullException(nameof(window));
         this._root = root ?? throw new ArgumentNullException(nameof(root));
         this._viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
+        this._surfaceBackdrop = surfaceBackdrop;
+        this._surfaceTint = surfaceTint;
         this._viewModel.PropertyChanged += this.OnViewModelPropertyChanged;
         this._root.ActualThemeChanged += this.OnActualThemeChanged;
         this._window.Title = this._viewModel.Name;
@@ -63,7 +69,7 @@ internal sealed class TrayWindowAppearanceController : IDisposable
                                        !StackTintPalette.UseSystemAccentForNeutral;
             if (TintedAcrylicBackdrop.IsSupported &&
                 !usesUntintedBackdrop &&
-                this._root.Background is SolidColorBrush tintOverlay &&
+                (this._surfaceTint?.Background ?? this._root.Background) is SolidColorBrush tintOverlay &&
                 tintOverlay.Opacity == TintedAcrylicBackdrop.FallbackTintOpacity)
             {
                 tintOverlay.Color = this._viewModel.TintColor;
@@ -93,14 +99,35 @@ internal sealed class TrayWindowAppearanceController : IDisposable
 
         var usesUntintedBackdrop = StackTintPalette.IsNeutral(this._viewModel.Tint) &&
                                    !StackTintPalette.UseSystemAccentForNeutral;
-        this._root.Background = usesUntintedBackdrop
+        var tint = usesUntintedBackdrop
             ? new SolidColorBrush(Colors.Transparent)
             : new SolidColorBrush(this._viewModel.TintColor) { Opacity = TintedAcrylicBackdrop.FallbackTintOpacity };
+        if (this._surfaceBackdrop is not null && this._surfaceTint is not null)
+        {
+            this._root.Background = new SolidColorBrush(Colors.Transparent);
+            this._surfaceTint.Background = tint;
+            if (this._surfaceBackdrop.SystemBackdrop is not DesktopAcrylicBackdrop)
+            {
+                this._surfaceBackdrop.SystemBackdrop = new DesktopAcrylicBackdrop();
+            }
+
+            return;
+        }
+
+        this._root.Background = tint;
         this._window.SystemBackdrop = new DesktopAcrylicBackdrop();
     }
 
-    private void ApplyFallbackBackground() =>
+    private void ApplyFallbackBackground()
+    {
+        if (this._surfaceBackdrop is not null && this._surfaceTint is not null)
+        {
+            this._surfaceBackdrop.SystemBackdrop = null;
+            this._surfaceTint.Background = new SolidColorBrush(Colors.Transparent);
+        }
+
         this._root.Background = this.CreateFallbackBackground();
+    }
 
     private SolidColorBrush CreateFallbackBackground()
     {

@@ -1,53 +1,139 @@
-<winuiEx:WindowEx
+<views:TransparentWindow
     x:Class="OmniTray.Views.TrayWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:winuiEx="using:WinUIEx"
+    xmlns:views="using:OmniTray.Views"
     Title="Tray"
     mc:Ignorable="d">
-    <Grid x:Name="RootGrid" Background="Transparent">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-
-        <TitleBar
-            x:Name="AppTitleBar"
-            Title="{x:Bind ViewModel.CompactName, Mode=OneWay}"
-            AutoRefreshDragRegions="True"
+    <Grid
+        x:Name="RootGrid"
+        Background="Transparent"
+        KeyDown="OnRootKeyDown">
+        <Grid
+            x:Name="CompactSurface"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch"
             AutomationProperties.Name="{x:Bind ViewModel.AccessibleName, Mode=OneWay}"
-            IsBackButtonVisible="False"
-            IsPaneToggleButtonVisible="False"
-            ToolTipService.ToolTip="{x:Bind ViewModel.Name, Mode=OneWay}" />
+            Background="Transparent">
+            <SystemBackdropElement
+                x:Name="CompactBackdrop"
+                CornerRadius="10"
+                IsHitTestVisible="False" />
 
-        <ContentPresenter
-            x:Name="ContentHost"
-            Grid.Row="1"
-            HorizontalContentAlignment="Stretch"
-            VerticalContentAlignment="Stretch">
-            <ContentPresenter.ContextFlyout>
-                <MenuFlyout
-                    x:Name="TrayContextFlyout"
-                    Closed="OnTrayContextFlyoutClosed"
-                    Opened="OnTrayContextFlyoutOpened">
-                    <MenuFlyoutItem
-                        Click="OnEnterMinimalModeClick"
-                        Icon="BackToWindow"
-                        Text="Minimal mode" />
-                    <MenuFlyoutSeparator x:Name="ContentActionsSeparator" Visibility="Collapsed" />
-                    <MenuFlyoutItem
-                        Click="OnColorTintMenuClick"
-                        Icon="Highlight"
-                        Text="Color…" />
-                    <MenuFlyoutSeparator />
-                    <MenuFlyoutItem
-                        Click="OnCloseTrayMenuClick"
-                        Icon="Cancel"
-                        Text="Close tray" />
-                </MenuFlyout>
-            </ContentPresenter.ContextFlyout>
-        </ContentPresenter>
+            <Border
+                Background="{ThemeResource LayerOnAcrylicFillColorDefaultBrush}"
+                CornerRadius="10"
+                IsHitTestVisible="False" />
+
+            <Border
+                x:Name="CompactTintOverlay"
+                Background="Transparent"
+                CornerRadius="10"
+                IsHitTestVisible="False" />
+
+            <Border
+                BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="10"
+                IsHitTestVisible="False" />
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="32" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Grid Padding="4,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="36" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="36" />
+                    </Grid.ColumnDefinitions>
+                    <Grid
+                        x:Name="CompactDragRegion"
+                        Grid.Column="1"
+                        AutomationProperties.HelpText="Drag to move this tray window"
+                        AutomationProperties.Name="Move tray window"
+                        Background="Transparent"
+                        ToolTipService.ToolTip="{x:Bind ViewModel.Name, Mode=OneWay}">
+                        <Border
+                            x:Name="CompactDragIndicator"
+                            Width="28"
+                            Height="3"
+                            Margin="0,4,0,0"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Top"
+                            Background="{ThemeResource TextFillColorSecondaryBrush}"
+                            CornerRadius="2"
+                            IsHitTestVisible="False"
+                            Opacity="0.55" />
+                        <TextBlock
+                            x:Name="CompactTitle"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            FontWeight="SemiBold"
+                            Text="{x:Bind ViewModel.CompactName, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis" />
+                    </Grid>
+                    <Button
+                        Grid.Column="2"
+                        Width="32"
+                        Height="32"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="Close tray"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Click="OnCompactCloseClick"
+                        ToolTipService.ToolTip="Close tray">
+                        <FontIcon
+                            x:Name="CompactCloseGlyph"
+                            FontSize="12"
+                            Glyph="&#xE711;" />
+                    </Button>
+                </Grid>
+
+                <ContentPresenter
+                    x:Name="ContentHost"
+                    Grid.Row="1"
+                    HorizontalContentAlignment="Stretch"
+                    VerticalContentAlignment="Stretch">
+                    <ContentPresenter.ContextFlyout>
+                        <MenuFlyout
+                            x:Name="TrayContextFlyout"
+                            Closed="OnTrayContextFlyoutClosed"
+                            Opened="OnTrayContextFlyoutOpened">
+                            <MenuFlyoutItem
+                                Click="OnEnterMinimalModeClick"
+                                Icon="BackToWindow"
+                                Text="Minimal mode" />
+                            <MenuFlyoutSeparator x:Name="ContentActionsSeparator" Visibility="Collapsed" />
+                            <MenuFlyoutItem
+                                Click="OnColorTintMenuClick"
+                                Icon="Highlight"
+                                Text="Color…" />
+                            <MenuFlyoutSeparator />
+                            <MenuFlyoutItem
+                                Click="OnCloseTrayMenuClick"
+                                Icon="Cancel"
+                                Text="Close tray" />
+                        </MenuFlyout>
+                    </ContentPresenter.ContextFlyout>
+                </ContentPresenter>
+            </Grid>
+        </Grid>
+
+        <Grid
+            x:Name="InspectorHost"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Top"
+            Opacity="0"
+            Visibility="Collapsed">
+            <Grid.RenderTransform>
+                <ScaleTransform x:Name="InspectorScale" />
+            </Grid.RenderTransform>
+        </Grid>
     </Grid>
-</winuiEx:WindowEx>
+</views:TransparentWindow>

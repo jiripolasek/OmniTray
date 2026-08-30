@@ -251,6 +251,25 @@
                                     OnContent="On"
                                     Toggled="OnOpenInspectorOnHoverToggled" />
                             </toolkit:SettingsCard>
+                            <toolkit:SettingsCard
+                                Description="Collapse an expanded tray after it stays unfocused for the selected time."
+                                Header="Auto-collapse expanded trays">
+                                <ComboBox
+                                    x:Name="TrayAutoCollapseDelayBox"
+                                    MinWidth="{StaticResource SettingActionControlMinWidth}"
+                                    AutomationProperties.Name="Auto-collapse delay for expanded trays"
+                                    SelectionChanged="OnTrayAutoCollapseDelaySelectionChanged">
+                                    <ComboBoxItem Content="Off" />
+                                    <ComboBoxItem Content="1 second" />
+                                    <ComboBoxItem Content="2 seconds" />
+                                    <ComboBoxItem Content="3 seconds" />
+                                    <ComboBoxItem Content="5 seconds" />
+                                    <ComboBoxItem Content="10 seconds" />
+                                    <ComboBoxItem Content="20 seconds" />
+                                    <ComboBoxItem Content="30 seconds" />
+                                    <ComboBoxItem Content="60 seconds" />
+                                </ComboBox>
+                            </toolkit:SettingsCard>
                         </StackPanel>
 
                         <StackPanel Spacing="6">

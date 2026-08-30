@@ -15,7 +15,8 @@ internal sealed partial class StackTrayContent : UserControl, ITrayWindowContent
 {
     private static readonly TimeSpan InspectorHoverDelay = TimeSpan.FromMilliseconds(700);
     private readonly DispatcherQueueTimer _inspectorHoverTimer;
-    private readonly TrayInspectorPopup _inspectorPopup;
+    private readonly TrayInspectorPopup? _inspectorPopup;
+    private readonly TrayWindow? _trayWindow;
     private FrameworkElement? _inspectorHoverTarget;
     private bool _isDisposed;
 
@@ -40,18 +41,23 @@ internal sealed partial class StackTrayContent : UserControl, ITrayWindowContent
         this._inspectorHoverTimer.Interval = InspectorHoverDelay;
         this._inspectorHoverTimer.IsRepeating = false;
         this._inspectorHoverTimer.Tick += this.OnInspectorHoverTimerTick;
-        this._inspectorPopup = new TrayInspectorPopup(
-            owner,
-            this.InspectorPopup,
-            this.InspectorPlacementTarget,
-            viewModel,
-            TrayInspectorPlacement.Bottom);
+        this._trayWindow = owner as TrayWindow;
+        if (this._trayWindow is null)
+        {
+            this._inspectorPopup = new TrayInspectorPopup(
+                owner,
+                this.InspectorPopup,
+                this.InspectorPlacementTarget,
+                viewModel,
+                TrayInspectorPlacement.Bottom);
+        }
+
         this.ContextActions =
         [
             new TrayContextAction(
                 "Explore items",
                 Symbol.View,
-                () => this._inspectorPopup.Show(TrayInspectorMode.Browse)),
+                () => this.ShowInspector(TrayInspectorMode.Browse)),
             new TrayContextAction(
                 "Insert Clipboard content",
                 Symbol.Paste,
@@ -59,16 +65,25 @@ internal sealed partial class StackTrayContent : UserControl, ITrayWindowContent
             new TrayContextAction(
                 "Customize",
                 Symbol.Rename,
-                () => this._inspectorPopup.Show(TrayInspectorMode.Customize)),
+                () => this.ShowInspector(TrayInspectorMode.Customize)),
             new TrayContextAction(
                 "Delete stack",
                 Symbol.Delete,
-                () => _ = this._inspectorPopup.ConfirmDeleteAsync(),
+                () => _ = this.ConfirmDeleteAsync(),
                 true)
         ];
     }
 
-    public void PrepareForClose(Action completed) => this._inspectorPopup.PrepareForClose(completed);
+    public void PrepareForClose(Action completed)
+    {
+        if (this._inspectorPopup is { } popup)
+        {
+            popup.PrepareForClose(completed);
+            return;
+        }
+
+        completed();
+    }
 
     public void Dispose()
     {
@@ -80,7 +95,7 @@ internal sealed partial class StackTrayContent : UserControl, ITrayWindowContent
         this._isDisposed = true;
         this.CancelInspectorHover();
         this._inspectorHoverTimer.Tick -= this.OnInspectorHoverTimerTick;
-        this._inspectorPopup.Dispose();
+        this._inspectorPopup?.Dispose();
     }
 
     private void OnDragOver(object sender, DragEventArgs args)
@@ -225,7 +240,40 @@ internal sealed partial class StackTrayContent : UserControl, ITrayWindowContent
         (args.Modifiers & DragDropModifiers.Control) != 0;
 
     private void OnExploreClick(object sender, RoutedEventArgs args) =>
-        this._inspectorPopup.Show(TrayInspectorMode.Browse);
+        this.ShowInspector(TrayInspectorMode.Browse);
+
+    private void OnStackPreviewTapped(object sender, TappedRoutedEventArgs args)
+    {
+        args.Handled = true;
+        this.CancelInspectorHover();
+        this.ShowInspector(TrayInspectorMode.Browse);
+    }
+
+    private void OnStackNameTapped(object sender, TappedRoutedEventArgs args)
+    {
+        args.Handled = true;
+        this.CancelInspectorHover();
+        if (this._trayWindow is { } trayWindow)
+        {
+            trayWindow.ShowInspectorFromNameTap();
+            return;
+        }
+
+        this.ShowInspector(TrayInspectorMode.Browse);
+    }
+
+    private void OnStackNameDoubleTapped(object sender, DoubleTappedRoutedEventArgs args)
+    {
+        args.Handled = true;
+        this.CancelInspectorHover();
+        if (this._trayWindow is { } trayWindow)
+        {
+            trayWindow.ShowInspectorFromNameDoubleTap();
+            return;
+        }
+
+        this.ShowInspector(TrayInspectorMode.Customize);
+    }
 
     private void OnInspectorHoverPointerEntered(object sender, PointerRoutedEventArgs args)
     {
@@ -267,8 +315,23 @@ internal sealed partial class StackTrayContent : UserControl, ITrayWindowContent
             return;
         }
 
-        this._inspectorPopup.Show(TrayInspectorMode.Browse);
+        this.ShowInspector(TrayInspectorMode.Browse);
     }
+
+    private void ShowInspector(TrayInspectorMode mode)
+    {
+        if (this._trayWindow is { } trayWindow)
+        {
+            trayWindow.ShowInspector(mode);
+            return;
+        }
+
+        this._inspectorPopup?.Show(mode);
+    }
+
+    private Task ConfirmDeleteAsync() => this._trayWindow is { } trayWindow
+        ? trayWindow.ConfirmDeleteAsync()
+        : this._inspectorPopup?.ConfirmDeleteAsync() ?? Task.CompletedTask;
 
     private void CancelInspectorHover()
     {

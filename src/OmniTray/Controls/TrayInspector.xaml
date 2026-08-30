@@ -11,7 +11,7 @@
     <Border
         x:Name="InspectorSurface"
         Width="400"
-        Height="430"
+        Height="458"
         Background="Transparent"
         BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
         BorderThickness="1"
@@ -29,9 +29,7 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <Grid
-                    Grid.RowSpan="3"
-                    Background="{ThemeResource LayerOnAcrylicFillColorDefaultBrush}" />
+                <Grid Grid.RowSpan="3" Background="{ThemeResource LayerOnAcrylicFillColorDefaultBrush}" />
 
                 <Border
                     x:Name="InspectorTintOverlay"
@@ -46,6 +44,7 @@
                     ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
@@ -89,9 +88,11 @@
                             </Grid>
                         </Button>
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Margin="4,0,0,0" VerticalAlignment="Center"
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                       Text="{x:Bind ViewModel.ItemCountText, Mode=OneWay}" />
+                            <TextBlock
+                                Margin="4,0,0,0"
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="{x:Bind ViewModel.ItemCountText, Mode=OneWay}" />
                             <controls:NoteIndicator Stack="{x:Bind ViewModel}" />
                         </StackPanel>
                     </StackPanel>
@@ -101,16 +102,12 @@
                         VerticalAlignment="Center"
                         AutomationProperties.Name="Inspector item view"
                         SelectionMode="Single">
-                        <toolkit:SegmentedItem
-                            AutomationProperties.Name="List view"
-                            ToolTipService.ToolTip="List view">
+                        <toolkit:SegmentedItem AutomationProperties.Name="List view" ToolTipService.ToolTip="List view">
                             <toolkit:SegmentedItem.Icon>
                                 <FontIcon FontSize="14" Glyph="&#xE8FD;" />
                             </toolkit:SegmentedItem.Icon>
                         </toolkit:SegmentedItem>
-                        <toolkit:SegmentedItem
-                            AutomationProperties.Name="Thumbnail view"
-                            ToolTipService.ToolTip="Thumbnail view">
+                        <toolkit:SegmentedItem AutomationProperties.Name="Thumbnail view" ToolTipService.ToolTip="Thumbnail view">
                             <toolkit:SegmentedItem.Icon>
                                 <FontIcon FontSize="14" Glyph="&#xE8A9;" />
                             </toolkit:SegmentedItem.Icon>
@@ -125,10 +122,8 @@
                         BorderThickness="0"
                         ToolTipService.ToolTip="More">
                         <Button.Flyout>
-                            <MenuFlyout Placement="BottomEdgeAlignedRight" controls:NoteMenu.Stack="{x:Bind ViewModel}">
-                                <MenuFlyoutItem
-                                    Click="OnCustomizeClick"
-                                    Text="Customize stack">
+                            <MenuFlyout controls:NoteMenu.Stack="{x:Bind ViewModel}" Placement="BottomEdgeAlignedRight">
+                                <MenuFlyoutItem Click="OnCustomizeClick" Text="Customize stack">
                                     <MenuFlyoutItem.Icon>
                                         <SymbolIcon Symbol="Rename" />
                                     </MenuFlyoutItem.Icon>
@@ -142,9 +137,7 @@
                                     </MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
                                 <MenuFlyoutSeparator />
-                                <MenuFlyoutItem
-                                    Click="OnDeleteClick"
-                                    Text="Delete stack">
+                                <MenuFlyoutItem Click="OnDeleteClick" Text="Delete stack">
                                     <MenuFlyoutItem.Icon>
                                         <SymbolIcon Symbol="Delete" />
                                     </MenuFlyoutItem.Icon>
@@ -152,6 +145,21 @@
                             </MenuFlyout>
                         </Button.Flyout>
                         <FontIcon FontSize="14" Glyph="&#xE712;" />
+                    </Button>
+                    <Button
+                        x:Name="CollapseButton"
+                        Grid.Column="3"
+                        Width="36"
+                        Height="36"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="Collapse tray"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Click="OnCollapseClick"
+                        ToolTipService.ToolTip="Collapse tray"
+                        Visibility="Collapsed">
+                        <FontIcon FontSize="16" Glyph="&#xE944;" />
                     </Button>
                 </Grid>
 
@@ -249,10 +257,32 @@
                     x:Name="InspectorOrganizer"
                     Grid.Row="2"
                     Margin="8,0,8,8"
-                    MaximumListHeight="336"
+                    MaximumListHeight="360"
                     OwnsScrolling="True"
                     Stack="{x:Bind ViewModel}" />
             </Grid>
+
+            <Border
+                x:Name="WindowDragHandle"
+                Height="14"
+                VerticalAlignment="Top"
+                AutomationProperties.HelpText="Drag to move this tray window"
+                AutomationProperties.Name="Move tray window"
+                Background="Transparent"
+                IsHitTestVisible="False">
+                <Border
+                    x:Name="WindowDragGlyph"
+                    Width="28"
+                    Height="3"
+                    Margin="0,4,0,0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Top"
+                    Background="{ThemeResource TextFillColorSecondaryBrush}"
+                    CornerRadius="2"
+                    IsHitTestVisible="False"
+                    Opacity="0.55"
+                    Visibility="Collapsed" />
+            </Border>
         </Grid>
     </Border>
 </UserControl>

@@ -10,10 +10,14 @@
         Background="Transparent"
         DragLeave="OnDragLeave"
         DragOver="OnDragOver"
-        Drop="OnDrop">
-        <Grid x:Name="NormalContent">
+        Drop="OnDrop"
+        PointerEntered="OnInspectorHoverPointerEntered"
+        PointerExited="OnInspectorHoverPointerExited"
+        PointerPressed="OnInspectorHoverPointerPressed">
+        <Grid x:Name="NormalContent" VerticalAlignment="Center">
             <Grid.RowDefinitions>
-                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
@@ -24,9 +28,7 @@
                 CanDrag="True"
                 DragStarting="OnStackDragStarting"
                 DropCompleted="OnStackDropCompleted"
-                PointerEntered="OnInspectorHoverPointerEntered"
-                PointerExited="OnInspectorHoverPointerExited"
-                PointerPressed="OnInspectorHoverPointerPressed">
+                Tapped="OnStackPreviewTapped">
                 <controls:StackThumbnailPresenter
                     Width="96"
                     Height="72"
@@ -92,30 +94,27 @@
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                     Glyph="{x:Bind ViewModel.LeadingGlyph, Mode=OneWay}"
                     Visibility="{x:Bind ViewModel.PreviewGlyphVisibility, Mode=OneWay}" />
-
-                <Border
-                    Height="24"
-                    MinWidth="26"
-                    Padding="7,0"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Bottom"
-                    Background="{x:Bind ViewModel.TintBrush, Mode=OneWay}"
-                    CornerRadius="12"
-                    Visibility="{x:Bind ViewModel.CountBadgeVisibility, Mode=OneWay}">
-                    <TextBlock
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        FontSize="12"
-                        FontWeight="SemiBold"
-                        Foreground="{x:Bind ViewModel.TintForegroundBrush, Mode=OneWay}"
-                        Text="{x:Bind ViewModel.CountBadgeText, Mode=OneWay}" />
-                </Border>
             </Grid>
+
+            <TextBlock
+                Grid.Row="1"
+                MaxWidth="160"
+                Margin="0,8,0,0"
+                HorizontalAlignment="Center"
+                DoubleTapped="OnStackNameDoubleTapped"
+                FontWeight="SemiBold"
+                IsDoubleTapEnabled="True"
+                Tapped="OnStackNameTapped"
+                Text="{x:Bind ViewModel.Name, Mode=OneWay}"
+                TextTrimming="CharacterEllipsis"
+                ToolTipService.ToolTip="{x:Bind ViewModel.Name, Mode=OneWay}" />
 
             <HyperlinkButton
                 x:Name="ExploreButton"
-                Grid.Row="1"
-                Margin="0,0,0,12"
+                Grid.Row="2"
+                MinHeight="0"
+                Margin="0,4,0,0"
+                Padding="4,0"
                 HorizontalAlignment="Center"
                 AutomationProperties.Name="Show items in tray"
                 Click="OnExploreClick"
@@ -131,9 +130,6 @@
             CanDrag="True"
             DragStarting="OnStackDragStarting"
             DropCompleted="OnStackDropCompleted"
-            PointerEntered="OnInspectorHoverPointerEntered"
-            PointerExited="OnInspectorHoverPointerExited"
-            PointerPressed="OnInspectorHoverPointerPressed"
             ToolTipService.ToolTip="{x:Bind ViewModel.Name, Mode=OneWay}"
             Visibility="Collapsed">
             <controls:ThumbnailImagePresenter

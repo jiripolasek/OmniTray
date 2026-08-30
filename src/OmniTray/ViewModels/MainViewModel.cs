@@ -1122,10 +1122,6 @@ public sealed class DropStackViewModel : ObservableObject
 
     public Visibility ThirdLayerVisibility => this.Items.Count >= 3 ? Visibility.Visible : Visibility.Collapsed;
 
-    public Visibility CountBadgeVisibility => this.Items.Count >= 3 ? Visibility.Visible : Visibility.Collapsed;
-
-    public string CountBadgeText => this.Items.Count >= 3 ? this.Items.Count.ToString() : string.Empty;
-
     public Visibility TileCountBadgeVisibility => this.Items.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 
     public string TileCountBadgeText => this.Items.Count.ToString();
@@ -1446,8 +1442,6 @@ public sealed class DropStackViewModel : ObservableObject
         this.NotifyPreviewChanged();
         this.OnPropertyChanged(nameof(this.SecondLayerVisibility));
         this.OnPropertyChanged(nameof(this.ThirdLayerVisibility));
-        this.OnPropertyChanged(nameof(this.CountBadgeVisibility));
-        this.OnPropertyChanged(nameof(this.CountBadgeText));
         this.OnPropertyChanged(nameof(this.TileCountBadgeVisibility));
         this.OnPropertyChanged(nameof(this.TileCountBadgeText));
         this.OnPropertyChanged(nameof(this.AccessibleName));

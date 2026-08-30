@@ -162,8 +162,9 @@ internal sealed partial class WindowCoordinator
         this._dropCommandWindows.Select(static pair =>
         {
             var activeWindow = pair.Value.ActiveWindow;
-            var position = activeWindow.AppWindow.Position;
-            var size = activeWindow.AppWindow.Size;
+            var bounds = pair.Value.PersistentBounds;
+            var position = new PointInt32(bounds.X, bounds.Y);
+            var size = new SizeInt32(bounds.Width, bounds.Height);
             var normalSize = pair.Value.NormalSize;
             if (normalSize.Width <= 0 || normalSize.Height <= 0)
             {
@@ -222,8 +223,9 @@ internal sealed partial class WindowCoordinator
             .Select(static pair =>
             {
                 var activeWindow = pair.Value.ActiveWindow;
-                var position = activeWindow.AppWindow.Position;
-                var size = activeWindow.AppWindow.Size;
+                var bounds = pair.Value.PersistentBounds;
+                var position = new PointInt32(bounds.X, bounds.Y);
+                var size = new SizeInt32(bounds.Width, bounds.Height);
                 var normalSize = pair.Value.NormalSize;
                 if (normalSize.Width <= 0 || normalSize.Height <= 0)
                 {
@@ -614,7 +616,7 @@ internal sealed partial class WindowCoordinator
     {
         var width = DipsToPixels(window, TrayWindow.DefaultWidthInDips);
         var height = DipsToPixels(window, TrayWindow.DefaultHeightInDips);
-        var margin = DipsToPixels(window, 20);
+        var margin = DipsToPixels(window, TrayWindow.EdgeInsetInDips);
         var gap = DipsToPixels(window, 12);
         var column = slot % 4;
         var row = slot / 4;
@@ -637,7 +639,9 @@ internal sealed partial class WindowCoordinator
         // Moving first lets the window report the destination display's DPI before sizing it.
         window.AppWindow.Move(new PointInt32(workArea.X, workArea.Y));
         var requestedSize = preserveCurrentSize
-            ? window.AppWindow.Size
+            ? session.IsMinimalMode
+                ? window.AppWindow.Size
+                : session.NormalSize
             : new SizeInt32(
                 DipsToPixels(window, TrayWindow.DefaultWidthInDips),
                 DipsToPixels(window, TrayWindow.DefaultHeightInDips));
@@ -649,7 +653,7 @@ internal sealed partial class WindowCoordinator
         var contentCenterY = titleBarHeight + ((height - titleBarHeight) / 2);
         var maximumX = workArea.X + workArea.Width - width;
         var maximumY = workArea.Y + workArea.Height - height;
-        window.AppWindow.MoveAndResize(new RectInt32(
+        session.MoveAndResizeActive(new RectInt32(
             Math.Clamp(pointer.X - (width / 2), workArea.X, maximumX),
             Math.Clamp(pointer.Y - contentCenterY, workArea.Y, maximumY),
             width,

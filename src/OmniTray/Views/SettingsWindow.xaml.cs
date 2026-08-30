@@ -14,6 +14,18 @@ namespace OmniTray.Views;
 
 public sealed partial class SettingsWindow : Window
 {
+    private static readonly TrayAutoCollapseDelay[] TrayAutoCollapseDelayOptions =
+    [
+        TrayAutoCollapseDelay.Disabled,
+        TrayAutoCollapseDelay.OneSecond,
+        TrayAutoCollapseDelay.TwoSeconds,
+        TrayAutoCollapseDelay.ThreeSeconds,
+        TrayAutoCollapseDelay.FiveSeconds,
+        TrayAutoCollapseDelay.TenSeconds,
+        TrayAutoCollapseDelay.TwentySeconds,
+        TrayAutoCollapseDelay.ThirtySeconds,
+        TrayAutoCollapseDelay.SixtySeconds
+    ];
     private readonly StartupTaskService _startupTaskService = new();
     private bool _isUpdatingStartupTask;
 
@@ -42,6 +54,9 @@ public sealed partial class SettingsWindow : Window
         this.ShakeToCreateTrayToggle.IsOn = App.Current.ShakeToCreateTrayPreference;
         this.AllowMoveOnDragOutToggle.IsOn = App.Current.AllowMoveOnDragOutPreference;
         this.ToastPositionBox.SelectedIndex = (int)App.Current.ToastPositionPreference;
+        this.TrayAutoCollapseDelayBox.SelectedIndex = Math.Max(
+            0,
+            Array.IndexOf(TrayAutoCollapseDelayOptions, App.Current.TrayAutoCollapseDelayPreference));
         this.CommandSurfaceBox.SelectedIndex = 0;
         this.Closed += (_, _) => this.ViewModel.Dispose();
         this.UpdateToastSystemSettingsLink();
@@ -374,6 +389,15 @@ public sealed partial class SettingsWindow : Window
 
     private void OnUseSystemAccentForNeutralToggled(object sender, RoutedEventArgs args) =>
         App.Current.UseSystemAccentForNeutralPreference = this.UseSystemAccentForNeutralToggle.IsOn;
+
+    private void OnTrayAutoCollapseDelaySelectionChanged(object sender, SelectionChangedEventArgs args)
+    {
+        var selectedIndex = this.TrayAutoCollapseDelayBox.SelectedIndex;
+        if (selectedIndex >= 0 && selectedIndex < TrayAutoCollapseDelayOptions.Length)
+        {
+            App.Current.TrayAutoCollapseDelayPreference = TrayAutoCollapseDelayOptions[selectedIndex];
+        }
+    }
 
     private void OnOpenDataFormatInspectorClick(object sender, RoutedEventArgs args) =>
         App.Current.ShowDataFormatInspector();

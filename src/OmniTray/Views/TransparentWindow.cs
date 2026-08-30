@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------
+// ------------------------------------------------------------
 // 
 // Copyright (c) Jiří Polášek. All rights reserved.
 // 
@@ -88,7 +88,8 @@ public partial class TransparentWindow : WindowEx
     private const int DwmwaBorderColor = 34;
     private const int DwmwcpDoNotRound = 1;
     private const int DwmwcpRound = 2;
-    private const int DwmncrpDisabled = 2;
+    private const int DwmncrpUseWindowStyle = 0;
+    private const int DwmncrpDisabled = 1;
 
     private const int GwlpHwndParent = -8;
     private const int GwlExStyle = -20;
@@ -195,6 +196,13 @@ public partial class TransparentWindow : WindowEx
 
         unsafe
         {
+            int nonClientRenderingPolicy = useRoundedCorners ? DwmncrpUseWindowStyle : DwmncrpDisabled;
+            _ = DwmSetWindowAttribute(
+                this._hwnd,
+                DwmwaNcRenderingPolicy,
+                &nonClientRenderingPolicy,
+                sizeof(int));
+
             uint borderColor = DwmwaColorNone;
             _ = DwmSetWindowAttribute(this._hwnd, DwmwaBorderColor, &borderColor, sizeof(uint));
 

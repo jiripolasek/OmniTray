@@ -30,6 +30,21 @@ internal sealed class TrayWindowSession
 
     public SizeInt32 NormalSize => this._normalSize;
 
+    public RectInt32 PersistentBounds
+    {
+        get
+        {
+            if (this.ActiveWindow is TrayWindow trayWindow)
+            {
+                return trayWindow.PersistentBounds;
+            }
+
+            var position = this.ActiveWindow.AppWindow.Position;
+            var size = this.ActiveWindow.AppWindow.Size;
+            return new RectInt32(position.X, position.Y, size.Width, size.Height);
+        }
+    }
+
     public TrayWindowSession(
         TrayContentViewModel viewModel,
         TrayWindowContentFactory contentFactory,
@@ -48,6 +63,11 @@ internal sealed class TrayWindowSession
     {
         if (!this._isClosed && !this._isClosing)
         {
+            if (this.ActiveWindow is TrayWindow trayWindow)
+            {
+                trayWindow.EnsureExpandedHost();
+            }
+
             this.ActiveWindow.Activate();
         }
     }
@@ -77,7 +97,15 @@ internal sealed class TrayWindowSession
 
     public void MoveAndResizeActive(RectInt32 bounds)
     {
-        this.ActiveWindow.AppWindow.MoveAndResize(bounds);
+        if (this.ActiveWindow is TrayWindow trayWindow)
+        {
+            trayWindow.SetCompactBounds(bounds);
+        }
+        else
+        {
+            this.ActiveWindow.AppWindow.MoveAndResize(bounds);
+        }
+
         if (!this.IsMinimalMode)
         {
             this._normalSize = new SizeInt32(bounds.Width, bounds.Height);
@@ -146,10 +174,11 @@ internal sealed class TrayWindowSession
     {
         this._isChangingPresentation = true;
         var outgoingWindow = this.ActiveWindow;
-        var position = outgoingWindow.AppWindow.Position;
+        var persistentBounds = this.PersistentBounds;
+        var position = new PointInt32(persistentBounds.X, persistentBounds.Y);
         if (!this.IsMinimalMode)
         {
-            var normalSize = outgoingWindow.AppWindow.Size;
+            var normalSize = new SizeInt32(persistentBounds.Width, persistentBounds.Height);
             if (IsUsableSize(normalSize))
             {
                 this._normalSize = normalSize;
@@ -204,6 +233,11 @@ internal sealed class TrayWindowSession
                 WindowCoordinator.DipsToPixels(incomingWindow, MinimalTrayWindow.DefaultSizeInDips))
             : this._normalSize;
         MoveAndResizeWithinWorkArea(incomingWindow, position, requestedSize);
+        if (incomingWindow is TrayWindow trayWindow)
+        {
+            trayWindow.EnsureExpandedHost();
+        }
+
         incomingWindow.Activate();
         this._isChangingPresentation = false;
         this.StateChanged?.Invoke(this, EventArgs.Empty);
@@ -301,9 +335,15 @@ internal sealed class TrayWindowSession
             return;
         }
 
-        if (!this.IsMinimalMode && args.DidSizeChange && IsUsableSize(sender.Size))
+        if (!this.IsMinimalMode && args.DidSizeChange)
         {
-            this._normalSize = sender.Size;
+            var normalSize = this._activeWindow is TrayWindow { UsesFixedHost: true } trayWindow
+                ? new SizeInt32(trayWindow.PersistentBounds.Width, trayWindow.PersistentBounds.Height)
+                : sender.Size;
+            if (IsUsableSize(normalSize))
+            {
+                this._normalSize = normalSize;
+            }
         }
 
         if (args.DidPositionChange || args.DidSizeChange)

@@ -15,6 +15,7 @@
     <ProjectReference Include="..\..\src\OmniTray.Core\OmniTray.Core.csproj" />
     <Compile Include="..\..\src\OmniTray\Controls\StackThumbnailLayout.cs" Link="Controls\StackThumbnailLayout.cs" />
     <Compile Include="..\..\src\OmniTray\Services\StackCatalogJson.cs" Link="Services\StackCatalogJson.cs" />
+    <Compile Include="..\..\src\OmniTray\Services\TrayWindowPlacement.cs" Link="Services\TrayWindowPlacement.cs" />
     <Compile Include="..\..\src\OmniTray\Services\NoteSaveSession.cs" Link="Services\NoteSaveSession.cs" />
     <Compile Include="..\..\src\OmniTray\ViewModels\StackOrganizerNavigationState.cs" Link="ViewModels\StackOrganizerNavigationState.cs" />
   </ItemGroup>

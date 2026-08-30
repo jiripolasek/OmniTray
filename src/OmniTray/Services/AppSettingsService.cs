@@ -26,6 +26,7 @@ internal sealed class AppSettingsService
     private const string SyncTopAndBottomEdgeContentKey = "SyncTopAndBottomEdgeContent";
     private const string TopEdgeWindowEnabledKey = "TopEdgeWindowEnabled";
     private const string ToastPositionKey = "ToastPosition";
+    private const string TrayAutoCollapseDelayKey = "TrayAutoCollapseDelay";
     private const string UseSystemAccentForNeutralKey = "UseSystemAccentForNeutral";
     private const string VerticalStackCardDisplayModeKey = "VerticalStackCardDisplayMode";
     private readonly ApplicationDataContainer _localSettings = ApplicationData.Current.LocalSettings;
@@ -138,6 +139,12 @@ internal sealed class AppSettingsService
         }
 
         set => this._localSettings.Values[ToastPositionKey] = (int)value;
+    }
+
+    public TrayAutoCollapseDelay TrayAutoCollapseDelay
+    {
+        get => this.GetEnum(TrayAutoCollapseDelayKey, TrayAutoCollapseDelay.Disabled);
+        set => this._localSettings.Values[TrayAutoCollapseDelayKey] = (int)value;
     }
 
     public EdgeWindowSizeMode GetEdgeWindowSizeMode(EdgeShelfSide side) =>

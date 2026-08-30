@@ -91,6 +91,12 @@ public partial class App : Application
         set => this._appSettingsService.ToastPosition = value;
     }
 
+    internal TrayAutoCollapseDelay TrayAutoCollapseDelayPreference
+    {
+        get => this._appSettingsService.TrayAutoCollapseDelay;
+        set => this._appSettingsService.TrayAutoCollapseDelay = value;
+    }
+
     public App()
     {
         this.InitializeComponent();

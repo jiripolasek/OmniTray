@@ -11,7 +11,7 @@
         <ItemsPanelTemplate x:Key="ThumbnailItemsPanel">
             <ItemsWrapGrid
                 HorizontalAlignment="Stretch"
-                ItemHeight="120"
+                ItemHeight="134"
                 ItemWidth="108"
                 Orientation="Horizontal" />
         </ItemsPanelTemplate>
@@ -241,7 +241,7 @@
                 PointerExited="OnItemRowPointerExited"
                 Tag="{x:Bind}">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="82" />
+                    <RowDefinition Height="96" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
                 <Grid Margin="2">
@@ -254,7 +254,7 @@
                         <controls:ThumbnailImagePresenter
                             HasVideoFilmstrip="{x:Bind ThumbnailHasVideoFilmstrip, Mode=OneWay}"
                             IsShellIcon="{x:Bind ThumbnailIsShellIcon, Mode=OneWay}"
-                            ShellIconSize="64"
+                            ShellIconSize="72"
                             Source="{x:Bind ThumbnailSource, Mode=OneWay}"
                             Stretch="UniformToFill"
                             Visibility="{x:Bind ThumbnailVisibility, Mode=OneWay}" />
@@ -262,7 +262,7 @@
                     <FontIcon
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        FontSize="24"
+                        FontSize="28"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Glyph="{x:Bind LeadingGlyph, Mode=OneWay}"
                         Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}" />
