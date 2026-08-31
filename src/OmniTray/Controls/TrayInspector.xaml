@@ -136,6 +136,28 @@
                                         <SymbolIcon Symbol="Add" />
                                     </MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
+                                <MenuFlyoutSubItem Text="Sort by">
+                                    <RadioMenuFlyoutItem
+                                        x:Name="DefaultItemSortMenuItem"
+                                        Click="OnItemSortClick"
+                                        GroupName="TrayInspectorItemSort"
+                                        Text="Default order" />
+                                    <RadioMenuFlyoutItem
+                                        x:Name="NameItemSortMenuItem"
+                                        Click="OnItemSortClick"
+                                        GroupName="TrayInspectorItemSort"
+                                        Text="Name" />
+                                    <RadioMenuFlyoutItem
+                                        x:Name="NewestItemSortMenuItem"
+                                        Click="OnItemSortClick"
+                                        GroupName="TrayInspectorItemSort"
+                                        Text="Newest first" />
+                                    <RadioMenuFlyoutItem
+                                        x:Name="OldestItemSortMenuItem"
+                                        Click="OnItemSortClick"
+                                        GroupName="TrayInspectorItemSort"
+                                        Text="Oldest first" />
+                                </MenuFlyoutSubItem>
                                 <MenuFlyoutSeparator />
                                 <MenuFlyoutItem Click="OnDeleteClick" Text="Delete stack">
                                     <MenuFlyoutItem.Icon>

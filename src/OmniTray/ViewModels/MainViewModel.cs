@@ -633,7 +633,7 @@ public partial class MainViewModel : BaseViewModel
     public int RemoveEmptyStacks()
     {
         var emptyStacks = this.Stacks
-            .Where(static stack => stack.Model.Items.Count == 0)
+            .Where(static stack => !stack.IsVirtual && stack.Model.Items.Count == 0)
             .ToArray();
         if (emptyStacks.Length == 0)
         {
@@ -662,6 +662,11 @@ public partial class MainViewModel : BaseViewModel
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(selectedItemIds);
+        if (source.IsVirtual)
+        {
+            throw new InvalidOperationException("Virtual stacks cannot be split.");
+        }
+
         var sourceIndex = this.Stacks.IndexOf(source);
         if (sourceIndex < 0)
         {
@@ -700,6 +705,11 @@ public partial class MainViewModel : BaseViewModel
             return false;
         }
 
+        if (target.IsVirtual || source.IsVirtual)
+        {
+            return false;
+        }
+
         var combined = StackOperations.CombineInto(target.Model, [source.Model]);
         this.BeginCatalogMutation();
         try
@@ -727,6 +737,11 @@ public partial class MainViewModel : BaseViewModel
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(itemIds);
         if (!this.Stacks.Contains(source) || !this.Stacks.Contains(target))
+        {
+            return false;
+        }
+
+        if (source.IsVirtual || target.IsVirtual)
         {
             return false;
         }
@@ -774,6 +789,11 @@ public partial class MainViewModel : BaseViewModel
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(items);
         if (!this.Stacks.Contains(target))
+        {
+            return false;
+        }
+
+        if (target.IsVirtual)
         {
             return false;
         }
@@ -990,6 +1010,7 @@ public partial class MainViewModel : BaseViewModel
 public sealed class DropStackViewModel : ObservableObject
 {
     public event EventHandler? ModelChanged;
+    private ObservableCollection<DropItemViewModel> _items;
     private readonly HashSet<DropItemViewModel> _previewItems = [];
     private EdgeShelfSide? _assignedEdge;
     private StackCardDisplayMode _horizontalStackCardDisplayMode = StackCardDisplayMode.LargeList;
@@ -1003,7 +1024,11 @@ public sealed class DropStackViewModel : ObservableObject
         private set => this.SetProperty(ref this._model, value);
     }
 
-    public ObservableCollection<DropItemViewModel> Items { get; }
+    public ObservableCollection<DropItemViewModel> Items
+    {
+        get => this._items;
+        private set => this.SetProperty(ref this._items, value);
+    }
 
     public StackCardDisplayMode VerticalStackCardDisplayMode
     {
@@ -1046,6 +1071,24 @@ public sealed class DropStackViewModel : ObservableObject
 
     public StackInspectorViewMode InspectorViewMode => this.Model.InspectorViewMode;
 
+    public StackItemSortMode ItemSortMode => this.Model.ItemSortMode;
+
+    public bool IsVirtual => this.Model.VirtualSource is not null;
+
+    public bool CanManuallyReorderItems => !this.IsVirtual && this.ItemSortMode == StackItemSortMode.Default;
+
+    public bool CanReadItems =>
+        this.Model.VirtualSource?.Can(VirtualStackCapabilities.Read) ?? true;
+
+    public bool CanWriteItems =>
+        this.Model.VirtualSource?.Can(VirtualStackCapabilities.Write) ?? true;
+
+    public bool CanRemoveItems =>
+        this.Model.VirtualSource?.Can(VirtualStackCapabilities.Remove) ?? true;
+
+    public Visibility VirtualConfigurationVisibility =>
+        this.IsVirtual ? Visibility.Visible : Visibility.Collapsed;
+
     public Color TintColor => ResolveTint(this.Model.Tint);
 
     public SolidColorBrush TintBrush { get; }
@@ -1056,14 +1099,16 @@ public sealed class DropStackViewModel : ObservableObject
 
     public string Summary =>
         this.Model.Items.Count == 0
-            ? "Empty stack"
+            ? this.IsVirtual ? "Virtual stack" : "Empty stack"
             : string.Join(
                 " · ", this.Model.Items
                     .GroupBy(static item => item.Kind)
                     .Select(static group =>
                         $"{group.Count()} {group.Key.ToString().ToLowerInvariant()}{(group.Count() == 1 ? string.Empty : "s")}"));
 
-    public string LeadingGlyph => this.Items.Count == 0 ? "\uE710" : this.Items[0].LeadingGlyph;
+    public string LeadingGlyph => this.Items.Count == 0
+        ? this.IsVirtual ? "\uE753" : "\uE710"
+        : this.Items[0].LeadingGlyph;
 
     public ImageSource? PreviewThumbnailSource => this.GetPreviewThumbnail(0);
 
@@ -1152,8 +1197,8 @@ public sealed class DropStackViewModel : ObservableObject
     public DropStackViewModel(DropStack model)
     {
         this._model = model;
-        this.Items = new ObservableCollection<DropItemViewModel>(
-            model.Items.Select(static item => new DropItemViewModel(item)));
+        this._items = new ObservableCollection<DropItemViewModel>(
+            model.GetItemsInDisplayOrder().Select(static item => new DropItemViewModel(item)));
         this.Items.CollectionChanged += this.OnItemsCollectionChanged;
         this.SynchronizePreviewSubscriptions();
         var tintColor = this.TintColor;
@@ -1183,6 +1228,15 @@ public sealed class DropStackViewModel : ObservableObject
     public void ChangeInspectorViewMode(StackInspectorViewMode inspectorViewMode) =>
         this.ApplyModel(this.Model.ChangeInspectorViewMode(inspectorViewMode));
 
+    public void ChangeItemSortMode(StackItemSortMode itemSortMode) =>
+        this.ReplaceModel(this.Model.ChangeItemSortMode(itemSortMode));
+
+    public void ChangeVirtualSource(VirtualStackSource source) =>
+        this.ApplyModel(this.Model.ChangeVirtualSource(source));
+
+    internal void RefreshVirtualItems(IEnumerable<DropItem> items) =>
+        this.ReplaceModel(this.Model.RefreshVirtualItems(items), notifyModelChanged: false);
+
     public IReadOnlyList<DropItem> RemoveItems(IEnumerable<Guid> itemIds)
     {
         ArgumentNullException.ThrowIfNull(itemIds);
@@ -1201,6 +1255,11 @@ public sealed class DropStackViewModel : ObservableObject
     public bool MoveItems(IEnumerable<Guid> itemIds, int direction)
     {
         ArgumentNullException.ThrowIfNull(itemIds);
+        if (!this.CanManuallyReorderItems)
+        {
+            return false;
+        }
+
         if (direction is not (-1 or 1))
         {
             throw new ArgumentOutOfRangeException(nameof(direction));
@@ -1257,6 +1316,11 @@ public sealed class DropStackViewModel : ObservableObject
     public bool CanMoveItems(IEnumerable<Guid> itemIds, int direction)
     {
         ArgumentNullException.ThrowIfNull(itemIds);
+        if (!this.CanManuallyReorderItems)
+        {
+            return false;
+        }
+
         if (direction is not (-1 or 1))
         {
             throw new ArgumentOutOfRangeException(nameof(direction));
@@ -1275,7 +1339,7 @@ public sealed class DropStackViewModel : ObservableObject
             !selected.Contains(this.Items[index + 1].Model.Id));
     }
 
-    internal void ReplaceModel(DropStack model)
+    internal void ReplaceModel(DropStack model, bool notifyModelChanged = true)
     {
         ArgumentNullException.ThrowIfNull(model);
         if (model.Id != this.Model.Id)
@@ -1284,46 +1348,48 @@ public sealed class DropStackViewModel : ObservableObject
         }
 
         var existingItems = this.Items.ToDictionary(static item => item.Model.Id);
+        var displayItems = model.GetItemsInDisplayOrder();
         this._isSynchronizingItems = true;
         try
         {
             if (this.Items.Select(static item => item.Model.Id)
-                .SequenceEqual(model.Items.Select(static item => item.Id)))
+                .SequenceEqual(displayItems.Select(static item => item.Id)))
             {
                 // Note edits must not reset every list and its selection on each keystroke.
-                for (var index = 0; index < model.Items.Count; index++)
+                for (var index = 0; index < displayItems.Count; index++)
                 {
-                    if (!ReferenceEquals(this.Items[index].Model, model.Items[index]))
+                    if (!ReferenceEquals(this.Items[index].Model, displayItems[index]))
                     {
-                        if (this.Items[index].Model.Note is not null && model.Items[index].Note is not null)
+                        if (this.Items[index].Model.Note is not null && displayItems[index].Note is not null)
                         {
-                            this.Items[index].UpdateNoteModel(model.Items[index]);
+                            this.Items[index].UpdateNoteModel(displayItems[index]);
                         }
                         else
                         {
-                            this.Items[index] = new DropItemViewModel(model.Items[index]);
+                            this.Items[index] = new DropItemViewModel(displayItems[index]);
                         }
                     }
                 }
             }
             else
             {
-                this.Items.Clear();
-                foreach (var item in model.Items)
-                {
-                    this.Items.Add(existingItems.TryGetValue(item.Id, out var existing) &&
-                                   ReferenceEquals(existing.Model, item)
+                var replacement = new ObservableCollection<DropItemViewModel>(displayItems.Select(item =>
+                    existingItems.TryGetValue(item.Id, out var existing) &&
+                    ReferenceEquals(existing.Model, item)
                         ? existing
-                        : new DropItemViewModel(item));
-                }
+                        : new DropItemViewModel(item)));
+                this.Items.CollectionChanged -= this.OnItemsCollectionChanged;
+                this.Items = replacement;
+                this.Items.CollectionChanged += this.OnItemsCollectionChanged;
             }
         }
         finally
         {
             this._isSynchronizingItems = false;
         }
+        this.SynchronizePreviewSubscriptions();
 
-        this.ApplyModel(model);
+        this.ApplyModel(model, notifyModelChanged);
     }
 
     internal void SetEdgeMembership(EdgeShelfSide? side)
@@ -1345,8 +1411,13 @@ public sealed class DropStackViewModel : ObservableObject
 
     private void OnItemsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs args)
     {
+        if (this._isSynchronizingItems)
+        {
+            return;
+        }
+
         this.SynchronizePreviewSubscriptions();
-        if (!this._isSynchronizingItems && args.Action == NotifyCollectionChangedAction.Move)
+        if (args.Action == NotifyCollectionChangedAction.Move)
         {
             this.ApplyModel(this.Model.ReorderItems(this.Items.Select(static item => item.Model.Id)));
         }
@@ -1354,15 +1425,16 @@ public sealed class DropStackViewModel : ObservableObject
 
     private void SynchronizePreviewSubscriptions()
     {
-        foreach (var removed in this._previewItems.Where(item => !this.Items.Contains(item)).ToArray())
+        foreach (var item in this._previewItems)
         {
-            removed.PropertyChanged -= this.OnPreviewItemPropertyChanged;
-            this._previewItems.Remove(removed);
+            item.PropertyChanged -= this.OnPreviewItemPropertyChanged;
         }
 
-        foreach (var added in this.Items.Where(item => this._previewItems.Add(item)))
+        this._previewItems.Clear();
+        foreach (var item in this.Items.Take(PreviewItemCount))
         {
-            added.PropertyChanged += this.OnPreviewItemPropertyChanged;
+            this._previewItems.Add(item);
+            item.PropertyChanged += this.OnPreviewItemPropertyChanged;
         }
 
         this.NotifyPreviewChanged();
@@ -1405,16 +1477,26 @@ public sealed class DropStackViewModel : ObservableObject
         this.OnPropertyChanged(nameof(this.ThirdPreviewThumbnailHasVideoFilmstrip));
     }
 
+    private const int PreviewItemCount = 3;
+
     private ImageSource? GetPreviewThumbnail(int index) =>
         this.GetPreviewItem(index)?.ThumbnailSource;
 
     private Thickness GetPreviewBorderThickness(int index) =>
         this.GetPreviewItem(index)?.ThumbnailBorderThickness ?? new Thickness(1);
 
-    private DropItemViewModel? GetPreviewItem(int index) =>
-        this.Items
-            .Where(static item => item.ThumbnailSource is not null)
+    private DropItemViewModel? GetPreviewItem(int index)
+    {
+        var previewItems = this.Items.Take(PreviewItemCount).ToArray();
+        foreach (var item in previewItems)
+        {
+            item.EnsureThumbnailLoading();
+        }
+
+        return previewItems
+            .Where(static item => item.LoadedThumbnailSource is not null)
             .ElementAtOrDefault(index);
+    }
 
     internal void RefreshSystemColors()
     {
@@ -1427,7 +1509,7 @@ public sealed class DropStackViewModel : ObservableObject
         this.OnPropertyChanged(nameof(this.TintColor));
     }
 
-    private void ApplyModel(DropStack model)
+    private void ApplyModel(DropStack model, bool notifyModelChanged = true)
     {
         this.Model = model;
         this.UpdateTintBrushes();
@@ -1436,6 +1518,13 @@ public sealed class DropStackViewModel : ObservableObject
         this.OnPropertyChanged(nameof(this.Tint));
         this.OnPropertyChanged(nameof(this.TintColor));
         this.OnPropertyChanged(nameof(this.InspectorViewMode));
+        this.OnPropertyChanged(nameof(this.ItemSortMode));
+        this.OnPropertyChanged(nameof(this.IsVirtual));
+        this.OnPropertyChanged(nameof(this.CanManuallyReorderItems));
+        this.OnPropertyChanged(nameof(this.CanReadItems));
+        this.OnPropertyChanged(nameof(this.CanWriteItems));
+        this.OnPropertyChanged(nameof(this.CanRemoveItems));
+        this.OnPropertyChanged(nameof(this.VirtualConfigurationVisibility));
         this.OnPropertyChanged(nameof(this.ItemCountText));
         this.OnPropertyChanged(nameof(this.Summary));
         this.OnPropertyChanged(nameof(this.LeadingGlyph));
@@ -1445,7 +1534,10 @@ public sealed class DropStackViewModel : ObservableObject
         this.OnPropertyChanged(nameof(this.TileCountBadgeVisibility));
         this.OnPropertyChanged(nameof(this.TileCountBadgeText));
         this.OnPropertyChanged(nameof(this.AccessibleName));
-        this.ModelChanged?.Invoke(this, EventArgs.Empty);
+        if (notifyModelChanged)
+        {
+            this.ModelChanged?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     private void UpdateTintBrushes()
@@ -1799,6 +1891,7 @@ public sealed class DropItemViewModel : ObservableObject
     private ContentThumbnailChrome _thumbnailChrome;
     private string _thumbnailProviderId = string.Empty;
     private ImageSource? _thumbnailSource;
+    private bool _thumbnailLoadStarted;
 
     public DropItem Model { get; private set; }
 
@@ -1909,7 +2002,12 @@ public sealed class DropItemViewModel : ObservableObject
 
     public ImageSource? ThumbnailSource
     {
-        get => this._thumbnailSource;
+        get
+        {
+            this.EnsureThumbnailLoading();
+            return this._thumbnailSource;
+        }
+
         private set
         {
             if (this.SetProperty(ref this._thumbnailSource, value))
@@ -1929,7 +2027,7 @@ public sealed class DropItemViewModel : ObservableObject
             : Visibility.Visible;
 
     public Visibility PlaceholderVisibility =>
-        this.Model.Note is null && this.ThumbnailSource is null
+        this.Model.Note is null && this._thumbnailSource is null
             ? Visibility.Visible
             : Visibility.Collapsed;
 
@@ -1961,6 +2059,18 @@ public sealed class DropItemViewModel : ObservableObject
         var fallback = ContentThumbnailFallback.For(model.Kind);
         this._leadingGlyph = fallback.Glyph!;
         this._thumbnailAccessibleLabel = fallback.AccessibleLabel;
+    }
+
+    internal ImageSource? LoadedThumbnailSource => this._thumbnailSource;
+
+    internal void EnsureThumbnailLoading()
+    {
+        if (this._thumbnailLoadStarted)
+        {
+            return;
+        }
+
+        this._thumbnailLoadStarted = true;
         _ = this.LoadThumbnailAsync();
     }
 

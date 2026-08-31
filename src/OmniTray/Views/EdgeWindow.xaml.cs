@@ -603,7 +603,7 @@ public sealed partial class EdgeWindow : TransparentWindow
             var target = GetTaggedStack(sender);
             var isSameStack = target is not null &&
                               DragDropDataService.ActiveItemReference?.SourceStackId == target.Model.Id;
-            SetStackDropOutline(sender, target is not null && !isSameStack);
+            SetStackDropOutline(sender, target is not null && target.CanWriteItems && !isSameStack);
             if (target is not null)
             {
                 ConfigureItemTransferDragOver(args, $"Add to {target.Name}", target);
@@ -622,7 +622,13 @@ public sealed partial class EdgeWindow : TransparentWindow
         var stack = GetTaggedStack(sender);
         SetStackDropOutline(
             sender,
-            stack is not null && ConfigureContentDragOver(args, $"Add to {stack.Name}"));
+            stack is not null &&
+            stack.CanWriteItems &&
+            ConfigureContentDragOver(args, $"Add to {stack.Name}"));
+        if (stack is not null && !stack.CanWriteItems)
+        {
+            args.AcceptedOperation = DataPackageOperation.None;
+        }
     }
 
     private void OnStackDragLeave(object sender, DragEventArgs args) =>
@@ -669,7 +675,10 @@ public sealed partial class EdgeWindow : TransparentWindow
                 return;
             }
 
-            var addedCount = stack.AppendDroppedItems(items);
+            var addedCount = await App.Current.AddItemsToStackAsync(
+                stack,
+                items,
+                releaseItemsWhenVirtual: true);
             ShowDropImportStatus(stack.Name, items.Count, addedCount);
         }
         catch (Exception exception)
@@ -1527,10 +1536,12 @@ public sealed partial class EdgeWindow : TransparentWindow
     {
         var sameStack = target is not null &&
                         DragDropDataService.ActiveItemReference?.SourceStackId == target.Model.Id;
-        if (sameStack)
+        if (sameStack || target is { CanWriteItems: false })
         {
             args.AcceptedOperation = DataPackageOperation.None;
-            args.DragUIOverride.Caption = "Item is already in this stack";
+            args.DragUIOverride.Caption = sameStack
+                ? "Item is already in this stack"
+                : "This stack is read-only";
             args.DragUIOverride.IsCaptionVisible = true;
             args.DragUIOverride.IsContentVisible = true;
             return;

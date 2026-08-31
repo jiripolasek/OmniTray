@@ -69,13 +69,14 @@ public sealed class StackCatalogReaderTests
         Assert.AreEqual(stackId, stacks[0].Id);
         Assert.AreEqual("Research", stacks[0].Name);
         Assert.AreEqual(StackInspectorViewMode.List, stacks[0].InspectorViewMode);
+        Assert.AreEqual(StackItemSortMode.Default, stacks[0].ItemSortMode);
         Assert.HasCount(1, stacks[0].Items);
         Assert.AreEqual(itemId, stacks[0].Items[0].Id);
         Assert.IsTrue(StackFilter.Matches(stacks[0], "palette design"));
     }
 
     [TestMethod]
-    public void ReadStacks_RestoresPerStackInspectorViewMode()
+    public void ReadStacks_RestoresPerStackViewPreferences()
     {
         var stackId = Guid.NewGuid();
         var json = $$"""
@@ -86,6 +87,7 @@ public sealed class StackCatalogReaderTests
                            "name": "Images",
                            "tint": "Blue",
                            "inspectorViewMode": 1,
+                           "itemSortMode": 2,
                            "items": []
                          }
                        ]
@@ -96,6 +98,34 @@ public sealed class StackCatalogReaderTests
 
         Assert.HasCount(1, stacks);
         Assert.AreEqual(StackInspectorViewMode.Grid, stacks[0].InspectorViewMode);
+        Assert.AreEqual(StackItemSortMode.Newest, stacks[0].ItemSortMode);
+    }
+
+    [TestMethod]
+    public void ReadStacks_RestoresVirtualSource()
+    {
+        var stackId = Guid.NewGuid();
+        var json = $$"""
+                     {
+                       "stacks": [
+                         {
+                           "id": "{{stackId}}",
+                           "name": "Recent files",
+                           "tint": "Neutral",
+                           "virtualSource": {
+                             "providerId": "builtin.recent-files",
+                             "capabilities": 1
+                           },
+                           "items": []
+                         }
+                       ]
+                     }
+                     """;
+
+        var stack = StackCatalogReader.ReadStacks(json).Single();
+
+        Assert.AreEqual("builtin.recent-files", stack.VirtualSource?.ProviderId);
+        Assert.AreEqual(VirtualStackCapabilities.Read, stack.VirtualSource?.Capabilities);
     }
 
     [TestMethod]

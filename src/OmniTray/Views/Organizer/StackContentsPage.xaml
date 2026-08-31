@@ -92,11 +92,22 @@
             SelectionSummary="{x:Bind ViewModel.SelectionSummary, Mode=OneWay}">
             <controls:OrganizerToolbar.PermanentCommands>
                 <AppBarButton
+                    x:Name="PasteIntoStackButton"
                     AccessKey="A"
                     AutomationProperties.Name="Paste clipboard content into selected stack"
                     Click="OnPasteIntoStackClick"
                     Icon="Paste"
                     Label="Paste" />
+                <AppBarButton
+                    x:Name="ConfigureVirtualStackButton"
+                    AutomationProperties.Name="Configure selected virtual stack"
+                    Click="OnConfigureVirtualStackClick"
+                    Label="Configure"
+                    Visibility="Collapsed">
+                    <AppBarButton.Icon>
+                        <FontIcon Glyph="&#xE713;" />
+                    </AppBarButton.Icon>
+                </AppBarButton>
                 <AppBarButton
                     AccessKey="N"
                     AutomationProperties.Name="Stack notes"

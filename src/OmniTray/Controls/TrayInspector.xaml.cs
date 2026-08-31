@@ -38,6 +38,7 @@ public sealed partial class TrayInspector : UserControl
         this.InitializeComponent();
         this.ViewModel.PropertyChanged += this.OnViewModelPropertyChanged;
         this.RestoreViewSelection();
+        this.RestoreItemSortSelection();
         this.InspectorViewSelector.SelectionChanged += this.OnViewSelectionChanged;
         this.InspectorOrganizer.DialogOwner = dialogOwner;
         App.Current.StackCatalogViewModel.Stacks.CollectionChanged += this.OnCatalogStacksChanged;
@@ -180,6 +181,23 @@ public sealed partial class TrayInspector : UserControl
     private void OnCombineStacksClick(object sender, RoutedEventArgs args) =>
         this.Open(TrayInspectorMode.Combine);
 
+    private void OnItemSortClick(object sender, RoutedEventArgs args)
+    {
+        var itemSortMode = ReferenceEquals(sender, this.NameItemSortMenuItem)
+            ? StackItemSortMode.Name
+            : ReferenceEquals(sender, this.NewestItemSortMenuItem)
+                ? StackItemSortMode.Newest
+                : ReferenceEquals(sender, this.OldestItemSortMenuItem)
+                    ? StackItemSortMode.Oldest
+                    : StackItemSortMode.Default;
+        if (itemSortMode != this.ViewModel.ItemSortMode)
+        {
+            using var operation = App.Current.TrackUiOperation(
+                $"Sort stack '{this.ViewModel.Name}' as {itemSortMode} ({this.ViewModel.Items.Count:N0} items)");
+            this.ViewModel.ChangeItemSortMode(itemSortMode);
+        }
+    }
+
     private void OnSaveCustomizeClick(object sender, RoutedEventArgs args) => this.SaveCustomization();
 
     private void OnViewSelectionChanged(object sender, SelectionChangedEventArgs args)
@@ -200,6 +218,12 @@ public sealed partial class TrayInspector : UserControl
             args.PropertyName == nameof(DropStackViewModel.InspectorViewMode))
         {
             this.RestoreViewSelection();
+        }
+
+        if (string.IsNullOrEmpty(args.PropertyName) ||
+            args.PropertyName == nameof(DropStackViewModel.ItemSortMode))
+        {
+            this.RestoreItemSortSelection();
         }
 
         if (string.IsNullOrEmpty(args.PropertyName) ||
@@ -303,6 +327,14 @@ public sealed partial class TrayInspector : UserControl
         }
 
         this.InspectorOrganizer.SetThumbnailView(selectedIndex == 1);
+    }
+
+    private void RestoreItemSortSelection()
+    {
+        this.DefaultItemSortMenuItem.IsChecked = this.ViewModel.ItemSortMode == StackItemSortMode.Default;
+        this.NameItemSortMenuItem.IsChecked = this.ViewModel.ItemSortMode == StackItemSortMode.Name;
+        this.NewestItemSortMenuItem.IsChecked = this.ViewModel.ItemSortMode == StackItemSortMode.Newest;
+        this.OldestItemSortMenuItem.IsChecked = this.ViewModel.ItemSortMode == StackItemSortMode.Oldest;
     }
 
     private void OnCustomizeNameBoxKeyDown(object sender, KeyRoutedEventArgs args)

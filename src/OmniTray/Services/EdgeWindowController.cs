@@ -675,6 +675,7 @@ internal sealed partial class EdgeWindowController : IDisposable
             if (!this.IsDocked)
             {
                 this._visiblePanelRect = this.GetPanelRect(false);
+                this.ApplyWindowRegion();
             }
         }
 
@@ -729,13 +730,21 @@ internal sealed partial class EdgeWindowController : IDisposable
             if (!this._window.AppWindow.IsVisible)
             {
                 this._window.SetRevealState(false, false);
+                this.ApplyWindowRegion();
                 this._window.AppWindow.Show(false);
                 return;
             }
 
             this._window.SetRevealState(
                 false,
-                animate && wasTargetExpanded);
+                animate && wasTargetExpanded,
+                () =>
+                {
+                    if (!this._isTargetExpanded)
+                    {
+                        this.ApplyWindowRegion();
+                    }
+                });
         }
 
         public void Reveal(bool activateWindow, bool manualOpen)
@@ -758,6 +767,7 @@ internal sealed partial class EdgeWindowController : IDisposable
             this.IsExpanded = true;
             this._isTargetExpanded = true;
             this._visiblePanelRect = this.GetPanelRect(true);
+            this.ApplyWindowRegion();
             this.LastInteraction = DateTimeOffset.UtcNow;
             if (manualOpen)
             {
@@ -839,12 +849,14 @@ internal sealed partial class EdgeWindowController : IDisposable
             this.SetClickThrough(true);
             this._visiblePanelRect = this.GetPanelRect(false);
             this._window.AppWindow.Hide();
+            this.ApplyWindowRegion();
         }
 
         private void HideWindow()
         {
             this._window.ResetCommandNavigation();
             this._window.AppWindow.Hide();
+            this.ApplyWindowRegion();
         }
 
         public bool IsPointInActivationZone(NativePoint point, bool useHintBand)
@@ -891,6 +903,7 @@ internal sealed partial class EdgeWindowController : IDisposable
 
             this.ConfigurePlacement();
             this._visiblePanelRect = this.GetPanelRect(this._isTargetExpanded);
+            this.ApplyWindowRegion();
         }
 
         public void UpdateDisplayArea(RectInt32 outerBounds, RectInt32 workArea)
@@ -1009,6 +1022,7 @@ internal sealed partial class EdgeWindowController : IDisposable
                 this._panelWidth = rectangle.Width;
                 this._panelHeight = rectangle.Height;
                 this._visiblePanelRect = new RectInt32(0, 0, rectangle.Width, rectangle.Height);
+                this.ApplyWindowRegion();
                 this.IsExpanded = true;
                 this._isTargetExpanded = true;
                 this.IsActualDragOver = false;
@@ -1417,6 +1431,9 @@ internal sealed partial class EdgeWindowController : IDisposable
                 _ => new RectInt32()
             };
         }
+
+        private void ApplyWindowRegion() =>
+            this._window.SetWindowRegion(this._isTargetExpanded || this.IsDocked ? null : this._visiblePanelRect);
 
         private void SetClickThrough(bool clickThrough)
         {

@@ -5,6 +5,7 @@
 // ------------------------------------------------------------
 
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Numerics;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
@@ -242,9 +243,13 @@ public sealed partial class StackItemsOrganizer : UserControl
             {
                 oldStack.Items.CollectionChanged -= organizer.OnItemsChanged;
                 oldStack.ModelChanged -= organizer.OnStackModelChangedForNotes;
+                oldStack.PropertyChanged -= organizer.OnStackPropertyChangedForItems;
             }
 
             var newStack = args.NewValue as DropStackViewModel;
+            using var operation = App.Current.TrackUiOperation(newStack is null
+                ? "Clear stack item binding"
+                : $"Bind stack '{newStack.Name}' ({newStack.Items.Count:N0} items)");
             organizer.ItemList.SelectedItems.Clear();
             organizer.ItemList.ItemsSource = newStack?.Items;
             organizer.ResetCommandFlyout(true);
@@ -253,6 +258,7 @@ public sealed partial class StackItemsOrganizer : UserControl
             {
                 newStack.Items.CollectionChanged += organizer.OnItemsChanged;
                 newStack.ModelChanged += organizer.OnStackModelChangedForNotes;
+                newStack.PropertyChanged += organizer.OnStackPropertyChangedForItems;
             }
 
             organizer.UpdateEmptyState();
@@ -434,13 +440,26 @@ public sealed partial class StackItemsOrganizer : UserControl
         }
     }
 
-    private void OnItemListSizeChanged(object sender, SizeChangedEventArgs args)
+    private void OnStackPropertyChangedForItems(object? sender, PropertyChangedEventArgs args)
     {
-        if (this._isThumbnailView)
+        if (args.PropertyName != nameof(DropStackViewModel.Items) ||
+            sender is not DropStackViewModel stack ||
+            !ReferenceEquals(stack, this.Stack))
         {
-            this.QueueThumbnailLayoutRefresh();
+            return;
         }
+
+        using var operation = App.Current.TrackUiOperation(
+            $"Rebind stack '{stack.Name}' ({stack.Items.Count:N0} items)");
+        this.ItemList.ItemsSource = stack.Items;
+        stack.Items.CollectionChanged -= this.OnItemsChanged;
+        stack.Items.CollectionChanged += this.OnItemsChanged;
+        this.OnItemsChanged(stack.Items,
+            new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
     }
+
+    private void OnItemListSizeChanged(object sender, SizeChangedEventArgs args) =>
+        this.UpdateThumbnailItemWidth();
 
     private void QueueThumbnailLayoutRefresh()
     {
@@ -450,6 +469,8 @@ public sealed partial class StackItemsOrganizer : UserControl
             {
                 return;
             }
+
+            using var operation = App.Current.TrackUiOperation("Refresh thumbnail layout");
 
             // A view-mode change can reuse the same ItemsPanelTemplate. Materialize the current
             // panel first, then apply its new dimensions and consume that invalidation now instead
@@ -513,12 +534,18 @@ public sealed partial class StackItemsOrganizer : UserControl
 
     private void OnLoaded(object sender, RoutedEventArgs args)
     {
+        using var operation = App.Current.TrackUiOperation(this.Stack is { } stack
+            ? $"Load stack '{stack.Name}' ({stack.Items.Count:N0} items)"
+            : "Load empty stack item view");
         if (this.Stack is not null)
         {
+            this.ItemList.ItemsSource = this.Stack.Items;
             this.Stack.Items.CollectionChanged -= this.OnItemsChanged;
             this.Stack.Items.CollectionChanged += this.OnItemsChanged;
             this.Stack.ModelChanged -= this.OnStackModelChangedForNotes;
             this.Stack.ModelChanged += this.OnStackModelChangedForNotes;
+            this.Stack.PropertyChanged -= this.OnStackPropertyChangedForItems;
+            this.Stack.PropertyChanged += this.OnStackPropertyChangedForItems;
         }
 
         this.UpdateEmptyState();
@@ -538,6 +565,7 @@ public sealed partial class StackItemsOrganizer : UserControl
         {
             this.Stack.Items.CollectionChanged -= this.OnItemsChanged;
             this.Stack.ModelChanged -= this.OnStackModelChangedForNotes;
+            this.Stack.PropertyChanged -= this.OnStackPropertyChangedForItems;
         }
     }
 
@@ -564,7 +592,7 @@ public sealed partial class StackItemsOrganizer : UserControl
             args.Data, this.Stack.Model.Id,
             items,
             items.Length == 1 ? items[0].DisplayName : $"{items.Length} items",
-            App.Current.AllowMoveOnDragOutPreference);
+            App.Current.AllowMoveOnDragOutPreference && this.Stack.CanRemoveItems);
     }
 
     private async void OnItemDragItemsCompleted(object sender, DragItemsCompletedEventArgs args)
@@ -643,7 +671,10 @@ public sealed partial class StackItemsOrganizer : UserControl
         DragEventArgs args,
         ListInsertionTarget? target)
     {
-        if (this.Stack is null || target is null || !this.CanApplyActiveItemDrop(target.Value.InsertionIndex))
+        if (this.Stack is null ||
+            !this.Stack.CanWriteItems ||
+            target is null ||
+            !this.CanApplyActiveItemDrop(target.Value.InsertionIndex))
         {
             this._itemInsertionAdorner.Clear();
             args.AcceptedOperation = DataPackageOperation.None;
@@ -675,6 +706,11 @@ public sealed partial class StackItemsOrganizer : UserControl
         if (stack is null || itemReference is null || itemReference.SourceStackId != stack.Model.Id)
         {
             return stack is not null;
+        }
+
+        if (!stack.CanManuallyReorderItems)
+        {
+            return false;
         }
 
         try
@@ -1420,6 +1456,12 @@ public sealed partial class StackItemsOrganizer : UserControl
 
     private async Task RequestRemovalAsync(DropStackViewModel source, IEnumerable<Guid> itemIds)
     {
+        if (!source.CanRemoveItems)
+        {
+            ShowStatus($"Items cannot be removed from {source.Name}.", InfoBarSeverity.Warning);
+            return;
+        }
+
         var requested = itemIds.ToHashSet();
         var requestedIds = source.Model.Items
             .Where(item => requested.Contains(item.Id))
@@ -1578,9 +1620,13 @@ public sealed partial class StackItemsOrganizer : UserControl
             : ContentMetadataPolicy.GetMetadata(singleItem).Actions;
         this.MoveSelectionUpButton.IsEnabled = hasSelection && this.Stack!.CanMoveItems(selectedIds, -1);
         this.MoveSelectionDownButton.IsEnabled = hasSelection && this.Stack!.CanMoveItems(selectedIds, 1);
-        this.SplitSelectionButton.IsEnabled = hasSelection && selectedIds.Length < this.Stack!.Items.Count;
-        this.RemoveSelectionButton.IsEnabled = hasSelection && !this._isRemovalDialogOpen;
-        this.DuplicateSelectionButton.IsEnabled = hasSelection;
+        this.SplitSelectionButton.IsEnabled = hasSelection &&
+                                              !this.Stack!.IsVirtual &&
+                                              selectedIds.Length < this.Stack.Items.Count;
+        this.RemoveSelectionButton.IsEnabled = hasSelection &&
+                                               this.Stack!.CanRemoveItems &&
+                                               !this._isRemovalDialogOpen;
+        this.DuplicateSelectionButton.IsEnabled = hasSelection && !this.Stack!.IsVirtual;
         this.OpenSelectionButton.Visibility = Has(singleActions, ContentActions.Open)
             ? Visibility.Visible
             : Visibility.Collapsed;
@@ -1600,7 +1646,9 @@ public sealed partial class StackItemsOrganizer : UserControl
             : Visibility.Collapsed;
         this.CopySelectionButton.IsEnabled = hasSelection && selectedItems.All(static item =>
             ContentMetadataPolicy.HasAction(item, ContentActions.Copy));
-        this.CutSelectionButton.Visibility = hasSelection && selectedItems.All(static item =>
+        this.CutSelectionButton.Visibility = hasSelection &&
+                                             this.Stack!.CanRemoveItems &&
+                                             selectedItems.All(static item =>
             ContentMetadataPolicy.HasAction(item, ContentActions.Cut))
             ? Visibility.Visible
             : Visibility.Collapsed;
@@ -1610,7 +1658,9 @@ public sealed partial class StackItemsOrganizer : UserControl
         this.InspectPayloadButton.Visibility = singleItem is null
             ? Visibility.Collapsed
             : Visibility.Visible;
-        this.DeleteFromDiskButton.Visibility = hasSelection && selectedItems.All(static item =>
+        this.DeleteFromDiskButton.Visibility = hasSelection &&
+                                               this.Stack!.CanRemoveItems &&
+                                               selectedItems.All(static item =>
             ContentMetadataPolicy.HasAction(item, ContentActions.Delete))
             ? Visibility.Visible
             : Visibility.Collapsed;

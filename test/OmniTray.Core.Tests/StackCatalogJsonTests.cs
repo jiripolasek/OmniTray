@@ -20,7 +20,7 @@ public sealed class StackCatalogJsonTests
                 "<b>Original Ω</b>", @"{\rtf1\b Original}", "https://example.com/source", "Fixture browser")
             .WithCustomFormats([DropItemDataFormat.CreateBinary("fixture", new byte[] { 1, 2, 3, 255 })])
             .WithAttachedNotes([annotation]);
-        var original = DropStack.Create([source]);
+        var original = DropStack.Create([source], itemSortMode: StackItemSortMode.Newest);
         var (stack, note) = NoteOperations.ConvertTextItem(original, source.Id, false);
         var deleted = new DeletedNote(StickyNote.Create("Deleted", @"{\rtf1 Deleted}"),
             new NoteTarget(stack.Id, NotePlacement.StackItem), stack.Name, null, DateTimeOffset.UtcNow);
@@ -45,6 +45,7 @@ public sealed class StackCatalogJsonTests
         CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 255 }, capture.CustomFormats.Single().GetBinaryData());
         Assert.AreEqual(annotation, capture.AttachedNotes.Single());
         Assert.AreEqual(note, restored.Stacks.Single().Items.First().Note);
+        Assert.AreEqual(StackItemSortMode.Newest, restored.Stacks.Single().ItemSortMode);
         Assert.AreEqual(deleted, restored.DeletedNotes.Single());
         Assert.AreEqual(tray, restored.OpenTrayWindows.Single());
         Assert.AreEqual(stack.Id,
@@ -60,6 +61,24 @@ public sealed class StackCatalogJsonTests
         Assert.HasCount(0, restored.NoteHistory);
         Assert.HasCount(0, restored.DeletedNotes);
         Assert.HasCount(0, restored.Stacks);
+    }
+
+    [TestMethod]
+    public void ProductionSerializerPersistsVirtualSourceWithoutLiveItems()
+    {
+        var source = VirtualStackSource.Create(
+            "builtin.folder",
+            @"C:\Fixtures",
+            VirtualStackCapabilities.Read | VirtualStackCapabilities.Write);
+        var stack = DropStack.CreateVirtual("Fixtures", source).RefreshVirtualItems(
+            [DropItem.CreateStorageItem("example.txt", @"C:\Fixtures\example.txt", false)]);
+
+        var document = StackCatalogJson.CreateDocument(new StackCatalogState([stack], [], [], [], []));
+        Assert.HasCount(0, document.Stacks.Single().Items);
+
+        var restored = StackCatalogJson.Restore(document).Stacks.Single();
+        Assert.AreEqual(source, restored.VirtualSource);
+        Assert.HasCount(0, restored.Items);
     }
 
     [TestMethod]

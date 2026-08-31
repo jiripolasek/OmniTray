@@ -147,7 +147,11 @@ internal static class StackDialogService
             Title = itemCount == 1
                 ? $"Remove item from “{stack.Name}”?"
                 : $"Remove {itemCount} items from “{stack.Name}”?",
-            Content = itemCount == 1
+            Content = stack.IsVirtual
+                ? itemCount == 1
+                    ? "This removes the item from its source."
+                    : "This removes the items from their source."
+                : itemCount == 1
                 ? "This removes the item from this stack. Removed notes can be restored from Recently deleted. Attached notes are kept as stack items. Original files and folders are never deleted."
                 : "This removes the items from this stack. Removed notes can be restored from Recently deleted. Attached notes are kept as stack items. Original files and folders are never deleted.",
             PrimaryButtonText = "Remove",
@@ -172,7 +176,11 @@ internal static class StackDialogService
             itemCount == 1
                 ? $"Remove item from “{stack.Name}”?"
                 : $"Remove {itemCount} items from “{stack.Name}”?",
-            itemCount == 1
+            stack.IsVirtual
+                ? itemCount == 1
+                    ? "This removes the item from its source."
+                    : "This removes the items from their source."
+                : itemCount == 1
                 ? "This removes the item from this stack. Removed notes can be restored from Recently deleted. Attached notes are kept as stack items. Original files and folders are never deleted."
                 : "This removes the items from this stack. Removed notes can be restored from Recently deleted. Attached notes are kept as stack items. Original files and folders are never deleted.",
             "Remove");

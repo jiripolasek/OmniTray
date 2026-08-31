@@ -149,7 +149,8 @@ public sealed record DropItem
         string displayName,
         string? sourcePath,
         bool isFolder,
-        bool isOwned = false)
+        bool isOwned = false,
+        DateTimeOffset? createdAt = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
 
@@ -166,7 +167,7 @@ public sealed record DropItem
             null,
             null,
             isOwned,
-            DateTimeOffset.UtcNow);
+            createdAt ?? DateTimeOffset.UtcNow);
     }
 
     public static DropItem CreateText(
@@ -335,6 +336,36 @@ public sealed record DropItem
             this.HtmlResources,
             this.Note,
             this.AttachedNotes);
+    }
+
+    public DropItem WithId(Guid id)
+    {
+        if (id == Guid.Empty)
+        {
+            throw new ArgumentException("An item ID is required.", nameof(id));
+        }
+
+        return new DropItem(
+            id,
+            this.Kind,
+            this.DisplayName,
+            this.SourcePath,
+            this.Text,
+            this.Html,
+            this.Rtf,
+            this.Url,
+            this.SourceUrl,
+            this.SourceApplicationName,
+            this.CustomFormats,
+            this.IsOwned,
+            this.CreatedAt,
+            this.ApplicationLink,
+            this.SourcePackageFamilyName,
+            this.SourceApplicationLink,
+            this.Capture,
+            this.Backing,
+            this.FileFacts,
+            this.HtmlResources);
     }
 
     public DropItem WithCustomFormats(IReadOnlyList<DropItemDataFormat>? customFormats)

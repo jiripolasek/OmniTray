@@ -6,6 +6,7 @@
 
 using System.Runtime.InteropServices;
 using Windows.Foundation;
+using Windows.Graphics;
 using Windows.System;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml.Input;
@@ -536,6 +537,32 @@ public partial class TransparentWindow : WindowEx
         }
     }
 
+    // Excludes transparent host padding from mouse and OLE drag targeting without resizing the HWND.
+    internal void SetWindowRegion(RectInt32? bounds)
+    {
+        nint region = 0;
+        if (bounds is { Width: > 0, Height: > 0 } value)
+        {
+            region = CreateRectRgn(value.X, value.Y, value.X + value.Width, value.Y + value.Height);
+            if (region == 0)
+            {
+                return;
+            }
+        }
+
+        if (SetWindowRgn(this._hwnd, region, true) == 0 && region != 0)
+        {
+            _ = DeleteObject(region);
+        }
+    }
+
+    [LibraryImport("gdi32.dll")]
+    private static partial nint CreateRectRgn(int x1, int y1, int x2, int y2);
+
+    [LibraryImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool DeleteObject(nint objectHandle);
+
     [LibraryImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
     private static partial nint GetWindowLongPtr(nint hWnd, int nIndex);
 
@@ -556,6 +583,12 @@ public partial class TransparentWindow : WindowEx
         int cx,
         int cy,
         uint uFlags);
+
+    [LibraryImport("user32.dll")]
+    private static partial int SetWindowRgn(
+        nint hWnd,
+        nint region,
+        [MarshalAs(UnmanagedType.Bool)] bool redraw);
 
     [LibraryImport("dwmapi.dll")]
     private static partial int DwmExtendFrameIntoClientArea(nint hwnd, ref Margins pMarInset);

@@ -87,7 +87,8 @@ public sealed class StackOperationsTests
         var third = DropItem.CreateText("third");
         var source = DropStack.Create(
             [first, second, third],
-            inspectorViewMode: StackInspectorViewMode.Grid);
+            inspectorViewMode: StackInspectorViewMode.Grid,
+            itemSortMode: StackItemSortMode.Newest);
 
         var (remaining, extracted) = StackOperations.Split(source, [second.Id]);
 
@@ -102,6 +103,8 @@ public sealed class StackOperationsTests
         Assert.AreEqual(source.Tint, extracted.Tint);
         Assert.AreEqual(StackInspectorViewMode.Grid, remaining.InspectorViewMode);
         Assert.AreEqual(StackInspectorViewMode.Grid, extracted.InspectorViewMode);
+        Assert.AreEqual(StackItemSortMode.Newest, remaining.ItemSortMode);
+        Assert.AreEqual(StackItemSortMode.Newest, extracted.ItemSortMode);
     }
 
     [TestMethod]
@@ -177,11 +180,14 @@ public sealed class StackOperationsTests
     }
 
     [TestMethod]
-    public void StackChanges_PreservePerStackInspectorViewMode()
+    public void StackChanges_PreservePerStackViewPreferences()
     {
         var first = DropItem.CreateText("first");
         var second = DropItem.CreateText("second");
-        var source = DropStack.Create([first], inspectorViewMode: StackInspectorViewMode.Grid);
+        var source = DropStack.Create(
+            [first],
+            inspectorViewMode: StackInspectorViewMode.Grid,
+            itemSortMode: StackItemSortMode.Name);
 
         var changed = source
             .Rename("Reading")
@@ -190,6 +196,67 @@ public sealed class StackOperationsTests
             .ReorderItems([second.Id, first.Id]);
 
         Assert.AreEqual(StackInspectorViewMode.Grid, changed.InspectorViewMode);
+        Assert.AreEqual(StackItemSortMode.Name, changed.ItemSortMode);
+    }
+
+    [TestMethod]
+    public void ItemSortMode_ChangesDisplayOrderWithoutChangingStoredOrder()
+    {
+        var oldest = DropItem.CreateStorageItem(
+            "Alpha.txt",
+            null,
+            false,
+            createdAt: DateTimeOffset.Parse("2026-01-01T00:00:00Z"));
+        var middle = DropItem.CreateStorageItem(
+            "Zulu.txt",
+            null,
+            false,
+            createdAt: DateTimeOffset.Parse("2026-02-01T00:00:00Z"));
+        var newest = DropItem.CreateStorageItem(
+            "Beta.txt",
+            null,
+            false,
+            createdAt: DateTimeOffset.Parse("2026-03-01T00:00:00Z"));
+        var stack = DropStack.Create([middle, newest, oldest]);
+
+        CollectionAssert.AreEqual(
+            new[] { middle.Id, newest.Id, oldest.Id },
+            stack.GetItemsInDisplayOrder().Select(static item => item.Id).ToArray());
+        CollectionAssert.AreEqual(
+            new[] { oldest.Id, newest.Id, middle.Id },
+            stack.ChangeItemSortMode(StackItemSortMode.Name)
+                .GetItemsInDisplayOrder().Select(static item => item.Id).ToArray());
+        CollectionAssert.AreEqual(
+            new[] { newest.Id, middle.Id, oldest.Id },
+            stack.ChangeItemSortMode(StackItemSortMode.Newest)
+                .GetItemsInDisplayOrder().Select(static item => item.Id).ToArray());
+        CollectionAssert.AreEqual(
+            new[] { oldest.Id, middle.Id, newest.Id },
+            stack.ChangeItemSortMode(StackItemSortMode.Oldest)
+                .GetItemsInDisplayOrder().Select(static item => item.Id).ToArray());
+        CollectionAssert.AreEqual(
+            new[] { middle.Id, newest.Id, oldest.Id },
+            stack.Items.Select(static item => item.Id).ToArray());
+    }
+
+    [TestMethod]
+    public void VirtualStack_PreservesSourceAcrossChangesAndRefreshesItems()
+    {
+        var source = VirtualStackSource.Create(
+            "builtin.folder",
+            @"C:\Work",
+            VirtualStackCapabilities.Read | VirtualStackCapabilities.Write);
+        var stack = DropStack.CreateVirtual("Work", source, "Mint");
+        var item = DropItem.CreateStorageItem("notes.txt", @"C:\Work\notes.txt", false);
+
+        var changed = stack.RefreshVirtualItems([item]).Rename("Current work");
+
+        var changedSource = changed.VirtualSource;
+        Assert.AreEqual(source, changedSource);
+        Assert.IsNotNull(changedSource);
+        Assert.HasCount(1, changed.Items);
+        Assert.IsTrue(changedSource.Can(VirtualStackCapabilities.Write));
+        Assert.IsFalse(changedSource.Can(VirtualStackCapabilities.Remove));
     }
 
     [TestMethod]

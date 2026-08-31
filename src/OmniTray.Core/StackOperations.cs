@@ -164,7 +164,8 @@ public static class StackOperations
             DropStack.Create(
                 extractedItems,
                 tint: source.Tint,
-                inspectorViewMode: source.InspectorViewMode));
+                inspectorViewMode: source.InspectorViewMode,
+                itemSortMode: source.ItemSortMode));
     }
 
     private static HashSet<Guid> ValidateSelectedItems(

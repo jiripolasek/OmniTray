@@ -32,6 +32,7 @@ internal sealed class ContentThumbnailService
     private const uint VideoThumbnailWidth = 190;
     private const int PendingThumbnailHResult = unchecked((int)0x8000000A);
     private const int ShellThumbnailAttemptCount = 3;
+    private static readonly SemaphoreSlim ShellThumbnailGate = new(4, 4);
     private readonly ContentThumbnailRegistry _registry;
 
     public static ContentThumbnailService Default { get; } =
@@ -170,26 +171,34 @@ internal sealed class ContentThumbnailService
         ContentMetadata metadata,
         CancellationToken cancellationToken)
     {
-        for (var attempt = 0; attempt < ShellThumbnailAttemptCount; attempt++)
+        await ShellThumbnailGate.WaitAsync(cancellationToken);
+        try
         {
-            try
+            for (var attempt = 0; attempt < ShellThumbnailAttemptCount; attempt++)
             {
-                return await TryLoadShellThumbnailOnceAsync(item, metadata, cancellationToken);
+                try
+                {
+                    return await TryLoadShellThumbnailOnceAsync(item, metadata, cancellationToken);
+                }
+                catch (COMException exception)
+                    when (exception.HResult == PendingThumbnailHResult &&
+                          attempt < ShellThumbnailAttemptCount - 1)
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(50 * (attempt + 1)), cancellationToken);
+                }
+                catch (COMException exception)
+                    when (exception.HResult == PendingThumbnailHResult)
+                {
+                    return null;
+                }
             }
-            catch (COMException exception)
-                when (exception.HResult == PendingThumbnailHResult &&
-                      attempt < ShellThumbnailAttemptCount - 1)
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(50 * (attempt + 1)), cancellationToken);
-            }
-            catch (COMException exception)
-                when (exception.HResult == PendingThumbnailHResult)
-            {
-                return null;
-            }
-        }
 
-        return null;
+            return null;
+        }
+        finally
+        {
+            ShellThumbnailGate.Release();
+        }
     }
 
     private static async Task<ShellThumbnailPresentation?> TryLoadShellThumbnailOnceAsync(

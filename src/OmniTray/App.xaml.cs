@@ -27,17 +27,23 @@ public partial class App : Application
     private readonly object _activationSync = new();
     private readonly AppSettingsService _appSettingsService;
     private readonly DispatcherQueue _dispatcherQueue;
+    private readonly CancellationTokenSource _uiThreadWatchdogCancellation = new();
+    private readonly string _uiThreadStallLogPath;
     private readonly DropCommandExecutionService _dropCommandExecutionService = new();
     private readonly DropCommandRepository _dropCommandRepository = new();
     private readonly Dictionary<EdgeShelfSide, MenuFlyoutItem> _edgeShelfMenuItems = [];
     private readonly Queue<AppActivationArguments> _pendingActivations = new();
+    private readonly HashSet<string> _pendingVirtualStackProviderIds = new(StringComparer.Ordinal);
     private readonly HashSet<Guid> _runningDropCommands = [];
     private readonly StackRepository _stackRepository = new();
+    private readonly VirtualStackService _virtualStackService = new();
     private CancellationTokenSource? _catalogSaveDebounce;
     private CancellationTokenSource? _dropCommandSaveDebounce;
+    private string? _activeUiOperation;
     private MenuFlyoutSubItem? _edgeShelfMenu;
     private ToggleMenuFlyoutItem? _gameModeMenuItem;
     private bool _isInitialized;
+    private bool _isRefreshingVirtualStacks;
     private ToggleMenuFlyoutItem? _pauseEdgeWindowsMenuItem;
     private TaskbarIcon? _trayIcon;
     private WindowCoordinator? _windows;
@@ -49,6 +55,8 @@ public partial class App : Application
     public MainViewModel StackCatalogViewModel { get; } = new();
 
     internal DropCommandCatalogViewModel DropCommandCatalogViewModel { get; } = new();
+
+    internal VirtualStackService VirtualStacks => this._virtualStackService;
 
     internal bool AllowMoveOnDragOutPreference
     {
@@ -103,6 +111,11 @@ public partial class App : Application
         this._appSettingsService = new AppSettingsService();
         StackTintPalette.UseSystemAccentForNeutral = this._appSettingsService.UseSystemAccentForNeutral;
         this._dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+        this._uiThreadStallLogPath = Path.Combine(
+            Windows.Storage.ApplicationData.Current.LocalFolder.Path,
+            "ui-thread-stalls.log");
+        Debug.WriteLine($"OmniTray UI thread stall log: {this._uiThreadStallLogPath}");
+        _ = Task.Run(() => this.MonitorUiThreadAsync(this._uiThreadWatchdogCancellation.Token));
         this.StackCatalogViewModel.EdgeWindowsPaused = this._appSettingsService.EdgeWindowsPaused;
         this.StackCatalogViewModel.GameModeEnabled = this._appSettingsService.EdgeGameModeEnabled;
         this.StackCatalogViewModel.LeftEdgeWindowEnabled = this._appSettingsService.LeftEdgeWindowEnabled;
@@ -143,6 +156,7 @@ public partial class App : Application
         // These desktop notifications are backed by window messages. The WinRT
         // HighContrastChanged and ColorValuesChanged events are unsupported here.
         SystemEvents.UserPreferenceChanged += this.OnSystemUserPreferenceChanged;
+        this._virtualStackService.Changed += this.OnVirtualStacksChanged;
     }
 
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
@@ -156,6 +170,7 @@ public partial class App : Application
         this.StackCatalogViewModel.RestoreNoteHistory(catalog.DeletedNotes, catalog.NoteHistory);
         this.StackCatalogViewModel.RestoreEdgeShelves(catalog.EdgeShelves);
         this.DropCommandCatalogViewModel.Restore(commandCatalog);
+        await this.RefreshVirtualStacksAsync();
         this._windows = new WindowCoordinator(
             this.StackCatalogViewModel,
             this.DropCommandCatalogViewModel,
@@ -335,7 +350,7 @@ public partial class App : Application
     {
         ArgumentNullException.ThrowIfNull(stack);
 
-        var ownedItems = stack.Model.Items.ToArray();
+        var ownedItems = stack.IsVirtual ? [] : stack.Model.Items.ToArray();
         if (this.StackCatalogViewModel.RemoveStack(stack))
         {
             await this.DeleteUnreferencedCapturesAsync(ownedItems);
@@ -345,6 +360,7 @@ public partial class App : Application
     public async Task ClearStacksAsync()
     {
         var ownedItems = this.StackCatalogViewModel.Stacks
+            .Where(static stack => !stack.IsVirtual)
             .SelectMany(static stack => stack.Model.Items)
             .ToArray();
         this.StackCatalogViewModel.ClearStacks();
@@ -358,8 +374,59 @@ public partial class App : Application
         ArgumentNullException.ThrowIfNull(stack);
         ArgumentNullException.ThrowIfNull(itemIds);
 
-        var removedItems = stack.RemoveItems(itemIds);
+        var ids = itemIds.ToArray();
+        if (stack.Model.VirtualSource is { } source)
+        {
+            if (!stack.CanRemoveItems)
+            {
+                this.ShowToast($"Items cannot be removed from {stack.Name}.", InfoBarSeverity.Warning);
+                return;
+            }
+
+            await this._virtualStackService.RemoveAsync(source, ids);
+            await this.RefreshVirtualStackAsync(stack);
+            return;
+        }
+
+        var removedItems = stack.RemoveItems(ids);
         await this.DeleteUnreferencedCapturesAsync(removedItems);
+    }
+
+    internal async Task<int> AddItemsToStackAsync(
+        DropStackViewModel stack,
+        IReadOnlyList<DropItem> items,
+        bool releaseItemsWhenVirtual = false)
+    {
+        ArgumentNullException.ThrowIfNull(stack);
+        ArgumentNullException.ThrowIfNull(items);
+        if (!this.StackCatalogViewModel.Stacks.Contains(stack))
+        {
+            if (releaseItemsWhenVirtual && stack.IsVirtual)
+            {
+                await ContentStore.DeleteOwnedAsync(items);
+            }
+
+            return 0;
+        }
+
+        if (stack.Model.VirtualSource is not { } source)
+        {
+            return stack.AppendDroppedItems(items);
+        }
+
+        try
+        {
+            await this._virtualStackService.WriteAsync(source, items);
+            await this.RefreshVirtualStackAsync(stack);
+            return items.Count;
+        }
+        finally
+        {
+            if (releaseItemsWhenVirtual)
+            {
+                await ContentStore.DeleteOwnedAsync(items);
+            }
+        }
     }
 
     internal async Task InsertClipboardContentAsync(DropStackViewModel stack)
@@ -368,6 +435,12 @@ public partial class App : Application
 
         try
         {
+            if (!stack.CanWriteItems)
+            {
+                this.ShowToast($"{stack.Name} is read-only.", InfoBarSeverity.Warning);
+                return;
+            }
+
             var items = await DragDropDataService.ReadAsync(
                 Clipboard.GetContent(),
                 CaptureChannel.Clipboard);
@@ -385,7 +458,10 @@ public partial class App : Application
                 return;
             }
 
-            var addedCount = stack.AppendDroppedItems(items);
+            var addedCount = await this.AddItemsToStackAsync(
+                stack,
+                items,
+                releaseItemsWhenVirtual: true);
             var skippedCount = items.Count - addedCount;
             if (addedCount == 0)
             {
@@ -445,6 +521,11 @@ public partial class App : Application
             return;
         }
 
+        if (!stack.CanRemoveItems)
+        {
+            return;
+        }
+
         var requestedIds = itemReference.ItemIds.ToHashSet();
         var removalIds = stack.Model.Items
             .Where(item => requestedIds.Contains(item.Id))
@@ -465,12 +546,21 @@ public partial class App : Application
 
     public DropStackViewModel SplitStack(
         DropStackViewModel stack,
-        IEnumerable<Guid> itemIds) =>
-        this.StackCatalogViewModel.SplitStack(stack, itemIds);
+        IEnumerable<Guid> itemIds)
+    {
+        if (stack.IsVirtual)
+        {
+            throw new InvalidOperationException("Virtual stacks cannot be split.");
+        }
+
+        return this.StackCatalogViewModel.SplitStack(stack, itemIds);
+    }
 
     public bool CombineStacks(
         DropStackViewModel target,
         DropStackViewModel source) =>
+        !target.IsVirtual &&
+        !source.IsVirtual &&
         this.StackCatalogViewModel.CombineStacks(target, source);
 
     internal async Task<bool> TransferItemsAsync(
@@ -497,6 +587,40 @@ public partial class App : Application
         if (sourceItems.Length != requestedIds.Count)
         {
             return false;
+        }
+
+        if (!target.CanWriteItems || ReferenceEquals(source, target) && target.IsVirtual)
+        {
+            return false;
+        }
+
+        if (target.Model.VirtualSource is { } targetSource)
+        {
+            await this._virtualStackService.WriteAsync(targetSource, sourceItems);
+            await this.RefreshVirtualStackAsync(target);
+            if (!copy && source.CanRemoveItems)
+            {
+                await this.RemoveItemsAsync(source, itemReference.ItemIds);
+            }
+
+            return true;
+        }
+
+        if (source.IsVirtual)
+        {
+            var detachedItems = await ContentStore.CopyItemsAsync(sourceItems);
+            if (!this.StackCatalogViewModel.InsertItems(target, detachedItems, targetIndex))
+            {
+                await ContentStore.DeleteOwnedAsync(detachedItems);
+                return false;
+            }
+
+            if (!copy && source.CanRemoveItems)
+            {
+                await this.RemoveItemsAsync(source, itemReference.ItemIds);
+            }
+
+            return true;
         }
 
         if (ReferenceEquals(source, target) && !allowSameStackCopy)
@@ -529,6 +653,81 @@ public partial class App : Application
 
         await ContentStore.DeleteOwnedAsync(copies);
         return false;
+    }
+
+    internal async Task RefreshVirtualStackAsync(DropStackViewModel stack, bool reportError = true)
+    {
+        ArgumentNullException.ThrowIfNull(stack);
+        if (stack.Model.VirtualSource is not { } source)
+        {
+            return;
+        }
+
+        try
+        {
+            var items = source.Can(VirtualStackCapabilities.Read)
+                ? await this._virtualStackService.ReadAsync(source)
+                : [];
+            if (this.StackCatalogViewModel.Stacks.Contains(stack) &&
+                Equals(stack.Model.VirtualSource, source))
+            {
+                using var operation = this.TrackUiOperation(
+                    $"Apply virtual stack '{stack.Name}' ({items.Count:N0} items)");
+                stack.RefreshVirtualItems(items);
+            }
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine($"Could not refresh virtual stack '{stack.Name}': {exception}");
+            if (reportError)
+            {
+                this.ShowToast(
+                    $"{stack.Name} could not be refreshed: {exception.Message}",
+                    InfoBarSeverity.Error);
+            }
+        }
+    }
+
+    private async Task RefreshVirtualStacksAsync(string? providerId = null)
+    {
+        foreach (var stack in this.StackCatalogViewModel.Stacks
+            .Where(stack => stack.Model.VirtualSource is { } source &&
+                (providerId is null || string.Equals(source.ProviderId, providerId, StringComparison.Ordinal)))
+            .ToArray())
+        {
+            await this.RefreshVirtualStackAsync(stack, reportError: false);
+        }
+    }
+
+    private void OnVirtualStacksChanged(string providerId) =>
+        this.RunOnUiThread(() => this.QueueVirtualStackRefresh(providerId));
+
+    private void QueueVirtualStackRefresh(string providerId)
+    {
+        this._pendingVirtualStackProviderIds.Add(providerId);
+        if (this._isRefreshingVirtualStacks)
+        {
+            return;
+        }
+
+        this._isRefreshingVirtualStacks = true;
+        _ = this.RefreshPendingVirtualStacksAsync();
+    }
+
+    private async Task RefreshPendingVirtualStacksAsync()
+    {
+        while (this._pendingVirtualStackProviderIds.Count > 0)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(250));
+            var providerIds = this._pendingVirtualStackProviderIds.ToArray();
+            this._pendingVirtualStackProviderIds.Clear();
+            foreach (var providerId in providerIds)
+            {
+                await this.RefreshVirtualStacksAsync(providerId);
+            }
+        }
+
+        this._isRefreshingVirtualStacks = false;
     }
 
     private void InitializeTrayIcon()
@@ -986,6 +1185,70 @@ public partial class App : Application
         _ = this._dispatcherQueue.TryEnqueue(() => action());
     }
 
+    internal IDisposable TrackUiOperation(string description)
+    {
+        Debug.Assert(this._dispatcherQueue.HasThreadAccess);
+        var previousDescription = Volatile.Read(ref this._activeUiOperation);
+        Volatile.Write(ref this._activeUiOperation, description);
+        return new UiOperationScope(this, previousDescription);
+    }
+
+    private async Task MonitorUiThreadAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (true)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken).ConfigureAwait(false);
+                var ping = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var pingStarted = Stopwatch.GetTimestamp();
+                var pingCompleted = 0L;
+                if (!this._dispatcherQueue.TryEnqueue(() =>
+                {
+                    Volatile.Write(ref pingCompleted, Stopwatch.GetTimestamp());
+                    ping.TrySetResult(true);
+                }))
+                {
+                    return;
+                }
+
+                var timeout = Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+                if (ReferenceEquals(await Task.WhenAny(ping.Task, timeout).ConfigureAwait(false), ping.Task))
+                {
+                    continue;
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                var operation = Volatile.Read(ref this._activeUiOperation) ?? "untracked";
+                await this.WriteUiThreadStallLogAsync(
+                    $"UI thread unresponsive for at least 1,000 ms; active operation: {operation}",
+                    cancellationToken).ConfigureAwait(false);
+                await ping.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                var elapsed = Stopwatch.GetElapsedTime(pingStarted, Volatile.Read(ref pingCompleted));
+                await this.WriteUiThreadStallLogAsync(
+                    $"UI thread responsive after {elapsed.TotalMilliseconds:N0} ms; active operation was: {operation}",
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine($"OmniTray UI thread monitor stopped: {exception}");
+        }
+    }
+
+    private async Task WriteUiThreadStallLogAsync(string message, CancellationToken cancellationToken)
+    {
+        var line = $"{DateTimeOffset.Now:O} {message}";
+        Debug.WriteLine(line);
+        await File.AppendAllTextAsync(
+            this._uiThreadStallLogPath,
+            line + Environment.NewLine,
+            cancellationToken).ConfigureAwait(false);
+    }
+
     private async void ExitApplication()
     {
         this._windows?.SetNoteEditingEnabled(false);
@@ -1003,8 +1266,32 @@ public partial class App : Application
         }
 
         SystemEvents.UserPreferenceChanged -= this.OnSystemUserPreferenceChanged;
+        this._uiThreadWatchdogCancellation.Cancel();
+        this._virtualStackService.Changed -= this.OnVirtualStacksChanged;
+        this._virtualStackService.Dispose();
         this._trayIcon?.Dispose();
         this._trayIcon = null;
         Environment.Exit(0);
+    }
+
+    private sealed class UiOperationScope : IDisposable
+    {
+        private readonly string? _previousDescription;
+        private App? _app;
+
+        internal UiOperationScope(App app, string? previousDescription)
+        {
+            this._app = app;
+            this._previousDescription = previousDescription;
+        }
+
+        public void Dispose()
+        {
+            var app = Interlocked.Exchange(ref this._app, null);
+            if (app is not null)
+            {
+                Volatile.Write(ref app._activeUiOperation, this._previousDescription);
+            }
+        }
     }
 }

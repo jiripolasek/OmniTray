@@ -67,6 +67,7 @@ public sealed partial class StackOrganizerWindow : Window
         this._overviewPage.ClipboardStackRequested += this.OnClipboardStackRequested;
         this._overviewPage.DetailsPaneToggleRequested += this.OnDetailsPaneToggleRequested;
         this._stackPage.BackRequested += this.OnStackBackRequested;
+        this._stackPage.ConfigureVirtualStackRequested += this.OnConfigureVirtualStackRequested;
         this._stackPage.DetailsPaneToggleRequested += this.OnDetailsPaneToggleRequested;
         this._stackPage.SelectedItemsChanged += this.OnSelectedItemsChanged;
         this._searchPage.BackRequested += this.OnSearchBackRequested;
@@ -173,6 +174,7 @@ public sealed partial class StackOrganizerWindow : Window
                 break;
             case "notes": this.ShowNotesPage(); break;
             case "new-stack": this.CreateNewStack(); break;
+            case "new-virtual-stack": await this.CreateNewVirtualStackAsync(); break;
             case "new-stack-from-clipboard": await this.CreateNewStackFromClipboardAsync(); break;
             case "settings": App.Current.ShowSettings(); break;
         }
@@ -254,6 +256,22 @@ public sealed partial class StackOrganizerWindow : Window
             }
         });
     }
+
+    private async Task CreateNewVirtualStackAsync()
+    {
+        var model = await VirtualStackDialogService.CreateAsync(this, this.RootGrid.XamlRoot);
+        if (model is null)
+        {
+            return;
+        }
+
+        var stack = this.ViewModel.Catalog.AddStack(model);
+        this.OpenCreatedStack(stack, this.Navigation.ScopeSide);
+        await App.Current.RefreshVirtualStackAsync(stack);
+    }
+
+    private async void OnConfigureVirtualStackRequested(object? sender, DropStackViewModel stack) =>
+        await VirtualStackDialogService.ConfigureAsync(this, this.RootGrid.XamlRoot, stack);
 
     private async Task CreateNewStackFromClipboardAsync()
     {
@@ -346,6 +364,7 @@ public sealed partial class StackOrganizerWindow : Window
         this._overviewPage.DetailsPaneToggleRequested -= this.OnDetailsPaneToggleRequested;
         this._overviewPage.ClearInsertionAdorner();
         this._stackPage.BackRequested -= this.OnStackBackRequested;
+        this._stackPage.ConfigureVirtualStackRequested -= this.OnConfigureVirtualStackRequested;
         this._stackPage.DetailsPaneToggleRequested -= this.OnDetailsPaneToggleRequested;
         this._stackPage.SelectedItemsChanged -= this.OnSelectedItemsChanged;
         this._searchPage.BackRequested -= this.OnSearchBackRequested;

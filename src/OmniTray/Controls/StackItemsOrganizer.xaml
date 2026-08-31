@@ -87,6 +87,7 @@
                         CornerRadius="6"
                         Visibility="{x:Bind NonNoteVisibility}">
                         <controls:ThumbnailImagePresenter
+                            x:Phase="1"
                             HasVideoFilmstrip="{x:Bind ThumbnailHasVideoFilmstrip, Mode=OneWay}"
                             IsShellIcon="{x:Bind ThumbnailIsShellIcon, Mode=OneWay}"
                             ShellIconSize="32"
@@ -179,6 +180,7 @@
                         CornerRadius="8"
                         Visibility="{x:Bind NonNoteVisibility}">
                         <controls:ThumbnailImagePresenter
+                            x:Phase="1"
                             HasVideoFilmstrip="{x:Bind ThumbnailHasVideoFilmstrip, Mode=OneWay}"
                             IsShellIcon="{x:Bind ThumbnailIsShellIcon, Mode=OneWay}"
                             ShellIconSize="64"
@@ -252,6 +254,7 @@
                         CornerRadius="7"
                         Visibility="{x:Bind NonNoteVisibility}">
                         <controls:ThumbnailImagePresenter
+                            x:Phase="1"
                             HasVideoFilmstrip="{x:Bind ThumbnailHasVideoFilmstrip, Mode=OneWay}"
                             IsShellIcon="{x:Bind ThumbnailIsShellIcon, Mode=OneWay}"
                             ShellIconSize="72"
@@ -342,6 +345,7 @@
                         CornerRadius="8"
                         Visibility="{x:Bind NonNoteVisibility}">
                         <controls:ThumbnailImagePresenter
+                            x:Phase="1"
                             HasVideoFilmstrip="{x:Bind ThumbnailHasVideoFilmstrip, Mode=OneWay}"
                             IsShellIcon="{x:Bind ThumbnailIsShellIcon, Mode=OneWay}"
                             ShellIconSize="64"
@@ -444,6 +448,7 @@
                         CornerRadius="7"
                         Visibility="{x:Bind NonNoteVisibility}">
                         <controls:ThumbnailImagePresenter
+                            x:Phase="1"
                             HasVideoFilmstrip="{x:Bind ThumbnailHasVideoFilmstrip, Mode=OneWay}"
                             IsShellIcon="{x:Bind ThumbnailIsShellIcon, Mode=OneWay}"
                             ShellIconSize="72"

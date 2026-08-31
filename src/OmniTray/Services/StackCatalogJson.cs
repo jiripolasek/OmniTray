@@ -81,7 +81,9 @@ internal static class StackCatalogJson
         stack.Tint,
         stack.Items.Select(RestoreItem),
         stack.InspectorViewMode,
-        stack.AttachedNotes);
+        stack.AttachedNotes,
+        RestoreVirtualSource(stack.VirtualSource),
+        stack.ItemSortMode);
 
     private static DropItem RestoreItem(ItemDocument item) => DropItem.Restore(
         item.Id,
@@ -113,8 +115,25 @@ internal static class StackCatalogJson
         Name = stack.Name,
         Tint = stack.Tint,
         InspectorViewMode = stack.InspectorViewMode,
-        Items = [.. stack.Items.Select(CreateItemDocument)]
+        ItemSortMode = stack.ItemSortMode,
+        VirtualSource = CreateVirtualSourceDocument(stack.VirtualSource),
+        Items = [.. (stack.VirtualSource is null ? stack.Items : []).Select(CreateItemDocument)]
     };
+
+    private static VirtualStackSource? RestoreVirtualSource(VirtualStackSourceDocument? source) =>
+        source is null
+            ? null
+            : VirtualStackSource.Create(source.ProviderId, source.Configuration, source.Capabilities);
+
+    private static VirtualStackSourceDocument? CreateVirtualSourceDocument(VirtualStackSource? source) =>
+        source is null
+            ? null
+            : new VirtualStackSourceDocument
+            {
+                ProviderId = source.ProviderId,
+                Configuration = source.Configuration,
+                Capabilities = source.Capabilities
+            };
 
     private static ItemDocument CreateItemDocument(DropItem item) => new()
     {
@@ -283,11 +302,24 @@ internal sealed class StackDocument
 
     public StackInspectorViewMode InspectorViewMode { get; set; } = StackInspectorViewMode.List;
 
+    public StackItemSortMode ItemSortMode { get; set; } = StackItemSortMode.Default;
+
+    public VirtualStackSourceDocument? VirtualSource { get; set; }
+
     public List<ItemDocument> Items { get; set; } = [];
 
     // Read compatibility only. Current catalogs store stack notes in Items.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<StickyNote>? AttachedNotes { get; set; }
+}
+
+internal sealed class VirtualStackSourceDocument
+{
+    public string ProviderId { get; set; } = string.Empty;
+
+    public string? Configuration { get; set; }
+
+    public VirtualStackCapabilities Capabilities { get; set; }
 }
 
 internal sealed class ItemDocument

@@ -57,7 +57,14 @@ public static class StackCatalogReader
             item.Note,
             item.AttachedNotes)),
         stack.InspectorViewMode,
-        stack.AttachedNotes);
+        stack.AttachedNotes,
+        RestoreVirtualSource(stack.VirtualSource),
+        stack.ItemSortMode);
+
+    private static VirtualStackSource? RestoreVirtualSource(VirtualStackSourceReadDocument? source) =>
+        source is null
+            ? null
+            : VirtualStackSource.Create(source.ProviderId, source.Configuration, source.Capabilities);
 
     private static IReadOnlyList<DropItemDataFormat> RestoreCustomFormats(
         IEnumerable<ItemDataFormatReadDocument> documents)
@@ -103,9 +110,22 @@ internal sealed class StackReadDocument
 
     public StackInspectorViewMode InspectorViewMode { get; set; } = StackInspectorViewMode.List;
 
+    public StackItemSortMode ItemSortMode { get; set; } = StackItemSortMode.Default;
+
+    public VirtualStackSourceReadDocument? VirtualSource { get; set; }
+
     public List<ItemReadDocument> Items { get; set; } = [];
 
     public List<StickyNote> AttachedNotes { get; set; } = [];
+}
+
+internal sealed class VirtualStackSourceReadDocument
+{
+    public string ProviderId { get; set; } = string.Empty;
+
+    public string? Configuration { get; set; }
+
+    public VirtualStackCapabilities Capabilities { get; set; }
 }
 
 internal sealed class ItemReadDocument

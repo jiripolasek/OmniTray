@@ -172,6 +172,7 @@
                                             <MenuFlyoutItem
                                                 Click="OnInsertClipboardContentMenuClick"
                                                 Icon="Paste"
+                                                IsEnabled="{x:Bind CanWriteItems, Mode=OneWay}"
                                                 Tag="{x:Bind}"
                                                 Text="Insert Clipboard content" />
                                             <MenuFlyoutSubItem Icon="DockRight" Text="Edge shelf">
@@ -446,6 +447,7 @@
                                             x:Name="OrganizerPanel"
                                             Grid.Row="1"
                                             Margin="12,0,12,10"
+                                            OwnsScrolling="{x:Bind IsVirtual, Mode=OneWay}"
                                             Stack="{x:Bind}"
                                             StackCardDisplayMode="{x:Bind VerticalStackCardDisplayMode, Mode=OneWay}"
                                             Visibility="Collapsed" />

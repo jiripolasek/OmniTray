@@ -245,6 +245,14 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem
+                    Content="New virtual stack"
+                    SelectsOnInvoked="False"
+                    Tag="new-virtual-stack">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE753;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem
                     AllowDrop="True"
                     AutomationProperties.HelpText="Create a stack from the clipboard, or drop items here to create a stack in the selected location."
                     Content="New stack from clipboard"

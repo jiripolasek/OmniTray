@@ -13,6 +13,7 @@ namespace OmniTray.Views.Organizer;
 public sealed partial class StackContentsPage : Page, IDisposable
 {
     internal event EventHandler? BackRequested;
+    internal event EventHandler<DropStackViewModel>? ConfigureVirtualStackRequested;
     internal event EventHandler? DetailsPaneToggleRequested;
     internal event EventHandler? SelectedItemsChanged;
     public StackContentsViewModel ViewModel { get; }
@@ -42,6 +43,8 @@ public sealed partial class StackContentsPage : Page, IDisposable
         this.ViewModel.SetStack(stack, fromSearch);
         this.ItemsOrganizer.Stack = stack;
         NoteMenu.SetStack(this.EditorNotesMenu, stack);
+        this.PasteIntoStackButton.IsEnabled = stack?.CanWriteItems ?? false;
+        this.ConfigureVirtualStackButton.Visibility = stack?.VirtualConfigurationVisibility ?? Visibility.Collapsed;
         this.ApplyCollectionViewMode(this.ViewModel.LayoutMode);
 
         this.OnSelectedItemsChanged(this, EventArgs.Empty);
@@ -147,6 +150,14 @@ public sealed partial class StackContentsPage : Page, IDisposable
         if (this.ViewModel.Stack is { } stack)
         {
             await App.Current.InsertClipboardContentAsync(stack);
+        }
+    }
+
+    private void OnConfigureVirtualStackClick(object sender, RoutedEventArgs args)
+    {
+        if (this.ViewModel.Stack is { } stack)
+        {
+            this.ConfigureVirtualStackRequested?.Invoke(this, stack);
         }
     }
 

@@ -234,6 +234,34 @@ public sealed partial class TrayWindow : TransparentWindow
             expansion.Bounds.Y - this._shadowMarginInPixels,
             expansion.Bounds.Width + (this._shadowMarginInPixels * 2),
             expansion.Bounds.Height + (this._shadowMarginInPixels * 2)));
+        this.UpdateWindowRegion();
+    }
+
+    private void UpdateWindowRegion()
+    {
+        if (!this._isFixedHostConfigured ||
+            this._compactBounds is not { } compactBounds)
+        {
+            return;
+        }
+
+        if (this._isInspectorOpen)
+        {
+            this.SetWindowRegion(null);
+            return;
+        }
+
+        var windowSize = new System.Drawing.Size(this.AppWindow.Size.Width, this.AppWindow.Size.Height);
+        var region = TrayWindowPlacement.GetInteractiveBounds(
+            windowSize,
+            new System.Drawing.Size(compactBounds.Width, compactBounds.Height),
+            this._shadowMarginInPixels,
+            false,
+            this._horizontalExpansionOrigin,
+            this._verticalExpansionOrigin);
+        region.Inflate(this._shadowMarginInPixels, this._shadowMarginInPixels);
+        region.Intersect(new System.Drawing.Rectangle(System.Drawing.Point.Empty, windowSize));
+        this.SetWindowRegion(new RectInt32(region.X, region.Y, region.Width, region.Height));
     }
 
     internal void ShowInspector(TrayInspectorMode mode)
@@ -312,9 +340,10 @@ public sealed partial class TrayWindow : TransparentWindow
             0.2,
             1);
         this.InspectorHost.Opacity = 0;
-        this.InspectorHost.Visibility = Visibility.Visible;
 
         this._isInspectorOpen = true;
+        this.UpdateWindowRegion();
+        this.InspectorHost.Visibility = Visibility.Visible;
         this.SetTitleBar(this._inspector.WindowDragRegion);
 
         if (!this._uiSettings.AnimationsEnabled)
@@ -423,6 +452,7 @@ public sealed partial class TrayWindow : TransparentWindow
         this.InspectorScale.ScaleY = 1;
         this.CompactSurface.Opacity = 1;
         this.CompactSurface.IsHitTestVisible = true;
+        this.UpdateWindowRegion();
         this.SetTitleBar(this.CompactDragRegion);
         this._inspector?.OnPopupClosed();
     }

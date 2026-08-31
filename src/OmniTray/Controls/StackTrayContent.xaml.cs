@@ -102,6 +102,16 @@ internal sealed partial class StackTrayContent : UserControl, ITrayWindowContent
     {
         this.CancelInspectorHover();
         args.Handled = true;
+        if (!this.ViewModel.CanWriteItems && !DragDropDataService.HasStackReference(args.DataView))
+        {
+            args.AcceptedOperation = DataPackageOperation.None;
+            args.DragUIOverride.Caption = "This stack is read-only";
+            args.DragUIOverride.IsCaptionVisible = true;
+            args.DragUIOverride.IsContentVisible = true;
+            this.SetDropHintVisible(false);
+            return;
+        }
+
         if (DragDropDataService.HasStackReference(args.DataView))
         {
             args.AcceptedOperation = DataPackageOperation.None;
@@ -170,7 +180,10 @@ internal sealed partial class StackTrayContent : UserControl, ITrayWindowContent
             var items = await DragDropDataService.ReadAsync(args.DataView);
             if (items.Count > 0)
             {
-                this.ViewModel.AppendDroppedItems(items);
+                await App.Current.AddItemsToStackAsync(
+                    this.ViewModel,
+                    items,
+                    releaseItemsWhenVirtual: true);
             }
         }
         catch
@@ -218,10 +231,12 @@ internal sealed partial class StackTrayContent : UserControl, ITrayWindowContent
     private void ConfigureItemTransferDragOver(DragEventArgs args, string caption)
     {
         var sameStack = DragDropDataService.ActiveItemReference?.SourceStackId == this.ViewModel.Model.Id;
-        if (sameStack)
+        if (sameStack || !this.ViewModel.CanWriteItems)
         {
             args.AcceptedOperation = DataPackageOperation.None;
-            args.DragUIOverride.Caption = "Item is already in this stack";
+            args.DragUIOverride.Caption = sameStack
+                ? "Item is already in this stack"
+                : "This stack is read-only";
             args.DragUIOverride.IsCaptionVisible = true;
             args.DragUIOverride.IsContentVisible = true;
             return;
